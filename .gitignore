@@ -1,0 +1,13 @@
+# Fichiers APK propriétaires téléchargés pour l'analyse (pas versionnés)
+APK/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+
+# Sorties locales
+*.jsonl
