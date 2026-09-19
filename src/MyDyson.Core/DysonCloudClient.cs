@@ -189,6 +189,15 @@ public sealed class DysonCloudClient : IDisposable
     public Task<List<MapMetadata>> GetMapMetadataAsync(string serial, CancellationToken ct = default) =>
         SendAsync<List<MapMetadata>>(Request(HttpMethod.Get, Url($"/v2/app/{serial}/persistent-map-metadata", withCountry: false), auth: true), ct);
 
+    /// <summary>
+    /// Saves zone settings, selection and order for a map. The body is the zone list as returned by
+    /// <see cref="GetMapMetadataAsync"/>, with the fields changed. This is how the app persists the
+    /// per-room clean type shown on its map (documented by the ha-dyson-spot-scrub project; the
+    /// endpoint exists in the APK as a PUT).
+    /// </summary>
+    public Task UpdateMapZonesAsync(string serial, string mapId, IReadOnlyList<ZoneMetadata> zones, CancellationToken ct = default) =>
+        SendAsync<string>(Request(HttpMethod.Put, Url($"/v2/app/{serial}/persistent-map-metadata/{mapId}", withCountry: false), zones, auth: true), ct);
+
     /// <summary>One stored map with zone geometry, dock, furniture and restrictions. About 45 KB.</summary>
     public Task<PersistentMap> GetPersistentMapAsync(string serial, string mapId, CancellationToken ct = default) =>
         SendAsync<PersistentMap>(Request(HttpMethod.Get, Url($"/v2/app/{serial}/persistent-maps/{mapId}", withCountry: false), auth: true), ct);

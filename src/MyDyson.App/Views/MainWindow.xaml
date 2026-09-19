@@ -2,81 +2,197 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:MyDyson.App.Controls"
-        Title="Dyson Spot+Scrub AI" Width="1180" Height="800" MinWidth="900" MinHeight="600"
+        xmlns:vm="clr-namespace:MyDyson.App.ViewModels"
+        Title="Dyson Spot+Scrub AI" Width="1240" Height="820" MinWidth="960" MinHeight="640"
         WindowStartupLocation="CenterScreen"
-        Background="#1e1e22" Foreground="White" FontFamily="Segoe UI" FontSize="13">
+        Background="{DynamicResource BgBrush}" Foreground="{DynamicResource TextBrush}"
+        FontFamily="Segoe UI" FontSize="13">
     <Window.Resources>
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Margin" Value="0,0,8,8"/>
-            <Setter Property="Background" Value="#3a6ea5"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Style.Triggers>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Background" Value="#3a3a40"/>
-                    <Setter Property="Foreground" Value="#888"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Margin" Value="0,3"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <!-- Themed controls (ScrollViewer, TabControl, ListView…) reset the inherited Foreground to
-             the system text colour, so every TextBlock gets its colour explicitly. -->
+        <!-- Themed controls reset the inherited Foreground, so every text gets it explicitly. -->
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         </Style>
         <Style TargetType="TextBlock" x:Key="Label" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="Foreground" Value="#9a9aa4"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Margin" Value="0,8,0,2"/>
+            <Setter Property="Margin" Value="0,12,0,4"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="Muted" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style TargetType="TextBlock" x:Key="Section" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
-        <Style TargetType="TabItem">
-            <Setter Property="Foreground" Value="Black"/>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource DisabledBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="Button" x:Key="Secondary" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <!-- ComboBox with theme colours; the stock template ignores Background in dark mode. -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,2,0,6"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" Focusable="False" ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+                                            <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,9,0" Data="M0,0 L4,4 L8,0" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.5"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding ItemTemplate}"
+                                              Margin="8,0,26,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                                              TextElement.Foreground="{DynamicResource TextBrush}"/>
+                            <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                                <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+                                        MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter TextElement.Foreground="{DynamicResource TextBrush}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectionBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="ListView">
-            <Setter Property="Background" Value="#26262c"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
+        <Style TargetType="ListViewItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Padding" Value="4,3"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SelectionBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="GridViewColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
         <Style TargetType="ListBox">
-            <Setter Property="Background" Value="#26262c"/>
-            <Setter Property="Foreground" Value="#ccc"/>
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="{DynamicResource BgBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd" Background="Transparent" BorderThickness="0,0,0,2" BorderBrush="Transparent" Padding="{TemplateBinding Padding}" Margin="0,0,4,0">
+                            <ContentPresenter ContentSource="Header" TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
         </Style>
     </Window.Resources>
 
     <DockPanel>
         <!-- Header -->
-        <Border DockPanel.Dock="Top" Background="#26262c" Padding="16,10">
+        <Border DockPanel.Dock="Top" Background="{DynamicResource PanelBrush}" Padding="16,10">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
                     <Ellipse Width="10" Height="10" Margin="0,0,6,0">
                         <Ellipse.Style>
                             <Style TargetType="Ellipse">
-                                <Setter Property="Fill" Value="#e05050"/>
+                                <Setter Property="Fill" Value="{DynamicResource DangerBrush}"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Connected}" Value="True">
-                                        <Setter Property="Fill" Value="#3cb43c"/>
+                                        <Setter Property="Fill" Value="{DynamicResource SuccessBrush}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Ellipse.Style>
                     </Ellipse>
-                    <TextBlock Text="{Binding Connection}" VerticalAlignment="Center" Margin="0,0,16,0"/>
-                    <TextBlock Text="{Binding LastUpdate, StringFormat='mis à jour {0}'}" Foreground="#9a9aa4" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Connection}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock Text="{Binding LastUpdate, StringFormat='mis à jour {0}'}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <Button Content="↻ Actualiser" Command="{Binding RefreshCommand}" Style="{StaticResource Secondary}" Margin="0"/>
                 </StackPanel>
                 <StackPanel>
                     <TextBlock Text="{Binding RobotName}" FontSize="18" FontWeight="SemiBold"/>
-                    <TextBlock Foreground="#9a9aa4">
+                    <TextBlock Style="{StaticResource Muted}">
                         <Run Text="{Binding Serial, Mode=OneWay}"/> · firmware <Run Text="{Binding Firmware, Mode=OneWay}"/>
                     </TextBlock>
                 </StackPanel>
@@ -84,140 +200,218 @@
         </Border>
 
         <!-- Status bar -->
-        <Border DockPanel.Dock="Bottom" Background="#26262c" Padding="16,6">
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBrush}" Padding="16,6">
             <DockPanel>
                 <ProgressBar DockPanel.Dock="Right" Width="120" Height="4" IsIndeterminate="True" Visibility="{Binding Busy, Converter={StaticResource Show}}"/>
-                <TextBlock Text="{Binding Message}" Foreground="#f0c674"/>
+                <TextBlock Text="{Binding Message}" Foreground="{DynamicResource DangerBrush}"/>
             </DockPanel>
         </Border>
 
         <Grid Margin="16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="340"/>
+                <ColumnDefinition Width="360"/>
                 <ColumnDefinition Width="16"/>
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
 
-            <!-- Left column: state and controls -->
-            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Foreground="White">
-                <StackPanel>
-                    <TextBlock Text="{Binding StateText}" FontSize="20" FontWeight="SemiBold" Foreground="White"/>
-                    <TextBlock Text="{Binding ActionText}" Foreground="#9a9aa4"/>
-                    <TextBlock Text="{Binding DockText, StringFormat='Station : {0}'}" Foreground="#9a9aa4"
-                               Visibility="{Binding IsDrying, Converter={StaticResource Show}}"/>
-                    <TextBlock Text="{Binding FaultText}" Foreground="#e05050" FontWeight="SemiBold" TextWrapping="Wrap"
-                               Visibility="{Binding HasRealFault, Converter={StaticResource Show}}"/>
+            <!-- Left column -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Foreground="{DynamicResource TextBrush}">
+                <StackPanel Margin="0,0,8,0">
 
-                    <TextBlock Text="Batterie" Style="{StaticResource Label}"/>
-                    <Grid>
-                        <ProgressBar Value="{Binding Battery, Mode=OneWay}" Maximum="100" Height="18" Foreground="#3cb43c" Background="#2a2a30" BorderThickness="0"/>
-                        <TextBlock Text="{Binding Battery, StringFormat='{}{0} %'}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Foreground="White"/>
-                    </Grid>
+                    <!-- State -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding StateText}" FontSize="19" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding ActionText}" Style="{StaticResource Muted}"/>
+                            <TextBlock Text="{Binding DockText}" Style="{StaticResource Muted}"
+                                       Visibility="{Binding DockBusy, Converter={StaticResource Show}}"/>
+                            <TextBlock Text="{Binding FaultText}" Foreground="{DynamicResource DangerBrush}" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Visibility="{Binding HasRealFault, Converter={StaticResource Show}}"/>
+                            <Grid Margin="0,10,0,0">
+                                <ProgressBar Value="{Binding Battery, Mode=OneWay}" Maximum="100" Height="18" Foreground="{DynamicResource SuccessBrush}" Background="{DynamicResource CardBrush}" BorderThickness="0"/>
+                                <TextBlock Text="{Binding Battery, StringFormat='{}{0} %'}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                            </Grid>
+                            <WrapPanel Margin="0,12,0,-8">
+                                <Button Content="⏸ Pause" Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}" Style="{StaticResource Secondary}"/>
+                                <Button Content="⌂ Retour à la station" Command="{Binding AbortCommand}" IsEnabled="{Binding CanAbort}" Style="{StaticResource Secondary}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
 
-                    <TextBlock Text="Commandes" Style="{StaticResource Label}"/>
-                    <WrapPanel>
-                        <Button Content="▶ Nettoyer la sélection" Command="{Binding StartCleanCommand}" IsEnabled="{Binding CanStart}"/>
-                        <Button Content="⏸ Pause" Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}"/>
-                        <Button Content="⌂ Retour station" Command="{Binding AbortCommand}" IsEnabled="{Binding CanAbort}"/>
-                        <Button Content="Arrêter le séchage" Command="{Binding StopDryingCommand}" IsEnabled="{Binding IsDrying}"/>
-                        <Button Content="Vider le bac" Command="{Binding CollectDustCommand}"/>
-                        <Button Content="↻ Actualiser" Command="{Binding RefreshCommand}"/>
-                    </WrapPanel>
+                    <!-- Clean -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Nettoyage" Style="{StaticResource Section}"/>
+                            <TextBlock Text="Carte" Style="{StaticResource Label}" Margin="0,0,0,4"/>
+                            <ComboBox ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}">
+                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Text="Pièces, dans l'ordre de passage souhaité. Cochez-les ici ou cliquez-les sur la carte." Style="{StaticResource Label}" TextWrapping="Wrap"/>
+                            <ItemsControl ItemsSource="{Binding Zones}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:ZoneItem}">
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="22"/>
+                                                <ColumnDefinition/>
+                                                <ColumnDefinition Width="140"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding OrderText}" FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
+                                            <CheckBox Grid.Column="1" IsChecked="{Binding Selected}">
+                                                <TextBlock TextTrimming="CharacterEllipsis">
+                                                    <Run Text="{Binding Name, Mode=OneWay}"/>
+                                                    <Run Text="{Binding Area, Mode=OneWay, StringFormat='({0:F1} m²)'}" Foreground="{DynamicResource MutedBrush}"/>
+                                                </TextBlock>
+                                            </CheckBox>
+                                            <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:ZoneItem.CleanTypeOptions}" SelectedItem="{Binding SelectedCleanType}" Margin="8,0,0,0" FontSize="12">
+                                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Content="▶ Nettoyer la sélection" Command="{Binding StartCleanCommand}" IsEnabled="{Binding CanStart}" Margin="0,10,0,0" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Border>
 
-                    <TextBlock Style="{StaticResource Label}">
-                        <Run Text="Pièces de la carte"/> <Run Text="{Binding CurrentMapName, Mode=OneWay}"/>
-                    </TextBlock>
-                    <ItemsControl ItemsSource="{Binding Zones}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <CheckBox IsChecked="{Binding Selected}" Foreground="White">
-                                    <TextBlock Foreground="White">
-                                        <Run Text="{Binding Name, Mode=OneWay}"/>
-                                        <Run Text="{Binding Area, Mode=OneWay, StringFormat='({0:F1} m²)'}" Foreground="#9a9aa4"/>
-                                    </TextBlock>
-                                </CheckBox>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <!-- Dock -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Station" Style="{StaticResource Section}"/>
+                            <WrapPanel Margin="0,0,0,-8">
+                                <Button Content="Collecteur vide" Command="{Binding CollectDustCommand}" Style="{StaticResource Secondary}"/>
+                                <Button Content="{Binding WashDryLabel}" Command="{Binding WashDryCommand}" Style="{StaticResource Secondary}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
 
-                    <TextBlock Text="Consommables" Style="{StaticResource Label}"/>
-                    <ItemsControl ItemsSource="{Binding Consumables}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="0,2">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition/>
-                                        <ColumnDefinition Width="70"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="White"/>
-                                    <ProgressBar Grid.Column="1" Value="{Binding Bar, Mode=OneWay}" Maximum="100" Height="8" Foreground="#d6a76c" Background="#2a2a30" BorderThickness="0" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding Display}" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="#9a9aa4"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <!-- Consumables -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Consommables" Style="{StaticResource Section}"/>
+                            <TextBlock Text="Durée de vie restante ; à remplacer à 0 %." Style="{StaticResource Muted}" FontSize="11" Margin="0,-4,0,8"/>
+                            <ItemsControl ItemsSource="{Binding Consumables}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="140"/>
+                                                <ColumnDefinition/>
+                                                <ColumnDefinition Width="70"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                            <ProgressBar Grid.Column="1" Value="{Binding Remaining, Mode=OneWay}" Maximum="100" Height="8" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource CardBrush}" BorderThickness="0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Display}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Muted}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
 
             <!-- Right column: tabs -->
-            <TabControl x:Name="Tabs" Grid.Column="2" Background="#1e1e22" BorderThickness="0" Foreground="White">
+            <TabControl x:Name="Tabs" Grid.Column="2" Foreground="{DynamicResource TextBrush}">
                 <TabItem Header="Carte">
                     <DockPanel>
-                        <WrapPanel DockPanel.Dock="Top" Margin="0,8,0,0">
-                            <Button Content="Exporter en PNG" Command="{Binding ExportMapCommand}"/>
-                            <TextBlock Text="Cochez des pièces à gauche pour les mettre en avant. Le tracé affiché est celui du nettoyage sélectionné dans l'historique, sinon le dernier." Foreground="#9a9aa4" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="520"/>
-                        </WrapPanel>
-                        <controls:MapView Scene="{Binding Scene}" Margin="0,8,0,0"/>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,8,0,8">
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                <Button Content="Réinitialiser le zoom" Click="ResetZoom_Click" Style="{StaticResource Secondary}" Margin="0,0,8,0"/>
+                                <Button Content="Exporter en PNG" Command="{Binding ExportMapCommand}" Style="{StaticResource Secondary}" Margin="0"/>
+                            </StackPanel>
+                            <TextBlock Text="Cliquez une pièce pour la sélectionner, molette pour zoomer, glissez pour déplacer." Style="{StaticResource Muted}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <controls:MapView x:Name="MapCanvas" Scene="{Binding Scene}"/>
                     </DockPanel>
                 </TabItem>
 
                 <TabItem Header="Historique">
-                    <ListView ItemsSource="{Binding History}" SelectedItem="{Binding SelectedClean}" Margin="0,8,0,0">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="Date" Width="140" DisplayMemberBinding="{Binding When}"/>
-                                <GridViewColumn Header="Durée" Width="80" DisplayMemberBinding="{Binding Duration}"/>
-                                <GridViewColumn Header="Surface" Width="90" DisplayMemberBinding="{Binding Area}"/>
-                                <GridViewColumn Header="Batterie" Width="110" DisplayMemberBinding="{Binding Battery}"/>
-                                <GridViewColumn Header="Fautes" Width="90" DisplayMemberBinding="{Binding Faults}"/>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="220"/>
+                            <RowDefinition Height="8"/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <ListView ItemsSource="{Binding History}" SelectedItem="{Binding SelectedClean}">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Date" Width="140" DisplayMemberBinding="{Binding When}"/>
+                                    <GridViewColumn Header="Durée" Width="80" DisplayMemberBinding="{Binding Duration}"/>
+                                    <GridViewColumn Header="Surface" Width="90" DisplayMemberBinding="{Binding Area}"/>
+                                    <GridViewColumn Header="Batterie" Width="110" DisplayMemberBinding="{Binding Battery}"/>
+                                    <GridViewColumn Header="Fautes" Width="70" DisplayMemberBinding="{Binding Faults}"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                        <GridSplitter Grid.Row="1" Height="8" HorizontalAlignment="Stretch" Background="Transparent"/>
+                        <DockPanel Grid.Row="2">
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                                <Button DockPanel.Dock="Right" Content="Réinitialiser le zoom" Click="ResetHistoryZoom_Click" Style="{StaticResource Secondary}" Margin="0"/>
+                                <TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center">
+                                    <Run Text="Trajet du nettoyage sélectionné sur la carte"/> <Run Text="{Binding HistoryMapName, Mode=OneWay}" FontWeight="SemiBold"/>
+                                </TextBlock>
+                            </DockPanel>
+                            <controls:MapView x:Name="HistoryCanvas" Scene="{Binding HistoryScene}"/>
+                        </DockPanel>
+                    </Grid>
                 </TabItem>
 
                 <TabItem Header="Réglages">
-                    <StackPanel Margin="8,16" MaxWidth="480" HorizontalAlignment="Left">
-                        <TextBlock Text="Station" Style="{StaticResource Section}"/>
-                        <CheckBox Content="Eau chaude pour la serpillière" IsChecked="{Binding HotWaterMop}"/>
-                        <CheckBox Content="Chauffe-eau de la station" IsChecked="{Binding HotWaterSwitch}"/>
-                        <CheckBox Content="Détergent" IsChecked="{Binding Detergent}"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                        <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+                            <TextBlock Text="Réglages de lavage" Style="{StaticResource Section}"/>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <CheckBox IsChecked="{Binding HotWaterMop}" FontWeight="SemiBold" Content="Laver à l'eau chaude"/>
+                                    <TextBlock Text="Idéal pour les nettoyages en profondeur, déconseillé pour les parquets ou stratifiés" Style="{StaticResource Muted}" Margin="20,0,0,10"/>
+                                    <CheckBox IsChecked="{Binding Detergent}" FontWeight="SemiBold" Content="Laver avec le produit de nettoyage"/>
+                                    <TextBlock Text="Votre robot lavera le sol avec le produit de nettoyage dans la station" Style="{StaticResource Muted}" Margin="20,0,0,10"/>
+                                    <DockPanel Margin="0,4,0,0">
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding SolutionStatus}" Style="{StaticResource Muted}"/>
+                                        <TextBlock Text="Produit de nettoyage" FontWeight="SemiBold"/>
+                                    </DockPanel>
+                                    <TextBlock Text="Indique s'il reste suffisamment de produit dans la station" Style="{StaticResource Muted}" Margin="0,0,0,10"/>
+                                    <CheckBox IsChecked="{Binding WashMopBeforeClean}" FontWeight="SemiBold" Content="Prolonger les préparatifs de lavage"/>
+                                    <TextBlock Text="Garantit une couverture de nettoyage homogène en consacrant plus de temps à la préparation sur la station d'accueil" Style="{StaticResource Muted}" Margin="20,0,0,0"/>
+                                    <TextBlock Text="Le robot ne communique pas encore cet état ; la case reflète le dernier choix fait ici." Style="{StaticResource Muted}" FontSize="11" Margin="20,2,0,0"
+                                               Visibility="{Binding WashMopBeforeCleanKnown, Converter={StaticResource Collapse}}"/>
+                                </StackPanel>
+                            </Border>
 
-                        <TextBlock Style="{StaticResource Label}">
-                            <Run Text="Rinçage de la serpillière :"/> <Run Text="{Binding BackWashText, Mode=OneWay}"/>
-                        </TextBlock>
-                        <WrapPanel>
-                            <Button Content="Après chaque pièce" Command="{Binding BackWashPerRoomCommand}"/>
-                            <Button Content="Toutes les 15 min" Command="{Binding BackWashEvery15Command}"/>
-                            <Button Content="Toutes les 30 min" Command="{Binding BackWashEvery30Command}"/>
-                        </WrapPanel>
+                            <TextBlock Text="Réglages station" Style="{StaticResource Section}"/>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Text="Intervalle d'auto-nettoyage" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Définissez la fréquence à laquelle votre robot revient nettoyer son rouleau humide ou vider le collecteur pendant le nettoyage" Style="{StaticResource Muted}" Margin="0,0,0,6"/>
+                                    <ComboBox ItemsSource="{Binding BackWashOptions}" SelectedItem="{Binding BackWash}" Width="260" HorizontalAlignment="Left">
+                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock Text="{Binding BackWash.Description}" Style="{StaticResource Muted}" Margin="0,0,0,10"/>
+                                    <CheckBox IsChecked="{Binding HotWaterSwitch}" FontWeight="SemiBold" Content="S'autonettoie à l'eau chaude" Margin="0,0,0,10"/>
+                                    <TextBlock Text="Durée de séchage sur rouleau humide" FontWeight="SemiBold"/>
+                                    <ComboBox ItemsSource="{Binding DryOptions}" SelectedItem="{Binding DryDuration}" Width="260" HorizontalAlignment="Left">
+                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock Text="{Binding DryDuration.Description}" Style="{StaticResource Muted}"/>
+                                </StackPanel>
+                            </Border>
 
-                        <TextBlock Text="Intensité du séchage" Style="{StaticResource Label}"/>
-                        <StackPanel Orientation="Horizontal">
-                            <Slider Value="{Binding AirDryFrequency}" Minimum="3" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True" Width="160" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding AirDryFrequency}" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="White"/>
+                            <TextBlock Text="Réglages vocaux du robot" Style="{StaticResource Section}"/>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <CheckBox IsChecked="{Binding Alarm}" FontWeight="SemiBold" Content="Sons" Margin="0,0,0,10"/>
+                                    <TextBlock Text="Volume" FontWeight="SemiBold"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Slider Value="{Binding Volume}" Minimum="0" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="True" Width="200" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Volume}" Margin="10,0,10,0" VerticalAlignment="Center" Width="30"/>
+                                        <Button Content="Appliquer" Command="{Binding ApplyVolumeCommand}" Margin="0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="Chaque réglage est envoyé au robot immédiatement, comme le fait l'application officielle." Style="{StaticResource Muted}"/>
                         </StackPanel>
-
-                        <TextBlock Text="Robot" Style="{StaticResource Section}" Margin="0,24,0,8"/>
-                        <CheckBox Content="Sons" IsChecked="{Binding Alarm}"/>
-                        <TextBlock Text="Volume" Style="{StaticResource Label}"/>
-                        <StackPanel Orientation="Horizontal">
-                            <Slider Value="{Binding Volume}" Minimum="0" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="True" Width="200" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding Volume}" Margin="10,0,10,0" VerticalAlignment="Center" Width="30" Foreground="White"/>
-                            <Button Content="Appliquer" Command="{Binding ApplyVolumeCommand}" Margin="0"/>
-                        </StackPanel>
-                        <TextBlock Text="Chaque réglage est envoyé au robot immédiatement, dans les deux dialectes, comme le fait l'application officielle." Foreground="#9a9aa4" TextWrapping="Wrap" Margin="0,16,0,0"/>
-                    </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
 
                 <TabItem Header="Journal">

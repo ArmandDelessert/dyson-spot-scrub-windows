@@ -480,14 +480,48 @@ public sealed class RobotMqttClient : IAsyncDisposable
         await PublishJdmAsync("service.start_explore", new JsonObject { ["mode"] = 0 }, ct).ConfigureAwait(false);
     }
 
-    /// <summary>Empties the robot's bin into the dock now (START-DOCK-ACTION COLLECT_DUST).</summary>
-    public Task CollectDustAsync(CancellationToken ct = default) =>
-        PublishCommandAsync(new JsonObject
+    // ---- Dock actions --------------------------------------------------------------
+    //
+    // Classic START-DOCK-ACTION / ABORT-DOCK-ACTION are paired with jdm service.start_station_act
+    // {ctrl_value: 1 start / 0 stop, station_act: 1 wash, 2 dry, 3 collect dust}. Captured: collect
+    // dust (1, 3) and stopping the drying (0, 2). Washing as 1 is inferred from the APK's enum order
+    // WASH_MOP, DRY_MOP, COLLECT_DUST.
+
+    public const int StationActWash = 1;
+    public const int StationActDry = 2;
+    public const int StationActCollectDust = 3;
+
+    private async Task DockActionAsync(bool start, string action, int stationAct, CancellationToken ct)
+    {
+        await PublishCommandAsync(new JsonObject
         {
-            ["msg"] = "START-DOCK-ACTION",
+            ["msg"] = start ? "START-DOCK-ACTION" : "ABORT-DOCK-ACTION",
             ["mode-reason"] = "RAPP",
-            ["action"] = "COLLECT_DUST",
-        }, ct);
+            ["action"] = action,
+        }, ct).ConfigureAwait(false);
+        await StartStationActionAsync(start ? 1 : 0, stationAct, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Empties the robot's bin into the dock now. Captured from the app.</summary>
+    public Task CollectDustAsync(CancellationToken ct = default) => DockActionAsync(true, "COLLECT_DUST", StationActCollectDust, ct);
+
+    /// <summary>"Laver et sécher" in the app: washes the mop roller, drying follows. Action name from the APK, pairing inferred.</summary>
+    public Task WashAndDryMopAsync(CancellationToken ct = default) => DockActionAsync(true, "WASH_MOP", StationActWash, ct);
+
+    /// <summary>Stops mop drying. Captured from the app.</summary>
+    public Task StopDryingAsync(CancellationToken ct = default) => DockActionAsync(false, "DRY_MOP", StationActDry, ct);
+
+    /// <summary>Stops mop washing. Inferred from the two captured pairs.</summary>
+    public Task StopWashingAsync(CancellationToken ct = default) => DockActionAsync(false, "WASH_MOP", StationActWash, ct);
+
+    /// <summary>Stops whatever the dock is doing, according to the dockState of the last CURRENT-STATE.</summary>
+    public Task StopDockActionAsync(string? dockState, CancellationToken ct = default) => dockState switch
+    {
+        "DRYING_MOP" => StopDryingAsync(ct),
+        "WASHING_MOP" => StopWashingAsync(ct),
+        "COLLECTING_DUST" => DockActionAsync(false, "COLLECT_DUST", StationActCollectDust, ct),
+        _ => Task.CompletedTask,
+    };
 
     // ---- Settings: the app writes every setting in both dialects at once ---------
 
@@ -526,9 +560,29 @@ public sealed class RobotMqttClient : IAsyncDisposable
     public Task<JsonObject> SetAirDryFrequencyAsync(int level, CancellationToken ct = default) =>
         SetSettingAsync("airDryFrequency", level, "airdry_frequency", level, ct);
 
-    /// <summary>Wash the mop after every room.</summary>
+    /// <summary>Wash the mop after every room. Captured.</summary>
     public Task<JsonObject> SetBackWashPerRoomAsync(CancellationToken ct = default) =>
         SetSettingAsync("backWashType", "ROOM", "back_wash_type", 1, ct);
+
+    /// <summary>
+    /// "Uniquement si nécessaire": the robot only returns to refill or empty. In the decompiled app
+    /// this option is the interval enum's ONLY_WHEN_NEEDED entry with 60 minutes, and it is sent as
+    /// backWashType TIME with backWashTime 60, which matches the 15, 30, 60 values captured.
+    /// </summary>
+    public Task<JsonObject> SetBackWashOnlyWhenNeededAsync(CancellationToken ct = default) =>
+        SetBackWashByTimeAsync(60, ct);
+
+    /// <summary>
+    /// "Prolonger les préparatifs de lavage". A classic STATE-SET field (washMopBeforeClean) found in
+    /// the app's settings model; no jdm counterpart is known, so only the classic message is sent.
+    /// </summary>
+    public Task SetWashMopBeforeCleanAsync(bool on, CancellationToken ct = default) =>
+        PublishCommandAsync(new JsonObject
+        {
+            ["msg"] = "STATE-SET",
+            ["mode-reason"] = "RAPP",
+            ["washMopBeforeClean"] = on,
+        }, ct);
 
     /// <summary>Wash the mop every N minutes; the app offers 15, 30 and 60.</summary>
     public async Task<JsonObject> SetBackWashByTimeAsync(int minutes, CancellationToken ct = default)

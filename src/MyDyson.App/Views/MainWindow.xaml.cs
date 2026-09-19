@@ -13,19 +13,26 @@ public partial class MainWindow : Window
         InitializeComponent();
         _vm = new MainViewModel(ctx);
         DataContext = _vm;
+        MapCanvas.ZoneClicked += _vm.ToggleZone;
         Loaded += async (_, _) => await _vm.StartAsync();
         Closing += async (_, _) => await _vm.ShutdownAsync();
     }
 
+    private void ResetZoom_Click(object sender, RoutedEventArgs e) => MapCanvas.ResetView();
+    private void ResetHistoryZoom_Click(object sender, RoutedEventArgs e) => HistoryCanvas.ResetView();
+
+    public void ClickZone(string zoneId) => _vm.ToggleZone(zoneId);
+
     public void SelectTab(int index)
     {
         if (index >= 0 && index < Tabs.Items.Count) Tabs.SelectedIndex = index;
+        if (index == 1) _vm.SelectFirstClean();
     }
 
     /// <summary>Renders the window content to a PNG, for documentation and for checking the layout without a screen.</summary>
     public void SaveScreenshot(string path)
     {
-        var root = (System.Windows.FrameworkElement)Content;
+        var root = (FrameworkElement)Content;
         var w = (int)Math.Ceiling(root.ActualWidth);
         var h = (int)Math.Ceiling(root.ActualHeight);
         // Paint the window background first: the content alone leaves transparent areas, which

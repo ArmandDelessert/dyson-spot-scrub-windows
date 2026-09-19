@@ -9,6 +9,28 @@ using CorePoint = MyDyson.Core.Point;
 
 namespace MyDyson.App.Rendering;
 
+/// <summary>Colours of the map, one set per theme.</summary>
+public sealed record MapPalette(Color Background, Color Obstacle, Color LabelBackground, Color LabelText, Color Path, Color Furniture, Color[] Zones)
+{
+    public static readonly MapPalette Dark = new(
+        Color.FromRgb(0x1e, 0x1e, 0x22), Color.FromRgb(0x50, 0x50, 0x58),
+        Color.FromArgb(0xa0, 0, 0, 0), Colors.White, Color.FromArgb(0xc0, 0xff, 0xff, 0xff), Color.FromArgb(0xa0, 0xff, 0xff, 0xff),
+        [
+            Color.FromRgb(0x6c, 0x9e, 0xd6), Color.FromRgb(0x8b, 0xc3, 0x8b), Color.FromRgb(0xd6, 0xa7, 0x6c),
+            Color.FromRgb(0xc3, 0x8b, 0xb8), Color.FromRgb(0x6c, 0xd6, 0xc9), Color.FromRgb(0xd6, 0xd0, 0x6c),
+            Color.FromRgb(0xb8, 0x8b, 0x6c), Color.FromRgb(0x9e, 0x6c, 0xd6),
+        ]);
+
+    public static readonly MapPalette Light = new(
+        Color.FromRgb(0xf6, 0xf6, 0xf8), Color.FromRgb(0x60, 0x60, 0x68),
+        Color.FromArgb(0xd0, 0xff, 0xff, 0xff), Color.FromRgb(0x1a, 0x1a, 0x1e), Color.FromArgb(0xd0, 0x20, 0x20, 0x30), Color.FromArgb(0xa0, 0x20, 0x20, 0x30),
+        [
+            Color.FromRgb(0x9e, 0xc4, 0xee), Color.FromRgb(0xb2, 0xdd, 0xb2), Color.FromRgb(0xf0, 0xcc, 0x9a),
+            Color.FromRgb(0xe0, 0xb4, 0xd6), Color.FromRgb(0xa2, 0xe6, 0xdc), Color.FromRgb(0xec, 0xe6, 0x9a),
+            Color.FromRgb(0xd8, 0xb4, 0x9a), Color.FromRgb(0xc4, 0xa2, 0xee),
+        ]);
+}
+
 /// <summary>Everything the map view knows how to draw. All optional; missing layers are skipped.</summary>
 public sealed class MapScene
 {
@@ -19,6 +41,8 @@ public sealed class MapScene
     public DockLocation? Dock { get; init; }
     public IReadOnlyList<CorePoint>? Path { get; init; }
     public IReadOnlySet<string>? SelectedZoneIds { get; init; }
+    /// <summary>Zone id to its position in the clean order, shown as a badge.</summary>
+    public IReadOnlyDictionary<string, int>? ZoneOrder { get; init; }
 
     /// <summary>World-space bounds (metres) of what is worth showing.</summary>
     public Rect? WorldBounds()
@@ -42,6 +66,22 @@ public sealed class MapScene
         var minY = pts.Min(p => p.Y); var maxY = pts.Max(p => p.Y);
         return new Rect(new Point(minX - 0.5, minY - 0.5), new Point(maxX + 0.5, maxY + 0.5));
     }
+
+    /// <summary>Zone under a world point: from the grid when there is one, else the nearest visited point within 30 cm.</summary>
+    public string? ZoneAt(double x, double y)
+    {
+        if (Grid is { } g)
+            return g.ZoneIdAtWorld(x, y)?.ToString(CultureInfo.InvariantCulture);
+        string? best = null;
+        var bestD = 0.3 * 0.3;
+        foreach (var z in Map?.Zones ?? [])
+            foreach (var p in z.Visited ?? [])
+            {
+                var d = (p.X - x) * (p.X - x) + (p.Y - y) * (p.Y - y);
+                if (d < bestD) { bestD = d; best = z.Id; }
+            }
+        return best;
+    }
 }
 
 /// <summary>
@@ -51,16 +91,9 @@ public sealed class MapScene
 /// </summary>
 public static class MapRenderer
 {
-    private static readonly Color Background = Color.FromRgb(0x1e, 0x1e, 0x22);
-    private static readonly Color ObstacleColor = Color.FromRgb(0x50, 0x50, 0x58);
-    private static readonly Color[] ZonePalette =
-    [
-        Color.FromRgb(0x6c, 0x9e, 0xd6), Color.FromRgb(0x8b, 0xc3, 0x8b), Color.FromRgb(0xd6, 0xa7, 0x6c),
-        Color.FromRgb(0xc3, 0x8b, 0xb8), Color.FromRgb(0x6c, 0xd6, 0xc9), Color.FromRgb(0xd6, 0xd0, 0x6c),
-        Color.FromRgb(0xb8, 0x8b, 0x6c), Color.FromRgb(0x9e, 0x6c, 0xd6),
-    ];
+    public static MapPalette Palette { get; set; } = MapPalette.Dark;
 
-    public static Color ZoneColor(int zoneId) => ZonePalette[Math.Abs(zoneId) % ZonePalette.Length];
+    public static Color ZoneColor(int zoneId) => Palette.Zones[Math.Abs(zoneId) % Palette.Zones.Length];
 
     /// <summary>Uniform world-to-screen transform that fits the bounds into the size with a margin.</summary>
     public static Matrix FitTransform(Rect world, Size size, double margin = 16)
@@ -68,19 +101,20 @@ public static class MapRenderer
         var sx = (size.Width - 2 * margin) / world.Width;
         var sy = (size.Height - 2 * margin) / world.Height;
         var s = Math.Max(1e-6, Math.Min(sx, sy));
-        // x right, y up: screen_x = (x - minX) * s + ox ; screen_y = (maxY - y) * s + oy
         var ox = margin + (size.Width - 2 * margin - world.Width * s) / 2;
         var oy = margin + (size.Height - 2 * margin - world.Height * s) / 2;
         var m = Matrix.Identity;
-        m.Translate(-world.X, -world.Bottom);   // bring (minX, maxY) to origin; Bottom is maxY here since Rect y grows "up" in our use
+        m.Translate(-world.X, -world.Bottom);   // (minX, maxY) to the origin; Rect.Bottom is maxY with y up
         m.Scale(s, -s);
         m.Translate(ox, oy);
         return m;
     }
 
-    public static void Render(DrawingContext dc, MapScene scene, Size size, out Matrix worldToScreen)
+    /// <summary>Renders with an extra zoom about the viewport centre and a pan, both in screen pixels.</summary>
+    public static void Render(DrawingContext dc, MapScene scene, Size size, out Matrix worldToScreen, double zoom = 1, Vector pan = default)
     {
-        dc.DrawRectangle(new SolidColorBrush(Background), null, new Rect(size));
+        var bg = new SolidColorBrush(Palette.Background);
+        dc.DrawRectangle(bg, null, new Rect(size));
         var bounds = scene.WorldBounds();
         if (bounds is null)
         {
@@ -89,13 +123,22 @@ public static class MapRenderer
             return;
         }
         var m = FitTransform(bounds.Value, size);
+        if (zoom != 1 || pan != default)
+        {
+            m.ScaleAt(zoom, zoom, size.Width / 2, size.Height / 2);
+            m.Translate(pan.X, pan.Y);
+        }
         worldToScreen = m;
 
         if (scene.Grid is { } grid)
             DrawGrid(dc, grid, m, scene.SelectedZoneIds);
+        else
+            DrawVisitedPoints(dc, scene, m);
 
+        var furniturePen = new Pen(new SolidColorBrush(Palette.Furniture), 1);
+        var furnitureFill = new SolidColorBrush(Color.FromArgb(0x30, Palette.Furniture.R, Palette.Furniture.G, Palette.Furniture.B));
         foreach (var f in scene.Map?.Furniture ?? [])
-            DrawPolygon(dc, f.Points, m, new Pen(new SolidColorBrush(Color.FromArgb(0xa0, 0xff, 0xff, 0xff)), 1), new SolidColorBrush(Color.FromArgb(0x30, 0xff, 0xff, 0xff)));
+            DrawPolygon(dc, f.Points, m, furniturePen, furnitureFill);
 
         foreach (var r in scene.Map?.Restrictions ?? [])
             DrawPolygon(dc, r.Points, m, new Pen(new SolidColorBrush(Color.FromRgb(0xe0, 0x50, 0x50)), 2), new SolidColorBrush(Color.FromArgb(0x40, 0xe0, 0x50, 0x50)));
@@ -110,14 +153,17 @@ public static class MapRenderer
                     g.LineTo(m.Transform(new Point(path[i].X, path[i].Y)), true, false);
             }
             geo.Freeze();
-            dc.DrawGeometry(null, new Pen(new SolidColorBrush(Color.FromArgb(0xc0, 0xff, 0xff, 0xff)), 1.5) { LineJoin = PenLineJoin.Round }, geo);
+            dc.DrawGeometry(null, new Pen(new SolidColorBrush(Palette.Path), 1.5) { LineJoin = PenLineJoin.Round }, geo);
         }
 
         foreach (var z in scene.Map?.Zones ?? [])
         {
             if (z.NameLocation is not { } n) continue;
             var label = scene.ZoneMetadata?.FirstOrDefault(zm => zm.Id == z.Id)?.Name ?? z.Name ?? z.Id;
-            DrawLabel(dc, label, m.Transform(new Point(n.X, n.Y)));
+            var at = m.Transform(new Point(n.X, n.Y));
+            var labelRect = DrawLabel(dc, label, at);
+            if (scene.ZoneOrder is { } order && order.TryGetValue(z.Id, out var rank))
+                DrawBadge(dc, rank.ToString(CultureInfo.InvariantCulture), new Point(labelRect.Left - 12, at.Y));
         }
 
         if (scene.Dock is { } dock)
@@ -130,33 +176,32 @@ public static class MapRenderer
         {
             var p = m.Transform(new Point(robot.X, robot.Y));
             dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(0x3c, 0xb4, 0x3c)), new Pen(Brushes.White, 1.5), p, 8, 8);
-            // Heading: angle in radians, 0 along +x, counter-clockwise in world space.
             var tip = m.Transform(new Point(robot.X + 0.35 * Math.Cos(robot.Angle), robot.Y + 0.35 * Math.Sin(robot.Angle)));
             dc.DrawLine(new Pen(Brushes.White, 2), p, tip);
         }
     }
 
+    public static void Render(DrawingContext dc, MapScene scene, Size size, out Matrix worldToScreen) =>
+        Render(dc, scene, size, out worldToScreen, 1, default);
+
     private static void DrawGrid(DrawingContext dc, MapGrid grid, Matrix m, IReadOnlySet<string>? selected)
     {
-        // One bitmap pixel per cell, drawn through the transform. Cells are tiny at fit scale, so
-        // rendering the bitmap scaled is far cheaper than one rectangle per cell.
         var bmp = new WriteableBitmap(grid.Width, grid.Height, 96, 96, PixelFormats.Bgra32, null);
         var pixels = new int[grid.Width * grid.Height];
         for (var cy = 0; cy < grid.Height; cy++)
         {
-            // Bitmap row 0 is the top; grid row 0 is the bottom (y up), so flip here.
-            var row = (grid.Height - 1 - cy) * grid.Width;
+            var row = (grid.Height - 1 - cy) * grid.Width;   // bitmap row 0 is the top, grid row 0 the bottom
             for (var cx = 0; cx < grid.Width; cx++)
             {
                 var v = grid[cx, cy];
                 Color c;
                 if (v == MapGrid.Unknown) c = Colors.Transparent;
-                else if (v == MapGrid.Obstacle) c = ObstacleColor;
+                else if (v == MapGrid.Obstacle) c = Palette.Obstacle;
                 else
                 {
                     c = ZoneColor(v);
                     if (selected is { Count: > 0 } && !selected.Contains(v.ToString(CultureInfo.InvariantCulture)))
-                        c = Color.FromArgb(0xff, (byte)(c.R / 2 + 0x20), (byte)(c.G / 2 + 0x20), (byte)(c.B / 2 + 0x20));
+                        c = Dim(c);
                 }
                 pixels[row + cx] = (c.A << 24) | (c.R << 16) | (c.G << 8) | c.B;
             }
@@ -165,13 +210,30 @@ public static class MapRenderer
         RenderOptions.SetBitmapScalingMode(bmp, BitmapScalingMode.NearestNeighbor); // before Freeze: a frozen bitmap is read-only
         bmp.Freeze();
 
-        // Destination rectangle in screen space: the world rect covered by the grid.
         var worldRect = new Rect(new Point(grid.OffsetX, grid.OffsetY),
                                  new Point(grid.OffsetX + grid.Width * grid.Resolution, grid.OffsetY + grid.Height * grid.Resolution));
-        var p0 = m.Transform(new Point(worldRect.Left, worldRect.Bottom));  // top-left on screen (max y)
-        var p1 = m.Transform(new Point(worldRect.Right, worldRect.Top));   // bottom-right on screen (min y)
+        var p0 = m.Transform(new Point(worldRect.Left, worldRect.Bottom));
+        var p1 = m.Transform(new Point(worldRect.Right, worldRect.Top));
         dc.DrawImage(bmp, new Rect(p0, p1));
     }
+
+    /// <summary>Without a grid (maps other than the current one), the visited points give the rooms' shape.</summary>
+    private static void DrawVisitedPoints(DrawingContext dc, MapScene scene, Matrix m)
+    {
+        foreach (var z in scene.Map?.Zones ?? [])
+        {
+            if (z.Visited is not { Count: > 0 } pts || !int.TryParse(z.Id, out var id)) continue;
+            var c = ZoneColor(id);
+            if (scene.SelectedZoneIds is { Count: > 0 } sel && !sel.Contains(z.Id)) c = Dim(c);
+            var brush = new SolidColorBrush(c);
+            var r = Math.Max(2, 0.12 * m.M11);   // cell-sized dots
+            foreach (var p in pts)
+                dc.DrawEllipse(brush, null, m.Transform(new Point(p.X, p.Y)), r, r);
+        }
+    }
+
+    private static Color Dim(Color c) =>
+        Color.FromArgb(0xff, (byte)((c.R + Palette.Background.R * 2) / 3), (byte)((c.G + Palette.Background.G * 2) / 3), (byte)((c.B + Palette.Background.B * 2) / 3));
 
     private static void DrawPolygon(DrawingContext dc, IReadOnlyList<CorePoint>? points, Matrix m, Pen pen, Brush fill)
     {
@@ -187,19 +249,28 @@ public static class MapRenderer
         dc.DrawGeometry(fill, pen, geo);
     }
 
-    private static void DrawLabel(DrawingContext dc, string text, Point at)
+    private static Rect DrawLabel(DrawingContext dc, string text, Point at)
     {
         var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-            new Typeface("Segoe UI"), 12, Brushes.White, 1.0);
+            new Typeface("Segoe UI"), 12, new SolidColorBrush(Palette.LabelText), 1.0);
         var rect = new Rect(at.X - ft.Width / 2 - 4, at.Y - ft.Height / 2 - 2, ft.Width + 8, ft.Height + 4);
-        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(0xa0, 0, 0, 0)), null, rect, 3, 3);
+        dc.DrawRoundedRectangle(new SolidColorBrush(Palette.LabelBackground), null, rect, 3, 3);
         dc.DrawText(ft, new Point(rect.X + 4, rect.Y + 2));
+        return rect;
+    }
+
+    private static void DrawBadge(DrawingContext dc, string text, Point at)
+    {
+        var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+            new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), 11, Brushes.Black, 1.0);
+        dc.DrawEllipse(Brushes.White, new Pen(Brushes.Black, 1), at, 9, 9);
+        dc.DrawText(ft, new Point(at.X - ft.Width / 2, at.Y - ft.Height / 2));
     }
 
     private static void DrawCentredText(DrawingContext dc, string text, Size size)
     {
         var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-            new Typeface("Segoe UI"), 16, Brushes.Gray, 1.0);
+            new Typeface("Segoe UI"), 16, new SolidColorBrush(Palette.LabelText), 1.0);
         dc.DrawText(ft, new Point((size.Width - ft.Width) / 2, (size.Height - ft.Height) / 2));
     }
 

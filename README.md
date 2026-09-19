@@ -61,16 +61,20 @@ titre de comparaison et de diagnostic.
 `src/MyDyson.App` est une application WPF. Au premier lancement elle demande le compte MyDyson et
 le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 
-- **Tableau de bord** : état du robot en clair, batterie, fautes réelles en rouge, consommables,
-  boutons de nettoyage des pièces cochées, pause, retour à la station, arrêt du séchage, vidage du bac.
-  Les boutons ne sont actifs que quand l'état du robot le permet.
-- **Carte** : grille d'occupation du robot colorée par pièce, meubles, station, position du robot,
-  tracé du dernier nettoyage ou de celui choisi dans l'historique. Les pièces cochées sont mises en
-  avant. Export en PNG.
-- **Historique** : chaque nettoyage avec durée, surface, batterie et fautes ; la sélection affiche
-  son tracé sur la carte.
-- **Réglages** : eau chaude, chauffe-eau, détergent, rinçage, séchage, sons, volume, envoyés au
-  robot dans les deux dialectes comme le fait l'application officielle.
+- **Thème** : suit le mode clair ou sombre de Windows, y compris en cours d'exécution.
+- **État** : état du robot en clair, batterie, fautes réelles en rouge, pause et retour à la station.
+- **Nettoyage** : choix de la carte, pièces cochées ici ou cliquées sur la carte, ordre de passage
+  affiché, type de nettoyage par pièce (aspirer, laver, les deux, l'un puis l'autre), enregistré côté
+  cloud pour que l'application mobile le voie aussi.
+- **Station** : « Collecteur vide » et « Laver et sécher », qui devient l'arrêt de l'action en cours.
+- **Consommables** : durée de vie restante, à remplacer à zéro, comme dans l'application.
+- **Carte** : grille d'occupation colorée par pièce, meubles, station, position du robot, tracé du
+  dernier nettoyage. Clic pour sélectionner une pièce, molette pour zoomer, glisser pour déplacer.
+  Export en PNG.
+- **Historique** : chaque nettoyage avec durée, surface, batterie et fautes, et sa propre carte,
+  celle du nettoyage choisi, avec le trajet parcouru.
+- **Réglages** : les mêmes libellés que l'application Android, en trois groupes : lavage, station,
+  vocaux. Chaque réglage part au robot dans les deux dialectes.
 - **Journal** : événements du robot et résultats des commandes.
 
 La connexion se rétablit seule après une coupure, avec des credentials renouvelés.
@@ -79,7 +83,7 @@ Deux options de ligne de commande servent à la vérification sans écran et à 
 
 ```bash
 MyDyson.App.exe --export-map carte.png
-MyDyson.App.exe --screenshot ecran.png --after 15 --tab 0
+MyDyson.App.exe --screenshot ecran.png --after 15 --tab 0 --theme light --zones 11,13
 ```
 
 WPF a été préféré à WinUI 3 parce qu'il se compile et se lance sans outillage supplémentaire sur

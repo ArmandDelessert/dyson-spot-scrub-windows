@@ -71,6 +71,8 @@ public sealed record RobotState
     [JsonPropertyName("volume")] public int? Volume { get; init; }
     [JsonPropertyName("voiceLanguage")] public string? VoiceLanguage { get; init; }
     [JsonPropertyName("childLock")] public bool? ChildLock { get; init; }
+    /// <summary>"Prolonger les préparatifs de lavage". Present in the app's settings model; not seen in CURRENT-STATE yet.</summary>
+    [JsonPropertyName("washMopBeforeClean")] public bool? WashMopBeforeClean { get; init; }
 
     [JsonExtensionData] public Dictionary<string, JsonElement>? Extra { get; init; }
 

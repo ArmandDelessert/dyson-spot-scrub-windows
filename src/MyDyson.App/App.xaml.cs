@@ -11,6 +11,11 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ThemeService.Start();
+        // --theme light|dark forces a theme, mainly for screenshots.
+        var themeIdx = Array.IndexOf(e.Args, "--theme");
+        if (themeIdx >= 0 && themeIdx + 1 < e.Args.Length)
+            ThemeService.Apply(e.Args[themeIdx + 1].Equals("dark", StringComparison.OrdinalIgnoreCase));
 
         // Headless helper: render the current map to a PNG and exit. Used to check the renderer
         // without a window, and handy for sharing a map.
@@ -73,6 +78,10 @@ public partial class App : Application
             var tabIdx = Array.IndexOf(args, "--tab");
             var tab = tabIdx >= 0 && tabIdx + 1 < args.Length && int.TryParse(args[tabIdx + 1], out var t) ? t : 0;
             await Task.Delay(TimeSpan.FromSeconds(seconds));
+            // --zones 11,10 simulates clicks on rooms, in that order.
+            var zonesIdx = Array.IndexOf(args, "--zones");
+            if (zonesIdx >= 0 && zonesIdx + 1 < args.Length)
+                foreach (var z in args[zonesIdx + 1].Split(',')) main.ClickZone(z);
             main.SelectTab(tab);
             await Task.Delay(500);
             main.SaveScreenshot(args[shot + 1]);

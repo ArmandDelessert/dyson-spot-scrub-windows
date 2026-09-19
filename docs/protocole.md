@@ -157,8 +157,25 @@ l'application n'en envoie que onze. Un lecteur doit donc tolérer les deux longu
 
 Indice 0 l'identifiant de zone, indice 1 le nom. Ce nom est soit une chaîne simple, soit un objet
 JSON encodé contenant `type` et `name` pour les pièces auxquelles l'utilisateur a attribué un type.
-Tout code lisant ce champ doit gérer les deux formes. Les indices suivants ne sont pas encore tous
-identifiés ; l'indice 10 semble porter l'ordre de passage, l'indice 2 un réglage propre à la pièce.
+Tout code lisant ce champ doit gérer les deux formes.
+
+Indices établis en croisant les `set_preference` capturés avec les réglages REST des zones :
+
+| Indice | Contenu | Valeurs |
+|---|---|---|
+| 3 | type de nettoyage | 0 aspiration, 1 aspiration et lavage (capturés) ; 2 lavage seul, 3 aspiration puis lavage (d'après ha-dyson-spot-scrub) |
+| 8 | pièce retenue pour ce nettoyage | 0 ou 1 |
+| 10 | ordre de passage | 1, 2, 3… |
+
+L'indice 2 est renvoyé par le robot (2 pour une salle de bain, 3 pour une cuisine) et remis à 0 par
+l'application. Les autres indices portent vraisemblablement le niveau d'eau, le nombre de passages
+et la stratégie, non identifiés. Un client doit réécrire les seuls indices connus et renvoyer le
+reste tel quel.
+
+Côté REST, `settings.cleanType` prend `vacuum`, `mop`, `vacuumAndMop`, `vacuumThenMop` ; l'application
+connaît aussi une stratégie (`auto`, `quick`, `quiet`, `boost`), un niveau d'eau (`veryLow`, `low`,
+`medium`, `high`) et un nombre de passages (1 ou 2). `PUT /v2/app/{serial}/persistent-map-metadata/{mapId}`
+avec la liste des zones enregistre ces réglages côté cloud.
 
 ### Méthodes et événements jdm observés
 
@@ -349,14 +366,25 @@ par `{"property": [{"prop": "…", "code": 0}]}`.
 | Eau chaude pour la serpillière | `{"hotWaterMop": true}` | `{"hot_water_mop": 1}` |
 | Chauffe-eau du dock | `{"hotWaterSwitch": true}` | `{"hot_water_switch": 1}` |
 | Détergent | `{"detergent": true}` | `{"detergent": 1}` |
-| Rinçage par pièce | `{"backWashType": "ROOM"}` | `{"back_wash_type": 1}` |
-| Rinçage toutes les N minutes | `{"backWashType": "TIME", "backWashTime": 15}` | `{"back_wash_type": 0, "back_wash_time": 15}` |
-| Intensité du séchage (3 à 5) | `{"airDryFrequency": 4}` | `{"airdry_frequency": 4}` |
+| Intervalle d'auto-nettoyage : après chaque pièce | `{"backWashType": "ROOM"}` | `{"back_wash_type": 1}` |
+| Intervalle : toutes les 15 ou 30 min | `{"backWashType": "TIME", "backWashTime": 15}` | `{"back_wash_type": 0, "back_wash_time": 15}` |
+| Intervalle : uniquement si nécessaire | `{"backWashType": "TIME", "backWashTime": 60}` | `{"back_wash_type": 0, "back_wash_time": 60}` |
+| Durée de séchage du rouleau (3, 4 ou 5 heures) | `{"airDryFrequency": 4}` | `{"airdry_frequency": 4}` |
+| Prolonger les préparatifs de lavage | `{"washMopBeforeClean": true}` | inconnu |
 | Sons | `{"alarm": true}` | `{"alarm": 1}` |
 | Volume (0 à 100) | `{"volume": 40}` | `{"volume": 40}` |
 | Mise à jour automatique | aucun | `{"privacy": {"auto_upgrade": true}}` |
 
-Valeurs de `backWashTime` observées : 15, 30, 60.
+« Uniquement si nécessaire » n'est pas une valeur à part : dans l'enum de l'application c'est
+l'entrée `ONLY_WHEN_NEEDED` avec 60 minutes, envoyée comme un intervalle de 60. `airDryFrequency`
+est une durée en heures. L'enum de l'application connaît aussi 8, 20 et 25 minutes, que l'écran
+n'offre pas. `washMopBeforeClean` figure dans le modèle des réglages classiques de l'application
+mais ni dans `CURRENT-STATE` ni dans les propriétés jdm observées.
+
+Les champs du modèle classique `STATE-SET` de l'application : `airDryFrequency`, `alarm`,
+`backWashTime`, `backWashType`, `childLock`, `collectDustOnSelfClean`, `detergent`,
+`doNotDisturbMode`, `emptyBinTime`, `emptyBinType`, `hotWaterMop`, `hotWaterSwitch`,
+`resetConsumable`, `washMopBeforeClean`.
 
 ### Voix
 
@@ -368,8 +396,18 @@ du paquet sur `device-package.cp.dyson.com`, son MD5 et un `type` numérique, et
 
 ### Actions du dock
 
-`START-DOCK-ACTION` avec `action: "COLLECT_DUST"` lance un vidage du bac. `ABORT-DOCK-ACTION` avec
-`action: "DRY_MOP"` arrête le séchage, doublé de `service.start_station_act` `{ctrl_value: 0, station_act: 2}`.
+Chaque action est doublée côté jdm par `service.start_station_act` avec `ctrl_value` 1 pour lancer
+et 0 pour arrêter, et un numéro d'action. Les actions de l'application, retrouvées dans son enum :
+`COLLECT_DUST`, `WASH_MOP`, `DRY_MOP`.
+
+| Action | Classique | jdm `station_act` | Source |
+|---|---|---|---|
+| Vider le collecteur | `START-DOCK-ACTION` `COLLECT_DUST` | 3 | capturé |
+| Arrêter le séchage | `ABORT-DOCK-ACTION` `DRY_MOP` | 2 | capturé |
+| Laver et sécher | `START-DOCK-ACTION` `WASH_MOP` | 1 | action dans l'APK, numéro déduit |
+
+Le bouton « Laver et sécher » de l'application correspond à `WASH_MOP`, le séchage suivant le
+lavage.
 
 ## Cartes et pièces, côté jdm
 

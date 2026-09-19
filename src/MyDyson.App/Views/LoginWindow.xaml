@@ -3,33 +3,36 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Connexion au compte MyDyson" Width="420" SizeToContent="Height"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1e1e22" Foreground="White" FontFamily="Segoe UI" FontSize="13">
+        Background="{DynamicResource BgBrush}" Foreground="{DynamicResource TextBrush}" FontFamily="Segoe UI" FontSize="13">
     <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        </Style>
         <Style TargetType="TextBox">
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="Margin" Value="0,2,0,10"/>
-            <Setter Property="Background" Value="#2a2a30"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#444"/>
+            <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         </Style>
         <Style TargetType="PasswordBox">
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="Margin" Value="0,2,0,10"/>
-            <Setter Property="Background" Value="#2a2a30"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#444"/>
+            <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         </Style>
         <Style TargetType="Button">
             <Setter Property="Padding" Value="14,6"/>
             <Setter Property="Margin" Value="0,6,0,0"/>
-            <Setter Property="Background" Value="#3a6ea5"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
     </Window.Resources>
     <StackPanel Margin="24">
         <TextBlock Text="Dyson Spot+Scrub AI pour Windows" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4"/>
-        <TextBlock Text="Connexion avec votre compte MyDyson. Un code à usage unique vous sera envoyé par e-mail." Foreground="#bbb" TextWrapping="Wrap" Margin="0,0,0,16"/>
+        <TextBlock Text="Connexion avec votre compte MyDyson. Un code à usage unique vous sera envoyé par e-mail." Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
 
         <TextBlock Text="E-mail"/>
         <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CodeSent, Converter={StaticResource Not}}"/>
@@ -61,7 +64,7 @@
             <Button Content="Se connecter" Click="Verify_Click" HorizontalAlignment="Left"/>
         </StackPanel>
 
-        <TextBlock Text="{Binding Message}" Foreground="#f0c674" TextWrapping="Wrap" Margin="0,14,0,0"/>
+        <TextBlock Text="{Binding Message}" Foreground="{DynamicResource DangerBrush}" TextWrapping="Wrap" Margin="0,14,0,0"/>
         <ProgressBar IsIndeterminate="True" Height="4" Margin="0,10,0,0" Visibility="{Binding Busy, Converter={StaticResource Show}}"/>
     </StackPanel>
 </Window>
