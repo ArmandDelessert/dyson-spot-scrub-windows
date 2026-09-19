@@ -1,3 +1,4 @@
+using System.Net.Security;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MQTTnet;
@@ -89,7 +90,7 @@ public sealed class RobotMqttClient : IAsyncDisposable
     /// AWS IoT closes the connection on any filter the policy does not cover.
     /// </summary>
     public IReadOnlyList<string> DefaultTopicFilters =>
-        _endpoint.AuthMode == "custom-authorizer"
+        _endpoint.AuthMode.StartsWith("custom-authorizer")
             ? new[] { $"+/{Serial}/#" }
             : new[] { $"{_prefix}/{Serial}/status", $"{_prefix}/{Serial}/status/jdm" };
 
@@ -98,16 +99,56 @@ public sealed class RobotMqttClient : IAsyncDisposable
 
     public async Task ConnectAsync(CancellationToken ct, IEnumerable<string> topicFilters)
     {
-        var options = new MqttClientOptionsBuilder()
+        var builder = new MqttClientOptionsBuilder()
             .WithClientId(_endpoint.ClientId)
-            .WithWebSocketServer(o => o.WithUri(_endpoint.WebSocketUrl))
-            .WithTlsOptions(o => o.UseTls())
             .WithProtocolVersion(MqttProtocolVersion.V311)
-            .WithKeepAlivePeriod(TimeSpan.FromSeconds(30))
-            .WithCleanSession()
-            .Build();
+            .WithCleanSession();
 
-        var result = await _client.ConnectAsync(options, ct).ConfigureAwait(false);
+        if (_endpoint.UsesWebSocket)
+        {
+            builder
+                .WithWebSocketServer(o => o.WithUri(_endpoint.WebSocketUrl!))
+                .WithTlsOptions(o => o.UseTls())
+                .WithKeepAlivePeriod(TimeSpan.FromSeconds(30));
+        }
+        else
+        {
+            // The official app's transport: TLS on 443 with ALPN "mqtt", credentials in the username.
+            builder
+                .WithTcpServer(_endpoint.Endpoint, 443)
+                .WithTlsOptions(o => o
+                    .UseTls()
+                    .WithTargetHost(_endpoint.Endpoint)
+                    .WithRevocationMode(System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck)
+                    .WithApplicationProtocols([new SslApplicationProtocol("mqtt")])
+                    .WithCertificateValidationHandler(args =>
+                    {
+                        // Standard validation, but with the reason for a rejection made visible.
+                        if (args.SslPolicyErrors != System.Net.Security.SslPolicyErrors.None)
+                        {
+                            var chain = args.Chain is null ? "" :
+                                string.Join("; ", args.Chain.ChainStatus.Select(s => $"{s.Status}: {s.StatusInformation.Trim()}"));
+                            TlsRejection = $"{args.SslPolicyErrors} subject={args.Certificate?.Subject} chain=[{chain}]";
+                            return false;
+                        }
+                        return true;
+                    }))
+                .WithKeepAlivePeriod(TimeSpan.FromSeconds(300));
+            if (_endpoint.Username is not null)
+                builder.WithCredentials(_endpoint.Username, (string?)null);
+        }
+
+        var options = builder.Build();
+
+        MqttClientConnectResult result;
+        try
+        {
+            result = await _client.ConnectAsync(options, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (TlsRejection is not null)
+        {
+            throw new DysonApiException($"TLS certificate rejected: {TlsRejection}", inner: ex);
+        }
         if (result.ResultCode != MqttClientConnectResultCode.Success)
             throw new DysonApiException($"MQTT connect failed: {result.ResultCode} {result.ReasonString}");
 
@@ -136,6 +177,9 @@ public sealed class RobotMqttClient : IAsyncDisposable
     }
 
     public List<string> SubscribedTopics { get; } = new();
+
+    /// <summary>Why the last TLS handshake rejected the server certificate, if it did.</summary>
+    public string? TlsRejection { get; private set; }
 
     private Task OnMessageAsync(MqttApplicationMessageReceivedEventArgs e)
     {

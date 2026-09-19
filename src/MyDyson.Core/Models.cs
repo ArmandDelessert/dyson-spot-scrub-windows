@@ -119,14 +119,40 @@ public sealed record IotRoleData(
             IamCredentials.SessionToken);
 }
 
-/// <summary>How to reach the AWS IoT broker: a presigned WebSocket URL plus the MQTT client id.</summary>
-public sealed record MqttEndpoint(string WebSocketUrl, string ClientId, string Endpoint, string AuthMode)
+/// <summary>
+/// How to reach the AWS IoT broker. Either a direct MQTT-over-TLS connection to port 443 with the
+/// ALPN protocol "mqtt" (<see cref="WebSocketUrl"/> null), or MQTT over a WebSocket.
+/// </summary>
+public sealed record MqttEndpoint(string Endpoint, string ClientId, string AuthMode, string? WebSocketUrl = null, string? Username = null)
 {
-    public static MqttEndpoint FromRoleCredentials(IotRoleData role, string? clientId = null) =>
-        new(role.BuildWebSocketUri(), clientId ?? Guid.NewGuid().ToString(), role.Endpoint, "sigv4");
+    public bool UsesWebSocket => WebSocketUrl is not null;
 
-    public static MqttEndpoint FromCustomAuthorizer(IotData iot) =>
-        new(iot.BuildWebSocketUri(), iot.IoTCredentials.ClientId, iot.Endpoint, "custom-authorizer");
+    /// <summary>
+    /// What the official app does (decompiled from MyDyson 6.4.26360, class y50.e): a direct TLS
+    /// connection on port 443 with ALPN "mqtt", the Dyson-issued client id, and the custom-authorizer
+    /// parameters carried in the MQTT CONNECT username, in this exact form:
+    /// "?x-amz-customauthorizer-name=NAME&amp;x-amz-customauthorizer-signature=URLENCODED&amp;token=VALUE".
+    /// No password. Keep-alive 300 s, clean session.
+    /// </summary>
+    public static MqttEndpoint FromCustomAuthorizerTls(IotData iot)
+    {
+        var c = iot.IoTCredentials;
+        var signature = c.TokenSignature.Contains('%') ? c.TokenSignature : Uri.EscapeDataString(c.TokenSignature);
+        var tokenKey = string.IsNullOrEmpty(c.TokenKey) ? "token" : c.TokenKey;
+        var username = $"?x-amz-customauthorizer-name={iot.AuthorizerName}" +
+                       $"&x-amz-customauthorizer-signature={signature}" +
+                       $"&{tokenKey}={c.TokenValue}";
+        var clientId = string.IsNullOrEmpty(c.ClientId) ? Guid.NewGuid().ToString() : c.ClientId;
+        return new MqttEndpoint(iot.Endpoint, clientId, "custom-authorizer-tls", Username: username);
+    }
+
+    /// <summary>Custom authorizer over WebSocket, parameters in the query string. Observed to grant subscribe only.</summary>
+    public static MqttEndpoint FromCustomAuthorizerWebSocket(IotData iot) =>
+        new(iot.Endpoint, iot.IoTCredentials.ClientId, "custom-authorizer-ws", WebSocketUrl: iot.BuildWebSocketUri());
+
+    /// <summary>Temporary IAM credentials, SigV4-presigned WebSocket. Observed to grant connect only.</summary>
+    public static MqttEndpoint FromRoleCredentials(IotRoleData role, string? clientId = null) =>
+        new(role.Endpoint, clientId ?? Guid.NewGuid().ToString(), "sigv4", WebSocketUrl: role.BuildWebSocketUri());
 }
 
 /// <summary>Persisted session (bearer token + context), stored encrypted on disk.</summary>

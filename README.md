@@ -7,53 +7,50 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 
 ## État du projet
 
-Étape 1 (prototype en ligne de commande) : **la lecture fonctionne, l'envoi de commandes est bloqué.**
+Étape 1 (prototype en ligne de commande) : **la lecture et l'envoi de commandes fonctionnent.**
 
 | Fonction | État |
 |---|---|
 | Connexion au compte (mot de passe + code à usage unique) | fonctionne |
 | Liste des appareils, firmware, préfixe MQTT | fonctionne |
 | État de connexion du robot au cloud | fonctionne |
-| Credentials AWS IoT (deux variantes) | fonctionne |
-| Connexion MQTT sur WebSocket | fonctionne |
-| Abonnement aux topics d'état et réception des messages | fonctionne |
-| Publication d'une commande vers le robot | **refusée par le broker** |
+| Credentials AWS IoT | fonctionne |
+| Connexion MQTT au broker AWS IoT | fonctionne |
+| Abonnement aux topics et réception des messages | fonctionne |
+| Publication de commandes vers le robot | fonctionne |
+| Interface graphique | pas commencée |
 
 Vérifié le 19 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`.
 
-### Le blocage sur la publication
+### Le transport compte autant que les credentials
 
-Le broker AWS IoT ferme la connexion environ 100 ms après notre `PUBLISH`, ce qui est la façon
-dont AWS signale un refus de politique. Constats :
+Ce point a coûté une journée et n'est documenté nulle part ailleurs. Le jeton du custom authorizer
+que renvoie `POST /v2/authorize/iot-credentials` donne des droits différents selon la façon dont il
+est présenté au broker.
 
-- Le refus touche **tous les topics**, y compris un topic arbitraire comme `test/hello`. Ce n'est donc
-  pas un problème de nom de topic mais une absence du droit `iot:Publish`.
-- Le refus est reproduit **hors de MQTTnet**, avec un `ClientWebSocket` et un paquet MQTT CONNECT puis
-  PUBLISH construits à la main (`RawMqttProbe`). Ce n'est donc pas un défaut de la bibliothèque.
-- Les deux jeux de credentials que l'API Dyson délivre sont insuffisants :
-  - `POST /v2/authorize/iot-credentials` (jeton de custom authorizer) autorise `CONNECT` et
-    `SUBSCRIBE` sur n'importe quel filtre, mais pas `PUBLISH`.
-  - `POST /v1/authorize/iot-role-credentials` (credentials IAM temporaires, signature SigV4)
-    autorise `CONNECT` seul : même l'abonnement à `RB05/{serial}/status` est refusé.
-- Le custom authorizer impose son propre identifiant client : la connexion échoue avec tout autre
-  identifiant, et réussit avec celui renvoyé dans la réponse.
-- Aucun endpoint REST de commande n'existe dans l'APK. Les seuls endpoints liés au robot concernent
-  les cartes et les zones. Les commandes passent donc bien par MQTT.
-- Les champs supplémentaires (`ClientId`, `Permissions`) sont ignorés par l'endpoint de credentials.
-  Il n'existe pas de `/v3/authorize/iot-credentials` ni de `/v2/authorize/iot-role-credentials`.
+| Transport | Où passe le jeton | Droits accordés |
+|---|---|---|
+| MQTT sur WebSocket | chaîne de requête de l'URL | connexion et abonnement, **publication refusée** |
+| WebSocket présigné SigV4 (`iot-role-credentials`) | signature de l'URL | connexion seule |
+| **MQTT direct sur TLS, port 443, ALPN `mqtt`** | **nom d'utilisateur MQTT** | **tout, y compris la publication** |
 
-Pistes non encore explorées, par ordre de vraisemblance :
+Le troisième mode est celui de l'application officielle, retrouvé par décompilation (classe `y50.e`,
+qui utilise `AwsIotMqttConnectionBuilder` du SDK AWS IoT). Le nom d'utilisateur MQTT a cette forme :
 
-1. **Enregistrement du client applicatif.** L'APK contient `/v1/device/register`,
-   `/v1/device/client-metadata` et `/v1/device/registerDeviceCapabilities`. Le Lambda authorizer de
-   Dyson accorde peut-être `iot:Publish` aux seules instances d'application enregistrées. Ces appels
-   créent de l'état sur le compte, ils n'ont volontairement pas été tentés à l'aveugle.
-2. **Capture du trafic de l'application officielle** pendant l'envoi d'une commande, pour voir quels
-   credentials et quel identifiant client elle utilise. Nécessite de contourner le certificate
-   pinning de l'APK (5 empreintes SHA-256 y sont épinglées).
-3. **Durcissement récent côté Dyson.** L'API a été placée derrière Cloudflare mTLS vers août 2026.
-   Les projets communautaires ne signalent pas de régression sur la publication à ce jour, mais leurs
-   auteurs testent sur d'autres modèles et d'autres comptes.
+```
+?x-amz-customauthorizer-name=NOM&x-amz-customauthorizer-signature=SIGNATURE_ENCODEE&token=VALEUR
+```
+
+Pas de mot de passe, identifiant client fourni par Dyson, keep-alive de 300 s, session propre.
+Le Lambda authorizer de Dyson reçoit le jeton par un canal différent selon le transport, et ne
+renvoie la politique complète que par le nom d'utilisateur MQTT. Les projets communautaires qui
+passent par WebSocket sont donc limités à la lecture sans le savoir.
+
+Détail pratique : la vérification de révocation du certificat AWS doit être désactivée, le serveur
+de révocation n'étant pas joignable depuis certains réseaux. Le certificat lui-même est validé.
+
+Les deux autres modes restent disponibles dans la ligne de commande (`--websocket`, `--sigv4`) à
+titre de comparaison et de diagnostic.
 
 ## Architecture
 
@@ -64,6 +61,8 @@ Pistes non encore explorées, par ordre de vraisemblance :
   - `RawMqttProbe` : diagnostic bas niveau, sépare une erreur de signature d'un refus de politique.
   - `SessionStore` : bearer token chiffré avec DPAPI dans `%APPDATA%\MyDyson\session.bin`.
 - `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `send`, `api`, `probe`, `wstest`.
+
+Le protocole retrouvé par décompilation et par captures est documenté dans [docs/protocole.md](docs/protocole.md).
 
 ## Prérequis
 
@@ -77,12 +76,14 @@ dotnet build
 dotnet run --project src/MyDyson.Cli -- login --country CH --culture fr-CH
 dotnet run --project src/MyDyson.Cli -- devices
 dotnet run --project src/MyDyson.Cli -- iot    --serial XXX-XX-XXXXXXXX
-dotnet run --project src/MyDyson.Cli -- watch  --serial XXX-XX-XXXXXXXX --poll 0 --log capture.jsonl
-dotnet run --project src/MyDyson.Cli -- probe  --serial XXX-XX-XXXXXXXX
+dotnet run --project src/MyDyson.Cli -- status --serial XXX-XX-XXXXXXXX
+dotnet run --project src/MyDyson.Cli -- watch  --serial XXX-XX-XXXXXXXX --log capture.jsonl
+dotnet run --project src/MyDyson.Cli -- send   --serial XXX-XX-XXXXXXXX maps
+dotnet run --project src/MyDyson.Cli -- send   --serial XXX-XX-XXXXXXXX zone --map ID --zones 11
 ```
 
-`watch --poll 0` écoute sans rien publier, ce qui évite la fermeture de connexion. Lancez un cycle
-depuis l'application mobile pendant l'écoute pour constituer la capture de référence.
+`watch` enregistre aussi les commandes publiées par l'application mobile, ce qui permet de
+constituer des captures de référence en pilotant le robot depuis le téléphone.
 
 ## Protocole
 
@@ -99,9 +100,6 @@ depuis l'application mobile pendant l'écoute pour constituer la capture de réf
 
 Topics MQTT : `RB05/{serial}/status`, `RB05/{serial}/status/jdm`, `RB05/{serial}/command`,
 `RB05/{serial}/command/jdm`. Le préfixe vaut les quatre premiers caractères de la version du firmware.
-
-Le détail des messages, le modèle d'état et la correspondance entre les deux dialectes sont dans
-[docs/protocole.md](docs/protocole.md), établi à partir de captures réelles.
 
 Deux dialectes coexistent sur ces topics : le format Dyson classique
 (`{"msg":"START","mode-reason":"RAPP"}`) et une couche JSON-RPC nommée jdm

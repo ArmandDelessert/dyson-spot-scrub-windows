@@ -297,3 +297,26 @@ Déroulé d'un échec de localisation, capturé en conditions réelles : le robo
 ```json
 { "message": "Processing success", "status": "SUCCESS", "mapId": 1000000002 }
 ```
+
+## Connexion au broker, tel que le fait l'application
+
+Retrouvé par décompilation de MyDyson 6.4.26360 (classe `y50.e`, construite sur
+`AwsIotMqttConnectionBuilder` du SDK AWS IoT pour Java).
+
+- Transport : **MQTT directement sur TLS**, port 443, protocole ALPN `mqtt`. Pas de WebSocket.
+- Endpoint et identifiant client : ceux de la réponse `POST /v2/authorize/iot-credentials`. Si
+  l'identifiant est vide, un UUID aléatoire.
+- Nom d'utilisateur MQTT, sans mot de passe :
+  `?x-amz-customauthorizer-name=NOM&x-amz-customauthorizer-signature=SIGNATURE&token=VALEUR`,
+  la signature étant encodée en URL si elle ne l'est pas déjà.
+- Keep-alive 300 s, session propre, délai de connexion 30 s, reconnexion entre 12 et 24 heures.
+- La branche SigV4 du SDK n'est jamais prise : elle ne s'active qu'en WebSocket, que l'application
+  n'utilise pas. Les credentials IAM de `iot-role-credentials` ne servent donc pas au MQTT.
+
+Le même jeton présenté dans la chaîne de requête d'une URL WebSocket n'obtient qu'une politique
+de lecture. C'est la raison pour laquelle la publication échouait dans les premiers essais.
+
+Les endpoints `/v1/device/register`, `/v1/device/client-metadata` et
+`/v1/device/registerDeviceCapabilities`, un temps soupçonnés de conditionner le droit de publier,
+appartiennent aux SDK PayPal et Salesforce embarqués dans l'application. Ils n'ont aucun rapport
+avec le robot.

@@ -25,13 +25,12 @@ internal static class Program
           mydyson probe   --serial S [--filters a,b] [--topics a,b]     Teste les abonnements et publications autorisés
           mydyson wstest  --serial S [--client-ids a,b]                 Teste CONNECT et PUBLISH en WebSocket brut
 
-        Options communes: --sigv4 (credentials IAM au lieu du custom authorizer), --client-id X,
-        --prefix RB05, --mqtt-log (journaux MQTTnet).
+        Options communes: --client-id X, --prefix RB05, --mqtt-log (journaux MQTTnet).
+        Transport: par défaut MQTT direct sur TLS avec le jeton dans le nom d'utilisateur, comme
+        l'application officielle. --websocket et --sigv4 sélectionnent les autres modes, qui
+        n'accordent pas le droit de publier (voir README).
 
         La session (bearer token) est chiffrée avec DPAPI dans %APPDATA%\MyDyson\session.bin.
-
-        LIMITE ACTUELLE: le broker AWS IoT de Dyson refuse toute publication avec les credentials
-        que ses endpoints délivrent. L'écoute fonctionne, l'envoi de commandes non. Voir le README.
         """;
 
     private static async Task<int> Main(string[] args)
@@ -394,7 +393,7 @@ internal static class Program
             {
                 endpoint = mode == "sigv4"
                     ? MqttEndpoint.FromRoleCredentials(await api.GetIotRoleCredentialsAsync(serial, ct))
-                    : MqttEndpoint.FromCustomAuthorizer(await api.GetIotCredentialsAsync(serial, ct));
+                    : MqttEndpoint.FromCustomAuthorizerWebSocket(await api.GetIotCredentialsAsync(serial, ct));
             }
             catch (DysonApiException ex)
             {
@@ -404,21 +403,21 @@ internal static class Program
 
             foreach (var clientId in clientIds)
             {
-                var result = await RawMqttProbe.TryConnectAsync(endpoint.WebSocketUrl, clientId, ct);
+                var result = await RawMqttProbe.TryConnectAsync(endpoint.WebSocketUrl!, clientId, ct);
                 Console.WriteLine($"[{mode}] clientId={Truncate(clientId, 42),-42} {result.Describe()}");
             }
 
             // The client id supplied with the custom-authorizer credentials is the one Dyson expects.
             if (mode == "custom-authorizer")
             {
-                var result = await RawMqttProbe.TryConnectAsync(endpoint.WebSocketUrl, endpoint.ClientId, ct);
+                var result = await RawMqttProbe.TryConnectAsync(endpoint.WebSocketUrl!, endpoint.ClientId, ct);
                 Console.WriteLine($"[{mode}] clientId fourni par Dyson {Truncate(endpoint.ClientId, 20)} -> {result.Describe()}");
             }
 
             // Publish outside MQTTnet, to tell a library problem from an AWS policy denial.
             var pubTopic = o.Get("publish") ?? $"RB05/{serial}/command";
             var pub = await RawMqttProbe.TryPublishAsync(
-                endpoint.WebSocketUrl, endpoint.ClientId, pubTopic, """{"msg":"REQUEST-CURRENT-STATE"}""", ct);
+                endpoint.WebSocketUrl!, endpoint.ClientId, pubTopic, """{"msg":"REQUEST-CURRENT-STATE"}""", ct);
             Console.WriteLine($"[{mode}] PUBLISH brut sur {pubTopic} -> {pub}");
         }
         return 0;
@@ -453,16 +452,17 @@ internal static class Program
     }
 
     /// <summary>
-    /// Fetches broker credentials. Default: the custom-authorizer token, the only mode observed to
-    /// allow subscribing. --sigv4 selects the temporary IAM credentials, which so far only allow
-    /// connecting. Neither mode is granted publish rights (see README).
+    /// Fetches broker credentials. Default: the custom-authorizer token over direct TLS, which is what
+    /// the official app does. --websocket uses the same token over a WebSocket (subscribe only),
+    /// --sigv4 the temporary IAM credentials over a presigned WebSocket (connect only).
     /// </summary>
     private static async Task<MqttEndpoint> GetMqttEndpointAsync(DysonCloudClient api, string serial, Options o, CancellationToken ct)
     {
         if (o.Has("sigv4"))
             return MqttEndpoint.FromRoleCredentials(await api.GetIotRoleCredentialsAsync(serial, ct), o.Get("client-id"));
         var iot = await api.GetIotCredentialsAsync(serial, ct);
-        return MqttEndpoint.FromCustomAuthorizer(iot) with { ClientId = o.Get("client-id") ?? iot.IoTCredentials.ClientId };
+        var endpoint = o.Has("websocket") ? MqttEndpoint.FromCustomAuthorizerWebSocket(iot) : MqttEndpoint.FromCustomAuthorizerTls(iot);
+        return o.Get("client-id") is { } cid ? endpoint with { ClientId = cid } : endpoint;
     }
 
     private static string RequireOption(string what) =>
