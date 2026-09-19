@@ -22,8 +22,9 @@ internal static class Program
           mydyson live    --serial S                                    Position du robot et tracé en cours (REST)
           mydyson history --serial S                                    Historique des nettoyages (REST)
           mydyson clean   --serial S --id CLEANID                       Détail d'un nettoyage (REST)
-          mydyson send    --serial S <start|zone|dry-stop|tz|maps|props|pause|resume|stop|dock|state|faults>
-                          zone exige --map ID --zones 11,12 ; tz prend un nom IANA
+          mydyson send    --serial S <zone|pause|abort|mapping|merge|dry-stop|tz|maps|props|state|start|resume|stop|faults>
+                          zone: --map ID --zones 11,12 ; mapping: [--lang fr-CH] ; merge: --map ID --rooms 15,16
+                          start, resume, stop et faults restent non observés dans l'application
           mydyson send    --serial S --json '{"msg":"..."}'             Envoie un JSON brut sur .../command
           mydyson send    --serial S --jdm service.xxx [--params '{}']  Envoie une requête JDM sur .../command/jdm
           mydyson api     <path>                                        GET authentifié brut (ex: /v3/manifest)
@@ -284,6 +285,18 @@ internal static class Program
             switch (name)
             {
                 case "start": await robot.StartGlobalCleanAsync(ct); break;
+                case "pause": await robot.PauseAsync(ct: ct); break;
+                case "abort":
+                case "dock":
+                    // ABORT carries the robot's current state, so ask for it first.
+                    var current = await robot.RequestStateAsync(ct: ct);
+                    await robot.AbortAsync(current.State ?? "FULL_CLEAN_RUNNING", current.CurrentCleaningMode ?? "zoneConfigured", ct);
+                    break;
+                case "mapping": await robot.StartMappingAsync(o.Get("lang") ?? "fr-CH", ct); break;
+                case "merge":
+                    await robot.MergeRoomsAsync(long.Parse(o.Get("map") ?? RequireOption("--map")),
+                        (o.Get("rooms") ?? RequireOption("--rooms")).Split(',').Select(int.Parse), ct: ct);
+                    break;
                 case "zone":
                     var map = o.Get("map") ?? RequireOption("--map");
                     var zones = (o.Get("zones") ?? RequireOption("--zones"))
@@ -302,10 +315,8 @@ internal static class Program
                     break;
                 case "maps": await robot.GetMapListAsync(ct); break;
                 case "props": await robot.GetPropertiesAsync(ct: ct); break;
-                case "pause": await robot.PauseAsync(ct); break;
-                case "resume": await robot.ResumeAsync(ct); break;
+                case "resume": await robot.ResumeAsync(ct: ct); break;
                 case "stop": await robot.StopAsync(ct); break;
-                case "dock": await robot.ReturnToDockAsync(ct); break;
                 case "state": await robot.RequestCurrentStateAsync(ct); break;
                 case "faults": await robot.RequestCurrentFaultsAsync(ct); break;
                 default: return Fail("Commande à envoyer inconnue. Voir --help.");

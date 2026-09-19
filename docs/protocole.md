@@ -67,8 +67,13 @@ la station.
 L'APK en contient davantage, notamment `FULL_CLEAN_PAUSED`, `FULL_CLEAN_ABORTED`,
 `FULL_CLEAN_NEEDS_CHARGE` et `MAPPING_RUNNING`.
 
+États observés depuis : `FULL_CLEAN_PAUSED`, `ABORTED` (sans préfixe, juste après un abandon),
+`MAPPING_RUNNING`, `MAPPING_FINISHED`.
+
 Valeurs de `dockState` observées : `IDLE`, `WASHING_MOP`, `COLLECTING_DUST`, `DRYING_MOP`.
-Valeurs de `fullCleanAction` : `NONE`, `VACUUMING_AND_MOPPING`.
+Valeurs de `fullCleanAction` : `NONE`, `VACUUMING`, `VACUUMING_AND_MOPPING`.
+
+`currentCleaningMode` vaut `global` au repos et `zoneConfigured` pendant une tâche.
 
 Le code de faute `2105` accompagné de `nextActionRequired: LOG_ONLY` est un état normal, pas une
 panne. La famille `21xx` sert d'indicateur de statut.
@@ -82,9 +87,12 @@ panne. La famille `21xx` sert d'indicateur de statut.
 Observés aussi : `STATE-SET`, `START-DOCK-ACTION`, `SET-VOICE-LANGUAGE`,
 `REQUEST-VOICE-DOWNLOAD-STATUS` et `VOICE-DOWNLOAD-STATUS`, décrits dans la section des réglages.
 
+`PAUSE`, `ABORT` et `START-MAPPING` sont décrits dans la section sur la pause, l'abandon et la
+cartographie.
+
 Les autres types présents dans l'APK mais non encore observés : `STATE-CHANGE`, `CURRENT-FAULTS`,
-`FAULTS-CHANGE`, `START-MAPPING`, `START-DOCK-SELF-CHECK`, `SKIP-CURRENT-ZONE`, ainsi que `PAUSE`,
-`RESUME`, `STOP` et `ABORT` qui restent des hypothèses.
+`FAULTS-CHANGE`, `START-DOCK-SELF-CHECK`, `SKIP-CURRENT-ZONE`, `RESUME` et `STOP`. L'application
+n'utilise jamais `STOP` : elle interrompt un nettoyage par `PAUSE` puis `ABORT`.
 
 ## Couche jdm
 
@@ -158,9 +166,11 @@ identifiés ; l'indice 10 semble porter l'ordre de passage, l'indice 2 un régla
 `service.set_room_clean`, `service.get_order`, `service.add_order`, `service.del_order`,
 `service.start_station_act`, `service.set_robot_time_zone`, `service.rename_map`,
 `service.rename_room`, `service.split_room`, `service.set_virtual_wall`,
-`service.adjust_furniture`, `service.download_voice_type`, `service.get_voice_download`,
+`service.adjust_furniture`, `service.arrange_room`, `service.start_explore`,
+`service.start_recharge`, `service.download_voice_type`, `service.get_voice_download`,
 `prop.get`, `prop.set`, `prop.post`, `event.startClean.post`, `event.clean_finish.post`,
 `event.clean_record.post`, `event.locate_fail.post`, `event.map_change.post`,
+`event.startBuildMap.post`, `event.BuildMapFinish.post`,
 `event.shortcut_instruction_task_change.post`. Les réglages, cartes, horaires et voix sont
 détaillés dans leurs sections.
 
@@ -370,6 +380,9 @@ du paquet sur `device-package.cp.dyson.com`, son MD5 et un `type` numérique, et
 | `service.split_room` | `{map_id, room_id, split_points: [x1, y1, x2, y2], lang}` | `{map_id, map_type: 3, timestamp}` |
 | `service.set_virtual_wall` | `{virwall: [n, [map_id, type, x1, y1, x2, y2, x3, y3, x4, y4]]}` | `{map_id, map_type: 2, timestamp}` |
 | `service.adjust_furniture` | `{timestamp, package: [1, 1], furniture_list: "[[id, type, …, 8 coordonnées]]"}` | `{map_id, map_type, timestamp, package}` |
+| `service.arrange_room` | `{map_id, room_ids: [16, 15], lang}` | `{map_id, map_type: 3, timestamp}` |
+
+`service.arrange_room` fusionne les pièces listées. `lang` vaut 5 pour le français.
 
 `room_name` suit la double forme décrite plus haut, chaîne simple ou objet JSON encodé avec `type`
 et `name`. `furniture_list` est une chaîne contenant un tableau JSON, pas un tableau. Après chaque
@@ -423,3 +436,56 @@ de 320 × 420 cellules de 5 cm pour un logement de 16 m sur 21 m.
 
 `GET /v1/telemetry/device/{serial}/sessions` exige `start` et `end` et répond 400 quelle que soit
 leur forme : il sert vraisemblablement aux purificateurs, pas au robot.
+
+## Pause, abandon et cartographie
+
+Observés le soir du 19 septembre, y compris sur une carte sans accès à la station.
+
+### Pause
+
+```
+-> command       {"msg": "PAUSE", "cleaningMode": "zoneConfigured", "mode-reason": "RAPP"}
+-> command/jdm   service.set_room_clean  {"ctrl_value": 2, "clean_type": 0, "room_ids": []}
+<- status        state FULL_CLEAN_PAUSED, fullCleanAction NONE
+```
+
+`ctrl_value` vaut 1 pour démarrer et 2 pour mettre en pause. La reprise n'a pas été observée.
+
+### Abandon
+
+```
+-> command       {"msg": "ABORT", "cleaningMode": "zoneConfigured", "state": "FULL_CLEAN_PAUSED", "mode-reason": "RAPP"}
+-> command/jdm   service.start_recharge  {}
+<- status        state ABORTED avec la faute 2104, puis INACTIVE_DISCHARGING, puis INACTIVE_CHARGING une fois à quai
+<- status/jdm    event.clean_record.post avec record_task_status 2
+```
+
+Le message `ABORT` transporte l'état courant du robot dans son champ `state`, `FULL_CLEAN_RUNNING`
+ou `FULL_CLEAN_PAUSED` selon le moment. Un client doit donc connaître l'état avant d'abandonner.
+
+### Création d'une carte
+
+```
+-> command       {"msg": "STATE-SET", "mapLanguage": "fr-CH", "mode-reason": "RAPP"}
+-> command       {"msg": "START-MAPPING", "mode-reason": "RAPP"}
+-> command/jdm   service.start_explore  {"mode": 0}
+<- status/jdm    event.startBuildMap.post
+<- status        state MAPPING_RUNNING, persistentMapId "0", fautes 2110 puis 2112
+<- status        state MAPPING_FINISHED, faute 2102
+<- status/jdm    event.clean_record.post avec record_clean_mode 4
+<- status/jdm    event.BuildMapFinish.post
+<- status        persistentMapId prend l'identifiant de la nouvelle carte
+```
+
+La langue de la carte sert au nommage automatique des pièces. Pendant la cartographie
+`persistentMapId` vaut `"0"`.
+
+### Codes de faute et de compte rendu supplémentaires
+
+| Code | Signification observée |
+|---|---|
+| `2104` | abandonné, indicateur de statut |
+| `2110`, `2112` | cartographie en cours, indicateurs de statut |
+
+`record_task_status` du compte rendu : 1 terminé, 2 abandonné par l'utilisateur, 4 abandonné après
+un échec de localisation. `record_clean_mode` vaut 4 pour une cartographie.

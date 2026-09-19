@@ -419,6 +419,80 @@ public sealed class RobotMqttClient : IAsyncDisposable
         "wash_back_frequency", "work_mode",
     ];
 
+    // ---- Pause, abort, mapping (captured 2026-09-19 evening) --------------------
+
+    /// <summary>
+    /// Pauses the running clean. The app pairs the classic PAUSE with a jdm set_room_clean whose
+    /// ctrl_value is 2 (1 starts, 2 pauses). The robot answers with state FULL_CLEAN_PAUSED.
+    /// </summary>
+    public async Task PauseAsync(string cleaningMode = "zoneConfigured", CancellationToken ct = default)
+    {
+        await PublishCommandAsync(new JsonObject
+        {
+            ["msg"] = "PAUSE",
+            ["mode-reason"] = "RAPP",
+            ["cleaningMode"] = cleaningMode,
+        }, ct).ConfigureAwait(false);
+        await PublishJdmAsync("service.set_room_clean", new JsonObject
+        {
+            ["ctrl_value"] = 2,
+            ["clean_type"] = 0,
+            ["room_ids"] = new JsonArray(),
+        }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Aborts the current clean and sends the robot home. The classic ABORT carries the robot's
+    /// current state (FULL_CLEAN_RUNNING or FULL_CLEAN_PAUSED) and is paired with jdm
+    /// service.start_recharge. The robot goes to state ABORTED, then INACTIVE_DISCHARGING or
+    /// INACTIVE_CHARGING once docked.
+    /// </summary>
+    public async Task AbortAsync(string currentState, string cleaningMode = "zoneConfigured", CancellationToken ct = default)
+    {
+        await PublishCommandAsync(new JsonObject
+        {
+            ["msg"] = "ABORT",
+            ["mode-reason"] = "RAPP",
+            ["cleaningMode"] = cleaningMode,
+            ["state"] = currentState,
+        }, ct).ConfigureAwait(false);
+        await PublishJdmAsync("service.start_recharge", ct: ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Alias kept for callers that only want the robot home.</summary>
+    public Task ReturnToDockAsync(string currentState = "FULL_CLEAN_RUNNING", CancellationToken ct = default) =>
+        AbortAsync(currentState, ct: ct);
+
+    /// <summary>
+    /// Starts building a new map. The app first sets the map language, then sends START-MAPPING
+    /// paired with jdm service.start_explore. States: MAPPING_RUNNING, MAPPING_FINISHED, and the
+    /// new persistentMapId appears in CURRENT-STATE once event.BuildMapFinish.post has fired.
+    /// </summary>
+    public async Task StartMappingAsync(string mapLanguage, CancellationToken ct = default)
+    {
+        await PublishCommandAsync(new JsonObject
+        {
+            ["msg"] = "STATE-SET",
+            ["mode-reason"] = "RAPP",
+            ["mapLanguage"] = mapLanguage,
+        }, ct).ConfigureAwait(false);
+        await PublishCommandAsync(new JsonObject { ["msg"] = "START-MAPPING", ["mode-reason"] = "RAPP" }, ct).ConfigureAwait(false);
+        await PublishJdmAsync("service.start_explore", new JsonObject { ["mode"] = 0 }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Merges rooms of a map into one. lang 5 is French, as sent by the app.</summary>
+    public Task MergeRoomsAsync(long mapId, IEnumerable<int> roomIds, int lang = 5, CancellationToken ct = default)
+    {
+        var ids = new JsonArray();
+        foreach (var id in roomIds) ids.Add(id);
+        return PublishJdmAsync("service.arrange_room", new JsonObject
+        {
+            ["map_id"] = mapId,
+            ["room_ids"] = ids,
+            ["lang"] = lang,
+        }, ct);
+    }
+
     // ---- Commands not observed, taken from APK strings -----------------------
 
     /// <summary>Starts a clean of the whole map. Not observed: the app uses zones even for a full clean.</summary>
@@ -434,21 +508,13 @@ public sealed class RobotMqttClient : IAsyncDisposable
     public Task RequestCurrentFaultsAsync(CancellationToken ct = default) =>
         PublishCommandAsync(new JsonObject { ["msg"] = "REQUEST-CURRENT-FAULTS" }, ct);
 
-    public Task PauseAsync(CancellationToken ct = default) =>
-        PublishCommandAsync(new JsonObject { ["msg"] = "PAUSE", ["mode-reason"] = "RAPP" }, ct);
+    /// <summary>Not observed. The jdm counterpart is probably set_room_clean with another ctrl_value.</summary>
+    public Task ResumeAsync(string cleaningMode = "zoneConfigured", CancellationToken ct = default) =>
+        PublishCommandAsync(new JsonObject { ["msg"] = "RESUME", ["mode-reason"] = "RAPP", ["cleaningMode"] = cleaningMode }, ct);
 
-    public Task ResumeAsync(CancellationToken ct = default) =>
-        PublishCommandAsync(new JsonObject { ["msg"] = "RESUME", ["mode-reason"] = "RAPP" }, ct);
-
+    /// <summary>Not observed. The app stops a clean with PAUSE followed by ABORT, never STOP.</summary>
     public Task StopAsync(CancellationToken ct = default) =>
         PublishCommandAsync(new JsonObject { ["msg"] = "STOP", ["mode-reason"] = "RAPP" }, ct);
-
-    /// <summary>Aborts the current clean and sends the robot back to the dock.</summary>
-    public async Task ReturnToDockAsync(CancellationToken ct = default)
-    {
-        await PublishCommandAsync(new JsonObject { ["msg"] = "ABORT", ["mode-reason"] = "RAPP" }, ct).ConfigureAwait(false);
-        await PublishJdmAsync("service.start_recharge", ct: ct).ConfigureAwait(false);
-    }
 
     public async ValueTask DisposeAsync()
     {
