@@ -1,9 +1,9 @@
 # MyDyson (Windows)
 
-Application Windows non officielle pour contrôler le robot aspirateur **Dyson Spot+Scrub AI** (nom interne RB05).
+Application Windows non officielle pour contrôler le robot aspirateur **Dyson Spot+Scrub AI** ([en](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai), [fr-CH](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai)) (nom interne RB05).
 
 Le robot n'expose aucun service sur le réseau local : il n'est joignable que via le cloud Dyson
-(MQTT sur WebSocket vers AWS IoT). Ce dépôt reproduit donc le protocole de l'application mobile MyDyson.
+(MQTT sur WebSocket vers AWS IoT). Ce dépôt reproduit donc le protocole de [l'application mobile MyDyson](https://play.google.com/store/apps/details?id=com.dyson.mobile.android).
 
 ## État du projet
 
@@ -120,7 +120,7 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
 
 ## Références
 
-- [thoukydides/matterbridge-dyson-robot](https://github.com/thoukydides/matterbridge-dyson-robot) (issue #46 : capture complète RB05)
+- [thoukydides/matterbridge-dyson-robot](https://github.com/thoukydides/matterbridge-dyson-robot) ([issue #46](https://github.com/thoukydides/matterbridge-dyson-robot/issues/46) : capture complète RB05)
 - [UNsync3D/ha-dyson-spot-scrub](https://github.com/UNsync3D/ha-dyson-spot-scrub)
 - [libdyson-wg/appapi](https://github.com/libdyson-wg/appapi)
 - [Diagnostic des connexions AWS IoT](https://docs.aws.amazon.com/iot/latest/developerguide/diagnosing-connectivity-issues.html)
