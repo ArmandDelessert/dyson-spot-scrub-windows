@@ -480,6 +480,69 @@ public sealed class RobotMqttClient : IAsyncDisposable
         await PublishJdmAsync("service.start_explore", new JsonObject { ["mode"] = 0 }, ct).ConfigureAwait(false);
     }
 
+    /// <summary>Empties the robot's bin into the dock now (START-DOCK-ACTION COLLECT_DUST).</summary>
+    public Task CollectDustAsync(CancellationToken ct = default) =>
+        PublishCommandAsync(new JsonObject
+        {
+            ["msg"] = "START-DOCK-ACTION",
+            ["mode-reason"] = "RAPP",
+            ["action"] = "COLLECT_DUST",
+        }, ct);
+
+    // ---- Settings: the app writes every setting in both dialects at once ---------
+
+    /// <summary>
+    /// Writes one setting the way the app does: a classic STATE-SET and a jdm prop.set carrying
+    /// the same value, and waits for the jdm acknowledgement. Booleans are 0/1 on the jdm side.
+    /// </summary>
+    public async Task<JsonObject> SetSettingAsync(string classicName, JsonNode classicValue, string jdmName, JsonNode jdmValue, CancellationToken ct = default)
+    {
+        await PublishCommandAsync(new JsonObject
+        {
+            ["msg"] = "STATE-SET",
+            ["mode-reason"] = "RAPP",
+            [classicName] = classicValue,
+        }, ct).ConfigureAwait(false);
+        return await RequestJdmAsync("prop.set", new JsonObject { [jdmName] = jdmValue }, ct: ct).ConfigureAwait(false);
+    }
+
+    public Task<JsonObject> SetHotWaterMopAsync(bool on, CancellationToken ct = default) =>
+        SetSettingAsync("hotWaterMop", on, "hot_water_mop", on ? 1 : 0, ct);
+
+    public Task<JsonObject> SetHotWaterSwitchAsync(bool on, CancellationToken ct = default) =>
+        SetSettingAsync("hotWaterSwitch", on, "hot_water_switch", on ? 1 : 0, ct);
+
+    public Task<JsonObject> SetDetergentAsync(bool on, CancellationToken ct = default) =>
+        SetSettingAsync("detergent", on, "detergent", on ? 1 : 0, ct);
+
+    public Task<JsonObject> SetAlarmAsync(bool on, CancellationToken ct = default) =>
+        SetSettingAsync("alarm", on, "alarm", on ? 1 : 0, ct);
+
+    /// <summary>0 to 100.</summary>
+    public Task<JsonObject> SetVolumeAsync(int volume, CancellationToken ct = default) =>
+        SetSettingAsync("volume", volume, "volume", volume, ct);
+
+    /// <summary>3 to 5 as offered by the app.</summary>
+    public Task<JsonObject> SetAirDryFrequencyAsync(int level, CancellationToken ct = default) =>
+        SetSettingAsync("airDryFrequency", level, "airdry_frequency", level, ct);
+
+    /// <summary>Wash the mop after every room.</summary>
+    public Task<JsonObject> SetBackWashPerRoomAsync(CancellationToken ct = default) =>
+        SetSettingAsync("backWashType", "ROOM", "back_wash_type", 1, ct);
+
+    /// <summary>Wash the mop every N minutes; the app offers 15, 30 and 60.</summary>
+    public async Task<JsonObject> SetBackWashByTimeAsync(int minutes, CancellationToken ct = default)
+    {
+        await PublishCommandAsync(new JsonObject
+        {
+            ["msg"] = "STATE-SET",
+            ["mode-reason"] = "RAPP",
+            ["backWashType"] = "TIME",
+            ["backWashTime"] = minutes,
+        }, ct).ConfigureAwait(false);
+        return await RequestJdmAsync("prop.set", new JsonObject { ["back_wash_time"] = minutes, ["back_wash_type"] = 0 }, ct: ct).ConfigureAwait(false);
+    }
+
     /// <summary>Merges rooms of a map into one. lang 5 is French, as sent by the app.</summary>
     public Task MergeRoomsAsync(long mapId, IEnumerable<int> roomIds, int lang = 5, CancellationToken ct = default)
     {

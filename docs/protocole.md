@@ -434,6 +434,22 @@ Tous vérifiés le 19 septembre 2026.
 Les batteries de l'historique arrivent en nombres à virgule (`91.0`), pas en entiers. La grille est
 de 320 × 420 cellules de 5 cm pour un logement de 16 m sur 21 m.
 
+### Grille d'occupation
+
+`mapData` compte `width × height` entiers, en ordre ligne par ligne : la cellule `(cx, cy)` est
+`mapData[cy × width + cx]`, avec `cx = (x − offsetX) / resolution` et `cy = (y − offsetY) / resolution`,
+sans inversion d'axe. Vérifié en s'assurant que les points visités de chaque pièce tombent sur des
+cellules portant son identifiant.
+
+| Valeur | Signification |
+|---|---|
+| `0` | inconnu ou hors du logement |
+| `255` | obstacle, mur |
+| autre | identifiant de la zone à laquelle la cellule appartient, `10`, `11`, `12`… |
+
+La grille encode donc directement la découpe en pièces. Les longues pointes qui dépassent des
+murs sont des artefacts du lidar à travers les vitres.
+
 `GET /v1/telemetry/device/{serial}/sessions` exige `start` et `end` et répond 400 quelle que soit
 leur forme : il sert vraisemblablement aux purificateurs, pas au robot.
 

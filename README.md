@@ -7,7 +7,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 
 ## État du projet
 
-Étapes 1 et 2 (prototype en ligne de commande, fondations en lecture) : **tout fonctionne sauf l'interface graphique, qui n'est pas commencée.**
+Étapes 1 à 3 : **ligne de commande, bibliothèque et application Windows fonctionnent.**
 
 | Fonction | État |
 |---|---|
@@ -22,7 +22,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Tests unitaires | 20 tests |
-| Interface graphique | pas commencée |
+| Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié le 19 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`.
 
@@ -56,6 +56,35 @@ de révocation n'étant pas joignable depuis certains réseaux. Le certificat lu
 Les deux autres modes restent disponibles dans la ligne de commande (`--websocket`, `--sigv4`) à
 titre de comparaison et de diagnostic.
 
+## Application Windows
+
+`src/MyDyson.App` est une application WPF. Au premier lancement elle demande le compte MyDyson et
+le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
+
+- **Tableau de bord** : état du robot en clair, batterie, fautes réelles en rouge, consommables,
+  boutons de nettoyage des pièces cochées, pause, retour à la station, arrêt du séchage, vidage du bac.
+  Les boutons ne sont actifs que quand l'état du robot le permet.
+- **Carte** : grille d'occupation du robot colorée par pièce, meubles, station, position du robot,
+  tracé du dernier nettoyage ou de celui choisi dans l'historique. Les pièces cochées sont mises en
+  avant. Export en PNG.
+- **Historique** : chaque nettoyage avec durée, surface, batterie et fautes ; la sélection affiche
+  son tracé sur la carte.
+- **Réglages** : eau chaude, chauffe-eau, détergent, rinçage, séchage, sons, volume, envoyés au
+  robot dans les deux dialectes comme le fait l'application officielle.
+- **Journal** : événements du robot et résultats des commandes.
+
+La connexion se rétablit seule après une coupure, avec des credentials renouvelés.
+
+Deux options de ligne de commande servent à la vérification sans écran et à la documentation :
+
+```bash
+MyDyson.App.exe --export-map carte.png
+MyDyson.App.exe --screenshot ecran.png --after 15 --tab 0
+```
+
+WPF a été préféré à WinUI 3 parce qu'il se compile et se lance sans outillage supplémentaire sur
+une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migration reste possible.
+
 ## Architecture
 
 - `MyDyson.Core`
@@ -64,9 +93,11 @@ titre de comparaison et de diagnostic.
     corrélation requête-réponse (`RequestStateAsync`, `RequestJdmAsync`).
   - `RobotSession` : connexion longue durée, reconnexion avec credentials renouvelés, expose un `RobotStateTracker`.
   - `RobotState`, `RobotStateTracker`, `JdmProperties`, `RoomPreference` : modèle d'état typé des deux dialectes.
-  - `MapModels` : cartes, zones, position en direct, historique.
+  - `MapModels`, `MapGrid` : cartes, zones, position en direct, historique, grille d'occupation décodée.
   - `AwsSigV4`, `RawMqttProbe` : diagnostics des autres transports.
   - `SessionStore` : bearer token chiffré avec DPAPI dans `%APPDATA%\MyDyson\session.bin`.
+- `MyDyson.App` : application WPF. `MapRenderer` dessine la scène pour l'écran et l'export PNG,
+  `RobotContext` porte la session, `MainViewModel` le tableau de bord.
 - `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `maps`, `map`, `live`, `history`,
   `clean`, `send`, `api`, `probe`, `wstest`.
 - `tests/MyDyson.Core.Tests` : casse des requêtes, signature SigV4, nom d'utilisateur MQTT, modèle
@@ -83,6 +114,12 @@ Le protocole retrouvé par décompilation et par captures est documenté dans [d
 
 ```bash
 dotnet build
+dotnet run --project src/MyDyson.App
+```
+
+Ligne de commande :
+
+```bash
 dotnet run --project src/MyDyson.Cli -- login --country CH --culture fr-CH
 dotnet run --project src/MyDyson.Cli -- devices
 dotnet run --project src/MyDyson.Cli -- iot    --serial XXX-XX-XXXXXXXX
