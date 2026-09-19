@@ -17,7 +17,8 @@ internal static class Program
           mydyson iot     --serial S                                    Affiche les credentials AWS IoT de l'appareil
           mydyson status  --serial S [--timeout 15]                     Demande et affiche l'état courant du robot
           mydyson watch   --serial S [--log fichier.jsonl] [--poll 30]  Affiche tous les messages MQTT en continu
-          mydyson send    --serial S <start|pause|resume|stop|dock|state|faults>   Envoie une commande connue
+          mydyson send    --serial S <start|zone|dry-stop|tz|maps|props|pause|resume|stop|dock|state|faults>
+                          zone exige --map ID --zones 11,12 ; tz prend un nom IANA
           mydyson send    --serial S --json '{"msg":"..."}'             Envoie un JSON brut sur .../command
           mydyson send    --serial S --jdm service.xxx [--params '{}']  Envoie une requête JDM sur .../command/jdm
           mydyson api     <path>                                        GET authentifié brut (ex: /v3/manifest)
@@ -255,6 +256,24 @@ internal static class Program
             switch (name)
             {
                 case "start": await robot.StartGlobalCleanAsync(ct); break;
+                case "zone":
+                    var map = o.Get("map") ?? RequireOption("--map");
+                    var zones = (o.Get("zones") ?? RequireOption("--zones"))
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    await robot.SetCurrentMapAsync(long.Parse(map), ct);
+                    await robot.StartZoneCleanAsync(map, zones, ct);
+                    await robot.SetRoomCleanAsync(zones.Select(int.Parse), ct: ct);
+                    break;
+                case "dry-stop":
+                    await robot.AbortDockActionAsync("DRY_MOP", ct);
+                    await robot.StartStationActionAsync(0, 2, ct);
+                    break;
+                case "tz":
+                    await robot.SetRobotTimeZoneAsync(
+                        o.Positionals.Skip(1).FirstOrDefault() ?? RequireOption("un fuseau, ex. Europe/Amsterdam"), ct);
+                    break;
+                case "maps": await robot.GetMapListAsync(ct); break;
+                case "props": await robot.GetPropertiesAsync(ct: ct); break;
                 case "pause": await robot.PauseAsync(ct); break;
                 case "resume": await robot.ResumeAsync(ct); break;
                 case "stop": await robot.StopAsync(ct); break;
@@ -445,6 +464,9 @@ internal static class Program
         var iot = await api.GetIotCredentialsAsync(serial, ct);
         return MqttEndpoint.FromCustomAuthorizer(iot) with { ClientId = o.Get("client-id") ?? iot.IoTCredentials.ClientId };
     }
+
+    private static string RequireOption(string what) =>
+        throw new DysonApiException($"{what} est requis pour cette commande.");
 
     private static string RequireSerial(Options o) =>
         o.Get("serial") ?? throw new DysonApiException("--serial est requis (voir `mydyson devices`).");

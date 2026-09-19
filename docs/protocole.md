@@ -62,10 +62,13 @@ observés. Exemple au repos sur la station :
 Pendant un déplacement, le robot ajoute `globalPosition`, un tableau de points en mètres relatifs à
 la station.
 
-États observés sur un cycle complet, dans l'ordre : `INACTIVE_CHARGING`, `FULL_CLEAN_DISCOVERING`,
-`FULL_CLEAN_RUNNING`, `INACTIVE_DISCHARGING`, `FULL_CLEAN_FINISHED`. L'APK en contient bien
-davantage, notamment `FULL_CLEAN_PAUSED`, `FULL_CLEAN_ABORTED`, `FULL_CLEAN_NEEDS_CHARGE`,
-`MAPPING_RUNNING` et la famille `DRYING_MOP`.
+États observés : `INACTIVE_CHARGING`, `INACTIVE_DISCHARGING`, `FULL_CLEAN_DISCOVERING`,
+`FULL_CLEAN_RUNNING`, `FULL_CLEAN_FINISHED`. Voir la section sur le cycle de vie pour l'enchaînement.
+L'APK en contient davantage, notamment `FULL_CLEAN_PAUSED`, `FULL_CLEAN_ABORTED`,
+`FULL_CLEAN_NEEDS_CHARGE` et `MAPPING_RUNNING`.
+
+Valeurs de `dockState` observées : `IDLE`, `WASHING_MOP`, `COLLECTING_DUST`, `DRYING_MOP`.
+Valeurs de `fullCleanAction` : `NONE`, `VACUUMING_AND_MOPPING`.
 
 Le code de faute `2105` accompagné de `nextActionRequired: LOG_ONLY` est un état normal, pas une
 panne. La famille `21xx` sert d'indicateur de statut.
@@ -74,9 +77,11 @@ panne. La famille `21xx` sert d'indicateur de statut.
 
 `MAP-UPLOAD-STATUS` signale la fin d'un envoi de carte : `{ "status": "COMPLETE", "persistentMapId": "1000000003" }`.
 
+`START` et `ABORT-DOCK-ACTION` sont détaillés plus bas, dans la section des commandes.
+
 Les autres types présents dans l'APK mais non encore observés : `STATE-CHANGE`, `CURRENT-FAULTS`,
-`FAULTS-CHANGE`, `START-MAPPING`, `START-DOCK-ACTION`, `ABORT-DOCK-ACTION`, `START-DOCK-SELF-CHECK`,
-`SKIP-CURRENT-ZONE`.
+`FAULTS-CHANGE`, `START-MAPPING`, `START-DOCK-ACTION`, `START-DOCK-SELF-CHECK`, `SKIP-CURRENT-ZONE`,
+ainsi que `PAUSE`, `RESUME`, `STOP` et `ABORT` qui restent des hypothèses.
 
 ## Couche jdm
 
@@ -136,6 +141,9 @@ Les pièces sont des tableaux positionnels, pas des objets. Format observé, dou
 }}
 ```
 
+Les réponses comptent douze éléments par pièce, alors que le `service.set_preference` publié par
+l'application n'en envoie que onze. Un lecteur doit donc tolérer les deux longueurs.
+
 Indice 0 l'identifiant de zone, indice 1 le nom. Ce nom est soit une chaîne simple, soit un objet
 JSON encodé contenant `type` et `name` pour les pièces auxquelles l'utilisateur a attribué un type.
 Tout code lisant ce champ doit gérer les deux formes. Les indices suivants ne sont pas encore tous
@@ -144,8 +152,9 @@ identifiés ; l'indice 10 semble porter l'ordre de passage, l'indice 2 un régla
 ### Méthodes et événements jdm observés
 
 `service.get_map_list`, `service.get_preference`, `service.set_preference`, `service.set_cur_map`,
-`service.set_room_clean`, `service.get_order`, `prop.get`, `prop.post`, `event.startClean.post`,
-`event.clean_record.post`, `event.locate_fail.post`,
+`service.set_room_clean`, `service.get_order`, `service.start_station_act`,
+`service.set_robot_time_zone`, `prop.get`, `prop.post`, `event.startClean.post`,
+`event.clean_finish.post`, `event.clean_record.post`, `event.locate_fail.post`,
 `event.shortcut_instruction_task_change.post`.
 
 ## Capture
@@ -160,3 +169,131 @@ dotnet run --project src/MyDyson.Cli -- watch --serial XXX-XX-XXXXXXXX --poll 0 
 ```
 
 `--poll 0` évite toute publication, donc la fermeture de connexion décrite dans le README.
+
+## Commandes publiées par l'application
+
+Relevées dans une capture où les filtres couvraient aussi les topics de commande.
+
+### Séquence de démarrage d'un nettoyage de zones
+
+C'est la séquence exacte du bouton de démarrage, en quatre messages sur deux topics.
+
+```
+-> command/jdm   service.set_preference   { map_id, prefer_type: 1, room_preference, uv_switch }
+<- status/jdm    code 0, data.result 0
+-> command       START
+-> command/jdm   service.set_cur_map      { map_id }
+-> command/jdm   service.set_room_clean   { ctrl_value: 1, clean_type: 0, room_ids: [11] }
+```
+
+La charge utile du START :
+
+```json
+{
+  "msg": "START",
+  "mode-reason": "RAPP",
+  "cleaningMode": "zoneConfigured",
+  "fullCleanType": "immediate",
+  "cleaningProgramme": {
+    "persistentMapId": "1000000002",
+    "zonesDefinitionLastUpdatedDate": "",
+    "unorderedZones": ["11"]
+  },
+  "time": "2026-09-19T12:29:35Z"
+}
+```
+
+Les champs `fullCleanType` et `zonesDefinitionLastUpdatedDate` ne figurent dans aucune
+implémentation communautaire connue. L'application les envoie systématiquement.
+
+### Arrêt d'une action du dock
+
+Le séchage de la serpillière dure plusieurs heures après chaque nettoyage. L'application l'interrompt
+avec deux messages complémentaires :
+
+```json
+{ "msg": "ABORT-DOCK-ACTION", "action": "DRY_MOP", "mode-reason": "RAPP" }
+{ "method": "service.start_station_act", "params": { "ctrl_value": 0, "station_act": 2 } }
+```
+
+### Interrogation périodique
+
+L'application publie `REQUEST-CURRENT-STATE` toutes les trente secondes, accompagné d'un `prop.get`
+qui énumère explicitement les quarante-deux propriétés voulues, dans `params.property`.
+
+Curiosité : certains messages de l'application transportent des clés parasites à une lettre, par
+exemple `{"f": "RB05", "g": "SERIAL", "h": "RB05/SERIAL/command"}`. Ce sont les champs internes de
+routage de l'application, dont les noms ont été raccourcis par l'obfuscateur R8 puis sérialisés par
+erreur. Le robot les ignore.
+
+### Fuseau horaire
+
+```json
+{ "method": "service.set_robot_time_zone", "params": { "time_zone": "Europe/Amsterdam" } }
+```
+
+Le robot répond `data.result: 1`, soit un refus. Voir la section sur les codes de retour.
+
+## Codes de retour jdm
+
+Pour les méthodes `service.set_*`, c'est `data.result` qui porte le verdict : 0 pour un succès,
+1 pour un refus. Le champ `code` de l'enveloppe ne suit pas cette convention et vaut 1 sur les
+réponses à `prop.get` alors que les données sont valides.
+
+## Cycle de vie d'un nettoyage
+
+Enchaînement observé sur un cycle complet, aspiration et serpillière.
+
+| `state` | `dockState` | `fullCleanAction` |
+|---|---|---|
+| `INACTIVE_CHARGING` | `IDLE` | `NONE` |
+| `FULL_CLEAN_RUNNING` | `IDLE` | `VACUUMING_AND_MOPPING` |
+| `FULL_CLEAN_RUNNING` | `WASHING_MOP` | `NONE` |
+| `FULL_CLEAN_DISCOVERING` | `IDLE` | `VACUUMING_AND_MOPPING` |
+| `FULL_CLEAN_FINISHED` | `COLLECTING_DUST` puis `WASHING_MOP` | `NONE` |
+| `INACTIVE_CHARGING` | `DRYING_MOP` | `NONE` |
+
+Le robot revient laver sa serpillière au dock en cours de nettoyage, `dockState` passant à
+`WASHING_MOP` sans que le nettoyage s'arrête. En fin de cycle il vide son bac, lave la serpillière,
+puis entame le séchage qui dure des heures.
+
+`event.clean_finish.post` marque la fin, suivi de `event.clean_record.post` qui résume la session :
+
+```json
+{ "record_start_time": 1789819321, "record_use_time": 8, "record_clean_area": 756,
+  "clean_count": 2, "record_task_status": 1, "clean_current_map": 1000000002 }
+```
+
+`record_task_status` vaut 1 pour un nettoyage mené à terme et 4 pour un nettoyage abandonné.
+Plusieurs champs de ce message transportent des entiers négatifs encodés en non signé, par exemple
+`4294967276` pour -20.
+
+## Codes de faute
+
+Le champ `nextActionRequired` distingue l'indicateur de statut de la vraie panne.
+
+| Code | `nextActionRequired` | Signification observée |
+|---|---|---|
+| `0` | absent | plus aucune faute |
+| `501` | `WAIT_TO_CLEAR` | transitoire, au retour sur la base après un abandon |
+| `589` | `WAIT_TO_CLEAR` | **échec de localisation**, précédé de `event.locate_fail.post` |
+| `2102` | `LOG_ONLY` | nettoyage terminé |
+| `2103` | `LOG_ONLY` | en charge |
+| `2105` | `LOG_ONLY` | au repos sur la base |
+| `2108` | `LOG_ONLY` | localisation en cours, accompagne `FULL_CLEAN_DISCOVERING` |
+| `2109` | `LOG_ONLY` | pendant le nettoyage |
+
+La famille `21xx` sert donc d'indicateur de statut, pas d'alerte. Un code à trois chiffres avec
+`WAIT_TO_CLEAR` est une vraie erreur qui attend une intervention.
+
+Déroulé d'un échec de localisation, capturé en conditions réelles : le robot part, passe en
+`FULL_CLEAN_DISCOVERING` avec la faute `2108`, échoue, émet `event.locate_fail.post` puis la faute
+`589`, abandonne avec `record_task_status: 4`, et revient à la base.
+
+## Topic de carte
+
+`RB05/{serial}/status/jdm/map` porte l'état du traitement des cartes côté cloud :
+
+```json
+{ "message": "Processing success", "status": "SUCCESS", "mapId": 1000000002 }
+```
