@@ -183,6 +183,58 @@ public sealed class DysonCloudClient : IDisposable
         return (status, changed);
     }
 
+    // ---- Maps ------------------------------------------------------------------
+
+    /// <summary>All maps of the device with their zones and per-zone settings. Light, no geometry.</summary>
+    public Task<List<MapMetadata>> GetMapMetadataAsync(string serial, CancellationToken ct = default) =>
+        SendAsync<List<MapMetadata>>(Request(HttpMethod.Get, Url($"/v2/app/{serial}/persistent-map-metadata", withCountry: false), auth: true), ct);
+
+    /// <summary>One stored map with zone geometry, dock, furniture and restrictions. About 45 KB.</summary>
+    public Task<PersistentMap> GetPersistentMapAsync(string serial, string mapId, CancellationToken ct = default) =>
+        SendAsync<PersistentMap>(Request(HttpMethod.Get, Url($"/v2/app/{serial}/persistent-maps/{mapId}", withCountry: false), auth: true), ct);
+
+    /// <summary>The current map with robot position and clean path. Works whether or not the robot is cleaning.</summary>
+    public Task<LiveMap> GetLiveCleaningMapAsync(string serial, CancellationToken ct = default) =>
+        SendAsync<LiveMap>(Request(HttpMethod.Get, Url($"/v1/app/{serial}/live-maps/cleaning", withCountry: false), auth: true), ct);
+
+    /// <summary>The occupancy grid. Large (hundreds of KB); fetch it once, not on a timer.</summary>
+    public Task<MappingMap> GetMappingMapAsync(string serial, CancellationToken ct = default) =>
+        SendAsync<MappingMap>(Request(HttpMethod.Get, Url($"/v1/app/{serial}/live-maps/mapping", withCountry: false), auth: true), ct);
+
+    // ---- Clean history -----------------------------------------------------------
+
+    /// <summary>Past cleans, newest first. Each carries a presigned S3 link (valid 15 min) to a zlib blob.</summary>
+    public async Task<List<CleanSummary>> GetCleanHistoryAsync(string serial, CancellationToken ct = default)
+    {
+        var list = await SendAsync<CleanList>(Request(HttpMethod.Get, Url($"/v2/{serial}/clean-maps", withCountry: false), auth: true), ct).ConfigureAwait(false);
+        return list.Data;
+    }
+
+    public Task<CleanDetail> GetCleanDetailAsync(string serial, string cleanId, CancellationToken ct = default) =>
+        SendAsync<CleanDetail>(Request(HttpMethod.Get, Url($"/v2/{serial}/clean-maps-data/{cleanId}", withCountry: false), auth: true), ct);
+
+    // ---- Device settings held in the cloud -------------------------------------
+
+    public async Task<string?> GetOtaStatusAsync(string serial, CancellationToken ct = default)
+    {
+        var json = await SendAsync<JsonElement>(Request(HttpMethod.Get, Url($"/v1/assets/devices/{serial}/ota", withCountry: false), auth: true), ct).ConfigureAwait(false);
+        return json.TryGetProperty("otaStatus", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
+    }
+
+    public async Task<string?> GetTimeZoneAsync(string serial, CancellationToken ct = default)
+    {
+        var json = await SendAsync<JsonElement>(Request(HttpMethod.Get, Url($"/v1/machine/{serial}/timezone", withCountry: false), auth: true), ct).ConfigureAwait(false);
+        return json.TryGetProperty("timezone", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
+    }
+
+    /// <summary>
+    /// Sets the time zone through the cloud, which relays it to the robot. On the RB05 tested this
+    /// fails with HTTP 424 "Failed to update JDM machine timezone ... Response code: 1", the same
+    /// refusal the robot gives to service.set_robot_time_zone over MQTT.
+    /// </summary>
+    public Task SetTimeZoneAsync(string serial, string ianaTimeZone, CancellationToken ct = default) =>
+        SendAsync<string>(Request(HttpMethod.Put, Url($"/v1/machine/{serial}/timezone", withCountry: false), new { timezone = ianaTimeZone }, auth: true), ct);
+
     /// <summary>Raw authenticated GET, for exploring undocumented endpoints.</summary>
     public Task<string> GetRawAsync(string path, CancellationToken ct = default) =>
         SendAsync<string>(Request(HttpMethod.Get, Url(path, withCountry: false), auth: true), ct);

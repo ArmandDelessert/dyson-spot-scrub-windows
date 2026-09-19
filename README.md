@@ -7,7 +7,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 
 ## État du projet
 
-Étape 1 (prototype en ligne de commande) : **la lecture et l'envoi de commandes fonctionnent.**
+Étapes 1 et 2 (prototype en ligne de commande, fondations en lecture) : **tout fonctionne sauf l'interface graphique, qui n'est pas commencée.**
 
 | Fonction | État |
 |---|---|
@@ -18,6 +18,10 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Connexion MQTT au broker AWS IoT | fonctionne |
 | Abonnement aux topics et réception des messages | fonctionne |
 | Publication de commandes vers le robot | fonctionne |
+| Modèle d'état typé, corrélation requête-réponse | fonctionne |
+| Reconnexion automatique avec credentials renouvelés | fonctionne |
+| Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
+| Tests unitaires | 20 tests |
 | Interface graphique | pas commencée |
 
 Vérifié le 19 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`.
@@ -55,12 +59,18 @@ titre de comparaison et de diagnostic.
 ## Architecture
 
 - `MyDyson.Core`
-  - `DysonCloudClient` : API REST `appapi.cp.dyson.com`.
-  - `RobotMqttClient` : MQTT sur WebSocket, abonnements vérifiés, commandes classiques et couche JDM.
-  - `AwsSigV4` : signature des URL WebSocket AWS IoT.
-  - `RawMqttProbe` : diagnostic bas niveau, sépare une erreur de signature d'un refus de politique.
+  - `DysonCloudClient` : API REST `appapi.cp.dyson.com` : compte, appareils, credentials, cartes, historique.
+  - `RobotMqttClient` : MQTT direct sur TLS comme l'application, commandes des deux dialectes,
+    corrélation requête-réponse (`RequestStateAsync`, `RequestJdmAsync`).
+  - `RobotSession` : connexion longue durée, reconnexion avec credentials renouvelés, expose un `RobotStateTracker`.
+  - `RobotState`, `RobotStateTracker`, `JdmProperties`, `RoomPreference` : modèle d'état typé des deux dialectes.
+  - `MapModels` : cartes, zones, position en direct, historique.
+  - `AwsSigV4`, `RawMqttProbe` : diagnostics des autres transports.
   - `SessionStore` : bearer token chiffré avec DPAPI dans `%APPDATA%\MyDyson\session.bin`.
-- `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `send`, `api`, `probe`, `wstest`.
+- `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `maps`, `map`, `live`, `history`,
+  `clean`, `send`, `api`, `probe`, `wstest`.
+- `tests/MyDyson.Core.Tests` : casse des requêtes, signature SigV4, nom d'utilisateur MQTT, modèle
+  d'état, préférences de pièces.
 
 Le protocole retrouvé par décompilation et par captures est documenté dans [docs/protocole.md](docs/protocole.md).
 
@@ -80,6 +90,8 @@ dotnet run --project src/MyDyson.Cli -- status --serial XXX-XX-XXXXXXXX
 dotnet run --project src/MyDyson.Cli -- watch  --serial XXX-XX-XXXXXXXX --log capture.jsonl
 dotnet run --project src/MyDyson.Cli -- send   --serial XXX-XX-XXXXXXXX maps
 dotnet run --project src/MyDyson.Cli -- send   --serial XXX-XX-XXXXXXXX zone --map ID --zones 11
+dotnet run --project src/MyDyson.Cli -- history --serial XXX-XX-XXXXXXXX
+dotnet test
 ```
 
 `watch` enregistre aussi les commandes publiées par l'application mobile, ce qui permet de

@@ -79,9 +79,12 @@ panne. La famille `21xx` sert d'indicateur de statut.
 
 `START` et `ABORT-DOCK-ACTION` sont détaillés plus bas, dans la section des commandes.
 
+Observés aussi : `STATE-SET`, `START-DOCK-ACTION`, `SET-VOICE-LANGUAGE`,
+`REQUEST-VOICE-DOWNLOAD-STATUS` et `VOICE-DOWNLOAD-STATUS`, décrits dans la section des réglages.
+
 Les autres types présents dans l'APK mais non encore observés : `STATE-CHANGE`, `CURRENT-FAULTS`,
-`FAULTS-CHANGE`, `START-MAPPING`, `START-DOCK-ACTION`, `START-DOCK-SELF-CHECK`, `SKIP-CURRENT-ZONE`,
-ainsi que `PAUSE`, `RESUME`, `STOP` et `ABORT` qui restent des hypothèses.
+`FAULTS-CHANGE`, `START-MAPPING`, `START-DOCK-SELF-CHECK`, `SKIP-CURRENT-ZONE`, ainsi que `PAUSE`,
+`RESUME`, `STOP` et `ABORT` qui restent des hypothèses.
 
 ## Couche jdm
 
@@ -152,10 +155,14 @@ identifiés ; l'indice 10 semble porter l'ordre de passage, l'indice 2 un régla
 ### Méthodes et événements jdm observés
 
 `service.get_map_list`, `service.get_preference`, `service.set_preference`, `service.set_cur_map`,
-`service.set_room_clean`, `service.get_order`, `service.start_station_act`,
-`service.set_robot_time_zone`, `prop.get`, `prop.post`, `event.startClean.post`,
-`event.clean_finish.post`, `event.clean_record.post`, `event.locate_fail.post`,
-`event.shortcut_instruction_task_change.post`.
+`service.set_room_clean`, `service.get_order`, `service.add_order`, `service.del_order`,
+`service.start_station_act`, `service.set_robot_time_zone`, `service.rename_map`,
+`service.rename_room`, `service.split_room`, `service.set_virtual_wall`,
+`service.adjust_furniture`, `service.download_voice_type`, `service.get_voice_download`,
+`prop.get`, `prop.set`, `prop.post`, `event.startClean.post`, `event.clean_finish.post`,
+`event.clean_record.post`, `event.locate_fail.post`, `event.map_change.post`,
+`event.shortcut_instruction_task_change.post`. Les réglages, cartes, horaires et voix sont
+détaillés dans leurs sections.
 
 ## Capture
 
@@ -320,3 +327,99 @@ Les endpoints `/v1/device/register`, `/v1/device/client-metadata` et
 `/v1/device/registerDeviceCapabilities`, un temps soupçonnés de conditionner le droit de publier,
 appartiennent aux SDK PayPal et Salesforce embarqués dans l'application. Ils n'ont aucun rapport
 avec le robot.
+
+## Réglages
+
+Chaque changement de réglage est écrit **deux fois** par l'application, dans les deux dialectes, avec
+le même horodatage : un `STATE-SET` classique et un `prop.set` jdm. Le robot acquitte le `prop.set`
+par `{"property": [{"prop": "…", "code": 0}]}`.
+
+| Réglage | `STATE-SET` (classique) | `prop.set` (jdm) |
+|---|---|---|
+| Eau chaude pour la serpillière | `{"hotWaterMop": true}` | `{"hot_water_mop": 1}` |
+| Chauffe-eau du dock | `{"hotWaterSwitch": true}` | `{"hot_water_switch": 1}` |
+| Détergent | `{"detergent": true}` | `{"detergent": 1}` |
+| Rinçage par pièce | `{"backWashType": "ROOM"}` | `{"back_wash_type": 1}` |
+| Rinçage toutes les N minutes | `{"backWashType": "TIME", "backWashTime": 15}` | `{"back_wash_type": 0, "back_wash_time": 15}` |
+| Intensité du séchage (3 à 5) | `{"airDryFrequency": 4}` | `{"airdry_frequency": 4}` |
+| Sons | `{"alarm": true}` | `{"alarm": 1}` |
+| Volume (0 à 100) | `{"volume": 40}` | `{"volume": 40}` |
+| Mise à jour automatique | aucun | `{"privacy": {"auto_upgrade": true}}` |
+
+Valeurs de `backWashTime` observées : 15, 30, 60.
+
+### Voix
+
+`SET-VOICE-LANGUAGE` avec `{"language": "fr-CA"}` déclenche un téléchargement sur le robot. Le
+robot le rapporte par une suite de `VOICE-DOWNLOAD-STATUS` (`downloading` avec `progress`,
+`installing`, puis `idle`). Côté jdm, l'application envoie `service.download_voice_type` avec l'URL
+du paquet sur `device-package.cp.dyson.com`, son MD5 et un `type` numérique, et interroge
+`service.get_voice_download`. `REQUEST-VOICE-DOWNLOAD-STATUS` demande l'état courant.
+
+### Actions du dock
+
+`START-DOCK-ACTION` avec `action: "COLLECT_DUST"` lance un vidage du bac. `ABORT-DOCK-ACTION` avec
+`action: "DRY_MOP"` arrête le séchage, doublé de `service.start_station_act` `{ctrl_value: 0, station_act: 2}`.
+
+## Cartes et pièces, côté jdm
+
+| Méthode | Paramètres | Réponse |
+|---|---|---|
+| `service.rename_map` | `{map_id, map_name}` | `{result: 0}` |
+| `service.rename_room` | `{map_id, room_id, room_name}` | `{map_id, map_type: 3, timestamp}` |
+| `service.split_room` | `{map_id, room_id, split_points: [x1, y1, x2, y2], lang}` | `{map_id, map_type: 3, timestamp}` |
+| `service.set_virtual_wall` | `{virwall: [n, [map_id, type, x1, y1, x2, y2, x3, y3, x4, y4]]}` | `{map_id, map_type: 2, timestamp}` |
+| `service.adjust_furniture` | `{timestamp, package: [1, 1], furniture_list: "[[id, type, …, 8 coordonnées]]"}` | `{map_id, map_type, timestamp, package}` |
+
+`room_name` suit la double forme décrite plus haut, chaîne simple ou objet JSON encodé avec `type`
+et `name`. `furniture_list` est une chaîne contenant un tableau JSON, pas un tableau. Après chaque
+modification le robot émet `event.map_change.post` puis le cloud confirme sur `status/jdm/map`.
+
+## Horaires
+
+Les horaires vivent dans le robot, pas dans le cloud.
+
+```json
+{ "method": "service.add_order", "params": {
+  "id": 286166297, "enable": 1, "day": 1, "hour": 10, "minute": 0, "repeat": 1,
+  "map_id": 1000000002, "room_count": 6, "time_zone": 3600, "prefer_type": 1, "is_global": 0,
+  "areas": [], "room_preference": [ …tableaux positionnels… ], "uv_switch": [[11, 0], [10, 1]]
+}}
+```
+
+`service.del_order` avec `{id}` supprime. `service.get_order` renvoie un résumé
+`order_data_lite` avec `total`, `enable`, `timestamp` et `md5`. `time_zone` est un décalage en
+secondes, calculé par l'application, 3600 correspondant à Londres en heure d'été.
+
+## Fuseau horaire
+
+Deux chemins existent et aboutissent au même endroit.
+
+- jdm : `service.set_robot_time_zone` `{"time_zone": "Europe/Amsterdam"}`.
+- REST : `PUT /v1/machine/{serial}/timezone` `{"timezone": "Europe/Amsterdam"}`, que le cloud relaie
+  au robot. `GET` sur la même URL lit la valeur côté cloud.
+
+Sur le firmware `RB05PR.01.000.0436` le robot refuse les deux, avec `result: 1` en jdm et, en REST,
+HTTP 424 « Failed to update JDM machine timezone … Response code: 1 ». Le refus est le même robot
+au repos ou en phase de séchage. C'est un défaut du firmware, à signaler à Dyson.
+
+## Endpoints REST en lecture
+
+Tous vérifiés le 19 septembre 2026.
+
+| Endpoint | Contenu |
+|---|---|
+| `GET /v2/app/{serial}/persistent-map-metadata` | cartes, zones, réglages par zone, ordre et sélection |
+| `GET /v2/app/{serial}/persistent-maps/{mapId}` | géométrie : dimensions de la grille, zones avec points visités et segments planifiés, station, meubles, restrictions |
+| `GET /v1/app/{serial}/live-maps/cleaning` | même contenu plus `robotLocation` et `cleanPath` de la tâche en cours, utilisable à tout moment |
+| `GET /v1/app/{serial}/live-maps/mapping` | grille d'occupation `mapData` de `width × height` cellules, environ 300 Ko |
+| `GET /v2/{serial}/clean-maps` | historique : durée, surface, batterie au départ et à l'arrivée, fautes, lien S3 présigné de 15 minutes vers un blob zlib |
+| `GET /v2/{serial}/clean-maps-data/{cleanId}` | détail d'un nettoyage : tracé, zones de saleté détectées, obstacles, dimensions, bornes |
+| `GET /v1/assets/devices/{serial}/ota` | état de mise à jour du firmware |
+| `GET /v1/machine/{serial}/timezone` | fuseau horaire côté cloud |
+
+Les batteries de l'historique arrivent en nombres à virgule (`91.0`), pas en entiers. La grille est
+de 320 × 420 cellules de 5 cm pour un logement de 16 m sur 21 m.
+
+`GET /v1/telemetry/device/{serial}/sessions` exige `start` et `end` et répond 400 quelle que soit
+leur forme : il sert vraisemblablement aux purificateurs, pas au robot.

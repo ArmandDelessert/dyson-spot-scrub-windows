@@ -15,8 +15,13 @@ internal static class Program
           mydyson logout                                                Supprime la session enregistrée
           mydyson devices [--json]                                      Liste les appareils du compte (manifest)
           mydyson iot     --serial S                                    Affiche les credentials AWS IoT de l'appareil
-          mydyson status  --serial S [--timeout 15]                     Demande et affiche l'état courant du robot
-          mydyson watch   --serial S [--log fichier.jsonl] [--poll 30]  Affiche tous les messages MQTT en continu
+          mydyson status  --serial S [--timeout 15] [--json]            Demande et affiche l'état courant du robot
+          mydyson watch   --serial S [--log f.jsonl] [--poll 30] [--raw] Suit le robot en continu, reconnexion automatique
+          mydyson maps    --serial S                                    Cartes et zones (REST)
+          mydyson map     --serial S --id MAPID                         Géométrie d'une carte (REST)
+          mydyson live    --serial S                                    Position du robot et tracé en cours (REST)
+          mydyson history --serial S                                    Historique des nettoyages (REST)
+          mydyson clean   --serial S --id CLEANID                       Détail d'un nettoyage (REST)
           mydyson send    --serial S <start|zone|dry-stop|tz|maps|props|pause|resume|stop|dock|state|faults>
                           zone exige --map ID --zones 11,12 ; tz prend un nom IANA
           mydyson send    --serial S --json '{"msg":"..."}'             Envoie un JSON brut sur .../command
@@ -58,6 +63,11 @@ internal static class Program
                 "send" => await SendAsync(opts, cts.Token),
                 "api" => await ApiAsync(opts, cts.Token),
                 "probe" => await ProbeAsync(opts, cts.Token),
+                "maps" => await MapsAsync(opts, cts.Token),
+                "map" => await MapAsync(opts, cts.Token),
+                "live" => await LiveAsync(opts, cts.Token),
+                "history" => await HistoryAsync(opts, cts.Token),
+                "clean" => await CleanAsync(opts, cts.Token),
                 "wstest" => await WsTestAsync(opts, cts.Token),
                 _ => Fail($"Commande inconnue: {args[0]}\n\n{Usage}"),
             };
@@ -70,8 +80,10 @@ internal static class Program
         catch (DysonApiException ex)
         {
             Console.Error.WriteLine($"Erreur API: {ex.Message}");
+            if (ex.InnerException is not null)
+                Console.Error.WriteLine($"  cause: {ex.InnerException.Message}");
             if (!string.IsNullOrWhiteSpace(ex.ResponseBody))
-                Console.Error.WriteLine(Truncate(ex.ResponseBody, 800));
+                Console.Error.WriteLine(Truncate(ex.ResponseBody, 300));
             return 2;
         }
         catch (HttpRequestException ex)
@@ -158,65 +170,82 @@ internal static class Program
     {
         var timeout = TimeSpan.FromSeconds(o.GetInt("timeout") ?? 15);
         await using var robot = await ConnectRobotAsync(o, ct);
-
-        var done = new TaskCompletionSource<RobotMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-        robot.MessageReceived += m =>
-        {
-            if (m.Kind == "CURRENT-STATE" && m.Json is JsonObject obj && obj.Count > 2)
-                done.TrySetResult(m);
-        };
-
-        await robot.RequestCurrentStateAsync(ct);
-        Console.Error.WriteLine("REQUEST-CURRENT-STATE envoyé, attente de la réponse...");
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(timeout);
         try
         {
-            var msg = await done.Task.WaitAsync(timeoutCts.Token);
-            Console.WriteLine($"# {msg.Topic}");
-            Console.WriteLine(Pretty(msg.Payload));
+            var state = await robot.RequestStateAsync(timeout, ct);
+            if (o.Has("json"))
+                Console.WriteLine(JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
+            else
+                PrintState(state);
             return 0;
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        catch (TimeoutException ex)
         {
-            return Fail($"Pas de CURRENT-STATE complet reçu en {timeout.TotalSeconds}s (robot hors ligne ?).");
+            return Fail(ex.Message + " (robot hors ligne ?)");
         }
+    }
+
+    private static void PrintState(RobotState s)
+    {
+        Console.WriteLine($"État        : {s.State}   batterie {s.BatteryChargeLevel}%   dock {s.DockState}   action {s.FullCleanAction}");
+        Console.WriteLine($"Nettoyage   : mode {s.CurrentCleaningMode} (défaut {s.DefaultCleaningMode}), stratégie {s.CurrentCleaningStrategy}, carte {s.PersistentMapId}, durée {s.CleanDurationSeconds}s");
+        Console.WriteLine($"Station     : eau chaude {s.HotWaterMop}/{s.HotWaterSwitch}, détergent {s.Detergent}, rinçage {s.BackWashType} {s.BackWashTime}min/{s.BackWashFrequency}, séchage {s.AirDryFrequency}, vidage auto {s.CollectDustOnSelfClean}");
+        Console.WriteLine($"Robot       : alarme {s.Alarm}, volume {s.Volume}, voix {s.VoiceLanguage}, verrou enfant {s.ChildLock}, NPD {s.DoNotDisturbMode?.IsOn} {s.DoNotDisturbMode?.StartTime}-{s.DoNotDisturbMode?.EndTime}");
+        var faults = s.ActiveFaults is { Count: > 0 } f ? string.Join(", ", f.Select(x => $"{x.FaultCode} ({x.NextActionRequired})")) : "aucune";
+        Console.WriteLine($"Fautes      : {faults}" + (s.RealFaults.Any() ? "   <-- intervention requise" : ""));
+        if (s.Consumables is { } c)
+            Console.WriteLine("Consommables: " + string.Join(", ", c.Select(x => x.Usage is { } u ? $"{x.Type} {u}%" : $"{x.Type} recharge={x.NeedsRefill}")));
+        if (s.LatestPosition is { } p)
+            Console.WriteLine($"Position    : x={p.X:F2} y={p.Y:F2} angle={p.Angle:F2}");
     }
 
     private static async Task<int> WatchAsync(Options o, CancellationToken ct)
     {
         var logPath = o.Get("log");
         var poll = o.GetInt("poll") ?? 30;
+        var raw = o.Has("raw");
         // No byte order mark: a BOM at the head of a JSON Lines file breaks standard JSON parsers.
         await using var log = logPath is null
             ? null
             : new StreamWriter(logPath, append: true, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)) { AutoFlush = true };
 
-        await using var robot = await ConnectRobotAsync(o, ct);
-        robot.MessageReceived += m =>
+        var serial = RequireSerial(o);
+        using var api = OpenSession();
+        var device = await FindDeviceAsync(api, serial, ct);
+
+        await using var session = new RobotSession(api, device, m => Console.Error.WriteLine($"[session] {m}"));
+        session.ConnectionChanged += (status, detail) => Console.Error.WriteLine($"[connexion] {status}" + (detail is null ? "" : $" ({detail})"));
+        session.MessageReceived += m =>
         {
-            var line = $"[{m.ReceivedUtc.ToLocalTime():HH:mm:ss}] {m.Topic} {m.Kind ?? "?"}";
-            Console.WriteLine(line);
-            Console.WriteLine(Pretty(m.Payload));
+            if (raw)
+            {
+                Console.WriteLine($"[{m.ReceivedUtc.ToLocalTime():HH:mm:ss}] {m.Topic} {m.Kind ?? "?"}");
+                Console.WriteLine(Pretty(m.Payload));
+            }
             log?.WriteLine(JsonSerializer.Serialize(new { time = m.ReceivedUtc, topic = m.Topic, payload = m.Json ?? (JsonNode)m.Payload }));
         };
-        robot.Disconnected += reason => Console.Error.WriteLine($"MQTT déconnecté: {reason}");
-
-        var filters = string.Join(", ", robot.SubscribedTopics);
-        if (poll <= 0)
+        if (!raw)
         {
-            Console.Error.WriteLine($"Abonné à {filters}, écoute passive (aucune publication). Ctrl+C pour quitter.");
-            try { await Task.Delay(Timeout.InfiniteTimeSpan, ct); } catch (OperationCanceledException) { }
-            return 0;
+            session.Tracker.StateChanged += st =>
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {st.State,-24} batterie {st.BatteryChargeLevel,3}%  dock {st.DockState,-16} action {st.FullCleanAction,-22}" +
+                                  (st.LatestPosition is { } p ? $" pos ({p.X:F2}, {p.Y:F2})" : "") +
+                                  (st.RealFaults.Any() ? "  FAUTE " + string.Join(",", st.RealFaults.Select(f => f.FaultCode)) : ""));
+            session.Tracker.EventReceived += (name, json) =>
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] événement {name} {Truncate(json.ToJsonString(), 160)}");
         }
 
-        Console.Error.WriteLine($"Abonné à {filters}. Ctrl+C pour quitter. Poll REQUEST-CURRENT-STATE toutes les {poll}s.");
+        await session.ConnectAsync(ct);
+        Console.Error.WriteLine($"Écoute de {serial} (préfixe {session.TopicPrefix}). Ctrl+C pour quitter." +
+                                (poll > 0 ? $" État demandé toutes les {poll}s." : " Aucune publication."));
+
         while (!ct.IsCancellationRequested)
         {
-            if (robot.IsConnected)
-                await robot.RequestCurrentStateAsync(ct);
-            try { await Task.Delay(TimeSpan.FromSeconds(Math.Max(5, poll)), ct); }
+            if (poll > 0 && session.Status == RobotConnectionStatus.Connected)
+            {
+                try { await session.RefreshStateAsync(ct); }
+                catch (Exception ex) when (ex is TimeoutException or InvalidOperationException) { Console.Error.WriteLine($"[état] {ex.Message}"); }
+            }
+            try { await Task.Delay(TimeSpan.FromSeconds(poll > 0 ? Math.Max(5, poll) : 3600), ct); }
             catch (OperationCanceledException) { break; }
         }
         return 0;
@@ -289,6 +318,64 @@ internal static class Program
         if (publishDenied)
             return Fail("Publication refusée: le broker AWS IoT a fermé la connexion. " +
                         "Les credentials délivrés par l'API Dyson n'accordent pas iot:Publish (voir README).");
+        return 0;
+    }
+
+    private static async Task<int> MapsAsync(Options o, CancellationToken ct)
+    {
+        using var api = OpenSession();
+        foreach (var m in await api.GetMapMetadataAsync(RequireSerial(o), ct))
+        {
+            Console.WriteLine($"{(m.IsCurrentMap ? "*" : " ")} {m.Id}  {m.Name}");
+            foreach (var z in m.Zones ?? [])
+                Console.WriteLine($"     zone {z.Id,-3} {z.Name,-20} {z.Type,-12} {z.Area,6:F1} m²  ordre {z.Order}  sélection {z.IsSelected}  {z.Settings?.CleanType}/{z.Settings?.WaterLevel}");
+        }
+        return 0;
+    }
+
+    private static async Task<int> MapAsync(Options o, CancellationToken ct)
+    {
+        using var api = OpenSession();
+        var mapId = o.Get("id") ?? RequireOption("--id");
+        var m = await api.GetPersistentMapAsync(RequireSerial(o), mapId, ct);
+        var d = m.Dimensions;
+        Console.WriteLine($"Carte {m.Id}: {d?.Width}x{d?.Height} cellules de {d?.Resolution} m, origine ({d?.OffsetX}, {d?.OffsetY}), station ({m.DockLocation?.X:F2}, {m.DockLocation?.Y:F2})");
+        foreach (var z in m.Zones ?? [])
+            Console.WriteLine($"  zone {z.Id,-3} {z.Name,-20} {z.Area,6:F1} m²  {z.Visited?.Count ?? 0} points visités, {z.Presentation?.Count ?? 0} segments, statut {z.CleanStatus}");
+        Console.WriteLine($"  {m.Furniture?.Count ?? 0} meubles, {m.Restrictions?.Count ?? 0} restrictions");
+        return 0;
+    }
+
+    private static async Task<int> LiveAsync(Options o, CancellationToken ct)
+    {
+        using var api = OpenSession();
+        var m = await api.GetLiveCleaningMapAsync(RequireSerial(o), ct);
+        var r = m.RobotLocation;
+        Console.WriteLine($"Carte {m.Id}, tâche depuis {m.TaskBeginTime}, robot en ({r?.X:F2}, {r?.Y:F2}) angle {r?.Angle:F2}, tracé {m.CleanPath?.Count ?? 0} points");
+        foreach (var z in m.Zones ?? [])
+            Console.WriteLine($"  zone {z.Id,-3} {z.Name,-20} statut {z.CleanStatus}");
+        return 0;
+    }
+
+    private static async Task<int> HistoryAsync(Options o, CancellationToken ct)
+    {
+        using var api = OpenSession();
+        foreach (var c in await api.GetCleanHistoryAsync(RequireSerial(o), ct))
+            Console.WriteLine($"{c.Start?.ToLocalTime():yyyy-MM-dd HH:mm}  {c.CleanDurationMinutes,3} min  {c.AreaCleanedSquareMetres,6:F1} m²  batterie {c.StartBattery}->{c.EndBattery}%  " +
+                              $"{(c.IsSpotClean == true ? "spot " : "")}{c.Faults?.Count ?? 0} faute(s)  {c.CleanId}");
+        return 0;
+    }
+
+    private static async Task<int> CleanAsync(Options o, CancellationToken ct)
+    {
+        using var api = OpenSession();
+        var id = o.Get("id") ?? RequireOption("--id");
+        var c = await api.GetCleanDetailAsync(RequireSerial(o), id, ct);
+        Console.WriteLine($"Nettoyage {c.CleanId} sur la carte {c.PersistentMapId}: tracé {c.CleanPath?.Count ?? 0} points, {c.Dirt?.Count ?? 0} zone(s) de saleté, {c.Obstacles?.Count ?? 0} obstacle(s), {c.Faults?.Count ?? 0} faute(s)");
+        foreach (var z in c.Zones ?? [])
+            Console.WriteLine($"  zone {z.Id,-3} {z.Name,-20} statut {z.CleanStatus}  {z.Visited?.Count ?? 0} points");
+        if (c.Dirt is { Count: > 0 })
+            Console.WriteLine("  saleté: " + Truncate(string.Join(" ", c.Dirt.Select(d => d.ToString())), 300));
         return 0;
     }
 
@@ -431,14 +518,18 @@ internal static class Program
         return new DysonCloudClient(s.Country, s.Culture) { BearerToken = s.Token };
     }
 
+    private static async Task<Device> FindDeviceAsync(DysonCloudClient api, string serial, CancellationToken ct)
+    {
+        var devices = await api.GetManifestAsync(ct);
+        return devices.FirstOrDefault(d => string.Equals(d.SerialNumber, serial, StringComparison.OrdinalIgnoreCase))
+               ?? throw new DysonApiException($"Appareil {serial} introuvable dans le compte.");
+    }
+
     private static async Task<RobotMqttClient> ConnectRobotAsync(Options o, CancellationToken ct)
     {
         var serial = RequireSerial(o);
         using var api = OpenSession();
-
-        var devices = await api.GetManifestAsync(ct);
-        var device = devices.FirstOrDefault(d => string.Equals(d.SerialNumber, serial, StringComparison.OrdinalIgnoreCase))
-                     ?? throw new DysonApiException($"Appareil {serial} introuvable dans le compte.");
+        var device = await FindDeviceAsync(api, serial, ct);
         var prefix = o.Get("prefix") ?? device.GuessTopicPrefix();
 
         var endpoint = await GetMqttEndpointAsync(api, serial, o, ct);

@@ -3,4 +3,7 @@
     <Project Path="src/MyDyson.Cli/MyDyson.Cli.csproj" />
     <Project Path="src/MyDyson.Core/MyDyson.Core.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MyDyson.Core.Tests/MyDyson.Core.Tests.csproj" />
+  </Folder>
 </Solution>

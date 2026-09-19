@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Security;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -44,6 +45,9 @@ public sealed class RobotMqttClient : IAsyncDisposable
     public event Action<RobotMessage>? MessageReceived;
     public event Action<string>? Disconnected;
     public event Action<string>? PrefixChanged;
+
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonObject>> _pendingJdm = new();
+    private readonly ConcurrentDictionary<Guid, TaskCompletionSource<RobotState>> _pendingState = new();
 
     public RobotMqttClient(string serial, string topicPrefix, MqttEndpoint endpoint, Action<string>? traceLogger = null)
     {
@@ -194,8 +198,83 @@ public sealed class RobotMqttClient : IAsyncDisposable
             PrefixChanged?.Invoke(_prefix);
         }
 
-        MessageReceived?.Invoke(new RobotMessage(DateTimeOffset.UtcNow, topic, payload));
+        var message = new RobotMessage(DateTimeOffset.UtcNow, topic, payload);
+        MessageReceived?.Invoke(message);
+        CompletePendingRequests(message);
         return Task.CompletedTask;
+    }
+
+    private void CompletePendingRequests(RobotMessage message)
+    {
+        if (message.Json is not JsonObject json) return;
+
+        if (message.Topic.EndsWith("/status/jdm", StringComparison.Ordinal))
+        {
+            var id = json["msgId"]?.GetValue<string>();
+            if (id is not null && _pendingJdm.TryRemove(id, out var tcs))
+                tcs.TrySetResult(json);
+        }
+        else if (message.Topic.EndsWith("/status", StringComparison.Ordinal)
+                 && json["msg"]?.GetValue<string>() == "CURRENT-STATE"
+                 && RobotState.Parse(message.Payload) is { IsPositionOnly: false } state)
+        {
+            foreach (var key in _pendingState.Keys)
+                if (_pendingState.TryRemove(key, out var tcs))
+                    tcs.TrySetResult(state);
+        }
+    }
+
+    /// <summary>Publishes REQUEST-CURRENT-STATE and waits for the full CURRENT-STATE that answers it.</summary>
+    public async Task<RobotState> RequestStateAsync(TimeSpan? timeout = null, CancellationToken ct = default)
+    {
+        var key = Guid.NewGuid();
+        var tcs = new TaskCompletionSource<RobotState>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingState[key] = tcs;
+        try
+        {
+            await RequestCurrentStateAsync(ct).ConfigureAwait(false);
+            return await WaitAsync(tcs.Task, timeout ?? TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _pendingState.TryRemove(key, out _);
+        }
+    }
+
+    /// <summary>
+    /// Publishes a jdm request and waits for the reply carrying the same msgId. The reply's
+    /// data.result (0 success, 1 refused) is the verdict for service.set_* methods; the envelope
+    /// code is not reliable (prop.get answers code 1 with valid data).
+    /// </summary>
+    public async Task<JsonObject> RequestJdmAsync(string method, JsonObject? parameters = null, TimeSpan? timeout = null, CancellationToken ct = default)
+    {
+        var payload = BuildJdmPayload(method, parameters);
+        var id = payload["msgId"]!.GetValue<string>();
+        var tcs = new TaskCompletionSource<JsonObject>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingJdm[id] = tcs;
+        try
+        {
+            await PublishRawAsync(JdmCommandTopic, payload.ToJsonString(), ct).ConfigureAwait(false);
+            return await WaitAsync(tcs.Task, timeout ?? TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _pendingJdm.TryRemove(id, out _);
+        }
+    }
+
+    private static async Task<T> WaitAsync<T>(Task<T> task, TimeSpan timeout, CancellationToken ct)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(timeout);
+        try
+        {
+            return await task.WaitAsync(cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException($"No reply from the robot within {timeout.TotalSeconds:F0} s.");
+        }
     }
 
     private static string NowIso() => DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
@@ -212,19 +291,18 @@ public sealed class RobotMqttClient : IAsyncDisposable
     }
 
     /// <summary>Publishes a JDM-layer request ({"method": "service.x", "params": {...}}).</summary>
-    public Task PublishJdmAsync(string method, JsonObject? parameters = null, CancellationToken ct = default)
+    public Task PublishJdmAsync(string method, JsonObject? parameters = null, CancellationToken ct = default) =>
+        PublishRawAsync(JdmCommandTopic, BuildJdmPayload(method, parameters).ToJsonString(), ct);
+
+    private static JsonObject BuildJdmPayload(string method, JsonObject? parameters) => new()
     {
-        var payload = new JsonObject
-        {
-            // The app uses values in the unsigned 32-bit range.
-            ["msgId"] = Random.Shared.NextInt64(1, uint.MaxValue).ToString(),
-            ["version"] = "1.0.1",
-            ["method"] = method,
-            ["params"] = parameters ?? new JsonObject(),
-            ["time"] = NowIso(),
-        };
-        return PublishRawAsync(JdmCommandTopic, payload.ToJsonString(), ct);
-    }
+        // The app uses values in the unsigned 32-bit range.
+        ["msgId"] = Random.Shared.NextInt64(1, uint.MaxValue).ToString(),
+        ["version"] = "1.0.1",
+        ["method"] = method,
+        ["params"] = parameters ?? new JsonObject(),
+        ["time"] = NowIso(),
+    };
 
     // ---- Commands taken from captures of the official app --------------------
     //
