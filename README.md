@@ -1,4 +1,4 @@
-# MyDyson (Windows)
+# Dyson Spot+Scrub AI pour Windows
 
 Application Windows non officielle pour contrôler le robot aspirateur **Dyson Spot+Scrub AI** ([en](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai), [fr-CH](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai)) (nom interne RB05).
 
