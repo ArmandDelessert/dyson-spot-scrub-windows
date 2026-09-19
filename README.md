@@ -100,6 +100,9 @@ depuis l'application mobile pendant l'écoute pour constituer la capture de réf
 Topics MQTT : `RB05/{serial}/status`, `RB05/{serial}/status/jdm`, `RB05/{serial}/command`,
 `RB05/{serial}/command/jdm`. Le préfixe vaut les quatre premiers caractères de la version du firmware.
 
+Le détail des messages, le modèle d'état et la correspondance entre les deux dialectes sont dans
+[docs/protocole.md](docs/protocole.md), établi à partir de captures réelles.
+
 Deux dialectes coexistent sur ces topics : le format Dyson classique
 (`{"msg":"START","mode-reason":"RAPP"}`) et une couche JSON-RPC nommée jdm
 (`{"method":"service.set_room_clean","params":{...}}`).

@@ -81,14 +81,17 @@ public sealed class RobotMqttClient : IAsyncDisposable
     public string JdmCommandTopic => $"{_prefix}/{Serial}/command/jdm";
 
     /// <summary>
-    /// Topic filters subscribed to by default. Exact filters rather than a wildcard: with the IAM
-    /// (SigV4) credentials AWS IoT closes the connection on a filter the policy does not cover.
+    /// Topic filters subscribed to by default.
+    ///
+    /// With the custom-authorizer token a wildcard is granted, and it is what we want: it also covers
+    /// the command topics, so the requests the official app publishes are captured alongside the
+    /// robot's replies. With the IAM (SigV4) credentials only exact filters have a chance, because
+    /// AWS IoT closes the connection on any filter the policy does not cover.
     /// </summary>
-    public IReadOnlyList<string> DefaultTopicFilters => new[]
-    {
-        $"{_prefix}/{Serial}/status",
-        $"{_prefix}/{Serial}/status/jdm",
-    };
+    public IReadOnlyList<string> DefaultTopicFilters =>
+        _endpoint.AuthMode == "custom-authorizer"
+            ? new[] { $"+/{Serial}/#" }
+            : new[] { $"{_prefix}/{Serial}/status", $"{_prefix}/{Serial}/status/jdm" };
 
     public async Task ConnectAsync(CancellationToken ct = default) =>
         await ConnectAsync(ct, DefaultTopicFilters).ConfigureAwait(false);

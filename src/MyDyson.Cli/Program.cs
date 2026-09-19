@@ -188,7 +188,10 @@ internal static class Program
     {
         var logPath = o.Get("log");
         var poll = o.GetInt("poll") ?? 30;
-        await using var log = logPath is null ? null : new StreamWriter(logPath, append: true, Encoding.UTF8) { AutoFlush = true };
+        // No byte order mark: a BOM at the head of a JSON Lines file breaks standard JSON parsers.
+        await using var log = logPath is null
+            ? null
+            : new StreamWriter(logPath, append: true, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)) { AutoFlush = true };
 
         await using var robot = await ConnectRobotAsync(o, ct);
         robot.MessageReceived += m =>
@@ -200,14 +203,15 @@ internal static class Program
         };
         robot.Disconnected += reason => Console.Error.WriteLine($"MQTT déconnecté: {reason}");
 
+        var filters = string.Join(", ", robot.SubscribedTopics);
         if (poll <= 0)
         {
-            Console.Error.WriteLine($"Abonné à +/{robot.Serial}/#, écoute passive (aucune publication). Ctrl+C pour quitter.");
+            Console.Error.WriteLine($"Abonné à {filters}, écoute passive (aucune publication). Ctrl+C pour quitter.");
             try { await Task.Delay(Timeout.InfiniteTimeSpan, ct); } catch (OperationCanceledException) { }
             return 0;
         }
 
-        Console.Error.WriteLine($"Abonné à +/{robot.Serial}/#. Ctrl+C pour quitter. Poll REQUEST-CURRENT-STATE toutes les {poll}s.");
+        Console.Error.WriteLine($"Abonné à {filters}. Ctrl+C pour quitter. Poll REQUEST-CURRENT-STATE toutes les {poll}s.");
         while (!ct.IsCancellationRequested)
         {
             if (robot.IsConnected)
