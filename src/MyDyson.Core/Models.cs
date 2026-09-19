@@ -93,6 +93,42 @@ public sealed record IotData(
         $"&x-amz-customauthorizer-signature={Uri.EscapeDataString(IoTCredentials.TokenSignature)}";
 }
 
+/// <summary>Temporary IAM credentials, inner object of the /v1/authorize/iot-role-credentials response.</summary>
+public sealed record IamCredentials(
+    [property: JsonPropertyName("accessKeyId")] string AccessKeyId,
+    [property: JsonPropertyName("secretAccessKey")] string SecretAccessKey,
+    [property: JsonPropertyName("sessionToken")] string? SessionToken,
+    [property: JsonPropertyName("expiration")] DateTimeOffset? Expiration);
+
+/// <summary>
+/// Response of POST /v1/authorize/iot-role-credentials: the credentials the current MyDyson app
+/// uses for remote control. Unlike the custom-authorizer token from /v2/authorize/iot-credentials,
+/// these allow publishing to the robot command topics.
+/// </summary>
+public sealed record IotRoleData(
+    [property: JsonPropertyName("iamCredentials")] IamCredentials IamCredentials,
+    [property: JsonPropertyName("endpoint")] string Endpoint,
+    [property: JsonPropertyName("region")] string Region)
+{
+    /// <summary>Presigned AWS IoT WebSocket URL (SigV4).</summary>
+    public string BuildWebSocketUri() =>
+        AwsSigV4.PresignWebSocketUrl(
+            Endpoint, Region,
+            IamCredentials.AccessKeyId,
+            IamCredentials.SecretAccessKey,
+            IamCredentials.SessionToken);
+}
+
+/// <summary>How to reach the AWS IoT broker: a presigned WebSocket URL plus the MQTT client id.</summary>
+public sealed record MqttEndpoint(string WebSocketUrl, string ClientId, string Endpoint, string AuthMode)
+{
+    public static MqttEndpoint FromRoleCredentials(IotRoleData role, string? clientId = null) =>
+        new(role.BuildWebSocketUri(), clientId ?? Guid.NewGuid().ToString(), role.Endpoint, "sigv4");
+
+    public static MqttEndpoint FromCustomAuthorizer(IotData iot) =>
+        new(iot.BuildWebSocketUri(), iot.IoTCredentials.ClientId, iot.Endpoint, "custom-authorizer");
+}
+
 /// <summary>Persisted session (bearer token + context), stored encrypted on disk.</summary>
 public sealed record StoredSession(
     [property: JsonPropertyName("email")] string Email,

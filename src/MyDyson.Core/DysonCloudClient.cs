@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace MyDyson.Core;
 
@@ -24,9 +25,22 @@ public sealed class DysonCloudClient : IDisposable
     public const string DefaultHost = "appapi.cp.dyson.com";
     public const string ChinaHost = "appapi.cp.dyson.cn";
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    /// <summary>Options for parsing responses: tolerant about casing.</summary>
+    private static readonly JsonSerializerOptions ReadOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
+    };
+
+    /// <summary>
+    /// Options for request bodies. The naming policy must stay null: Dyson is case-sensitive on
+    /// request properties and rejects a camelCased body. POST /v2/authorize/iot-credentials wants
+    /// {"Serial": "..."} and answers HTTP 400 "iot-credentials called with incorrect request" for
+    /// {"serial": "..."}. Property names are therefore written exactly as declared at the call site.
+    /// </summary>
+    private static readonly JsonSerializerOptions WriteOptions = new()
+    {
+        PropertyNamingPolicy = null,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     private readonly HttpClient _http;
@@ -74,7 +88,7 @@ public sealed class DysonCloudClient : IDisposable
     {
         var req = new HttpRequestMessage(method, url);
         if (body is not null)
-            req.Content = JsonContent.Create(body, options: JsonOptions);
+            req.Content = JsonContent.Create(body, options: WriteOptions);
         if (auth)
         {
             if (string.IsNullOrEmpty(BearerToken))
@@ -99,7 +113,7 @@ public sealed class DysonCloudClient : IDisposable
             return (T)(object)text;
         try
         {
-            return JsonSerializer.Deserialize<T>(text, JsonOptions)
+            return JsonSerializer.Deserialize<T>(text, ReadOptions)
                    ?? throw new DysonApiException("Empty JSON response", resp.StatusCode, text);
         }
         catch (JsonException ex)
@@ -141,9 +155,33 @@ public sealed class DysonCloudClient : IDisposable
         }
     }
 
-    /// <summary>Short-lived credentials for the AWS IoT MQTT-over-WebSocket broker, for one device.</summary>
+    /// <summary>
+    /// Custom-authorizer token for the AWS IoT broker. Observed to grant subscribe only: publishing
+    /// with it makes AWS IoT close the connection. Use <see cref="GetIotRoleCredentialsAsync"/> to
+    /// control a robot.
+    /// </summary>
     public Task<IotData> GetIotCredentialsAsync(string serial, CancellationToken ct = default) =>
         SendAsync<IotData>(Request(HttpMethod.Post, Url("/v2/authorize/iot-credentials", withCountry: false), new { Serial = serial }, auth: true), ct);
+
+    /// <summary>
+    /// Temporary IAM credentials for the AWS IoT broker, as used by the current MyDyson app. These
+    /// allow both subscribing and publishing. They are short-lived; check
+    /// <see cref="IamCredentials.Expiration"/> and request new ones before reconnecting.
+    /// </summary>
+    public Task<IotRoleData> GetIotRoleCredentialsAsync(string serial, CancellationToken ct = default) =>
+        SendAsync<IotRoleData>(Request(HttpMethod.Post, Url("/v1/authorize/iot-role-credentials", withCountry: false), new { Serial = serial }, auth: true), ct);
+
+    /// <summary>Whether the device is currently connected to Dyson's cloud.</summary>
+    public async Task<(string Status, DateTimeOffset? LastChanged)> GetConnectionStatusAsync(string serial, CancellationToken ct = default)
+    {
+        var json = await SendAsync<JsonElement>(
+            Request(HttpMethod.Get, Url($"/v1/messageprocessor/devices/{serial}/connectionstatus", withCountry: false), auth: true), ct)
+            .ConfigureAwait(false);
+        var status = json.TryGetProperty("Status", out var s) ? s.GetString() ?? "unknown" : "unknown";
+        DateTimeOffset? changed = json.TryGetProperty("LastChanged", out var c) && c.ValueKind == JsonValueKind.String
+            && DateTimeOffset.TryParse(c.GetString(), out var parsed) ? parsed : null;
+        return (status, changed);
+    }
 
     /// <summary>Raw authenticated GET, for exploring undocumented endpoints.</summary>
     public Task<string> GetRawAsync(string path, CancellationToken ct = default) =>

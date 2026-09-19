@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MQTTnet;
+using MQTTnet.Diagnostics.Logger;
 using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 
@@ -31,27 +32,47 @@ public sealed record RobotMessage(DateTimeOffset ReceivedUtc, string Topic, stri
 public sealed class RobotMqttClient : IAsyncDisposable
 {
     private readonly IMqttClient _client;
-    private readonly IotData _iot;
+    private readonly MqttEndpoint _endpoint;
     private string _prefix;
 
     public string Serial { get; }
     public string Prefix => _prefix;
     public bool IsConnected => _client.IsConnected;
+    public string AuthMode => _endpoint.AuthMode;
 
     public event Action<RobotMessage>? MessageReceived;
     public event Action<string>? Disconnected;
     public event Action<string>? PrefixChanged;
 
-    public RobotMqttClient(string serial, string topicPrefix, IotData iotCredentials)
+    public RobotMqttClient(string serial, string topicPrefix, MqttEndpoint endpoint, Action<string>? traceLogger = null)
     {
         Serial = serial;
         _prefix = topicPrefix;
-        _iot = iotCredentials;
-        _client = new MqttClientFactory().CreateMqttClient();
+        _endpoint = endpoint;
+
+        if (traceLogger is null)
+        {
+            _client = new MqttClientFactory().CreateMqttClient();
+        }
+        else
+        {
+            var logger = new MqttNetEventLogger("MyDyson");
+            logger.LogMessagePublished += (_, e) =>
+            {
+                var m = e.LogMessage;
+                traceLogger($"{m.Level} {m.Source}: {m.Message}" + (m.Exception is null ? "" : $" | {m.Exception}"));
+            };
+            _client = new MqttClientFactory(logger).CreateMqttClient();
+        }
+
         _client.ApplicationMessageReceivedAsync += OnMessageAsync;
         _client.DisconnectedAsync += e =>
         {
-            Disconnected?.Invoke(e.ReasonString ?? e.Reason.ToString());
+            var details = $"reason={e.Reason}" +
+                          (e.ReasonString is null ? "" : $" reasonString={e.ReasonString}") +
+                          $" clientWasConnected={e.ClientWasConnected}" +
+                          (e.Exception is null ? "" : $" exception={e.Exception.GetType().Name}: {e.Exception.Message}");
+            Disconnected?.Invoke(details);
             return Task.CompletedTask;
         };
     }
@@ -59,11 +80,24 @@ public sealed class RobotMqttClient : IAsyncDisposable
     public string CommandTopic => $"{_prefix}/{Serial}/command";
     public string JdmCommandTopic => $"{_prefix}/{Serial}/command/jdm";
 
-    public async Task ConnectAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Topic filters subscribed to by default. Exact filters rather than a wildcard: with the IAM
+    /// (SigV4) credentials AWS IoT closes the connection on a filter the policy does not cover.
+    /// </summary>
+    public IReadOnlyList<string> DefaultTopicFilters => new[]
+    {
+        $"{_prefix}/{Serial}/status",
+        $"{_prefix}/{Serial}/status/jdm",
+    };
+
+    public async Task ConnectAsync(CancellationToken ct = default) =>
+        await ConnectAsync(ct, DefaultTopicFilters).ConfigureAwait(false);
+
+    public async Task ConnectAsync(CancellationToken ct, IEnumerable<string> topicFilters)
     {
         var options = new MqttClientOptionsBuilder()
-            .WithClientId(_iot.IoTCredentials.ClientId)
-            .WithWebSocketServer(o => o.WithUri(_iot.BuildWebSocketUri()))
+            .WithClientId(_endpoint.ClientId)
+            .WithWebSocketServer(o => o.WithUri(_endpoint.WebSocketUrl))
             .WithTlsOptions(o => o.UseTls())
             .WithProtocolVersion(MqttProtocolVersion.V311)
             .WithKeepAlivePeriod(TimeSpan.FromSeconds(30))
@@ -74,8 +108,31 @@ public sealed class RobotMqttClient : IAsyncDisposable
         if (result.ResultCode != MqttClientConnectResultCode.Success)
             throw new DysonApiException($"MQTT connect failed: {result.ResultCode} {result.ReasonString}");
 
-        await _client.SubscribeAsync($"+/{Serial}/#", MqttQualityOfServiceLevel.AtMostOnce, ct).ConfigureAwait(false);
+        foreach (var filter in topicFilters)
+            await SubscribeAsync(filter, ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Subscribes to a topic filter and verifies the broker granted it. AWS IoT answers a denied
+    /// subscription with a failure code in the SUBACK instead of an error, so an unchecked
+    /// SubscribeAsync looks successful while no message ever arrives.
+    /// </summary>
+    public async Task SubscribeAsync(string topicFilter, CancellationToken ct = default)
+    {
+        var result = await _client.SubscribeAsync(topicFilter, MqttQualityOfServiceLevel.AtMostOnce, ct).ConfigureAwait(false);
+        foreach (var item in result.Items)
+        {
+            var granted = item.ResultCode is MqttClientSubscribeResultCode.GrantedQoS0
+                or MqttClientSubscribeResultCode.GrantedQoS1
+                or MqttClientSubscribeResultCode.GrantedQoS2;
+            if (!granted)
+                throw new DysonApiException(
+                    $"Subscription to '{item.TopicFilter.Topic}' refused by the broker: {item.ResultCode}");
+        }
+        SubscribedTopics.Add(topicFilter);
+    }
+
+    public List<string> SubscribedTopics { get; } = new();
 
     private Task OnMessageAsync(MqttApplicationMessageReceivedEventArgs e)
     {
