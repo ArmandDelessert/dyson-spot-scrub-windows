@@ -149,9 +149,17 @@ champ `update` sur un point unique, d'où sa réutilisation ici plutôt qu'un no
 Côté REST, `GET /v1/app/{serial}/live-maps/cleaning` et `GET /v2/{serial}/clean-maps-data/{cleanId}`
 renvoient le même tracé complet sous forme d'objets `{x, y, update}`, avec les mêmes deux valeurs
 observées pour `update`. Les deux endpoints renvoient aussi, à côté du tracé : `obstacles` (liste de
-points `{x, y}`, confirmée non vide — un câble ou un objet détecté), et `dirt`, `hazardZones`,
-`groutLines`, `swingDoors`, toujours vides dans toutes les captures observées jusqu'ici ; leur forme
-reste donc inconnue, y compris s'ils distinguent les types de tache que montre l'application Android.
+points `{x, y}`, confirmée non vide — un câble ou un objet détecté) et `dirt`, confirmée non vide sur
+un nettoyage de 128 minutes couvrant plusieurs pièces :
+
+```json
+{ "x": -0.53, "y": -5.25, "type": "liquid", "isUvScanOn": false }
+```
+
+Une seule valeur de `type` observée pour l'instant (`liquid`) ; l'application Android affichant
+plusieurs icônes de tache différentes, d'autres valeurs existent vraisemblablement. `hazardZones`,
+`groutLines` et `swingDoors` restent vides dans toutes les captures observées jusqu'ici, leur forme
+reste donc inconnue.
 
 ### cleanStatus des pièces
 

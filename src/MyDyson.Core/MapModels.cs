@@ -130,8 +130,8 @@ public sealed record LiveMap(
     [property: JsonPropertyName("furniture")] List<FurnitureItem>? Furniture,
     [property: JsonPropertyName("restrictions")] List<Restriction>? Restrictions,
     [property: JsonPropertyName("obstacles")] List<Point>? Obstacles = null,
-    // See CleanDetail: same fields, always empty in every response observed so far.
-    [property: JsonPropertyName("dirt")] List<JsonElement>? Dirt = null,
+    [property: JsonPropertyName("dirt")] List<DirtSpot>? Dirt = null,
+    // hazardZones/groutLines/swingDoors: always empty in every response observed so far, shape unconfirmed.
     [property: JsonPropertyName("hazardZones")] List<JsonElement>? HazardZones = null,
     [property: JsonPropertyName("groutLines")] List<JsonElement>? GroutLines = null,
     [property: JsonPropertyName("swingDoors")] List<JsonElement>? SwingDoors = null)
@@ -179,6 +179,13 @@ public sealed record CleanSummary(
 
 public sealed record CleanList([property: JsonPropertyName("data")] List<CleanSummary> Data);
 
+/// <summary>A stain the robot detected during a clean. "liquid" confirmed; the app is said to show several stain icons, so other types likely exist but haven't been observed yet.</summary>
+public sealed record DirtSpot(
+    [property: JsonPropertyName("x")] double X,
+    [property: JsonPropertyName("y")] double Y,
+    [property: JsonPropertyName("type")] string? Type,
+    [property: JsonPropertyName("isUvScanOn")] bool? IsUvScanOn);
+
 public sealed record MapBoundary(
     [property: JsonPropertyName("minX")] double MinX,
     [property: JsonPropertyName("maxX")] double MaxX,
@@ -193,8 +200,7 @@ public sealed record CleanDetail(
     [property: JsonPropertyName("boundary")] MapBoundary? Boundary,
     [property: JsonPropertyName("zones")] List<MapZone>? Zones,
     [property: JsonPropertyName("cleanPath")] List<Point>? CleanPath,
-    // "dirt" was empty in every clean observed so far; shape unconfirmed, kept raw for now.
-    [property: JsonPropertyName("dirt")] List<JsonElement>? Dirt,
+    [property: JsonPropertyName("dirt")] List<DirtSpot>? Dirt,
     [property: JsonPropertyName("obstacles")] List<Point>? Obstacles,
     [property: JsonPropertyName("dockLocation")] DockLocation? DockLocation,
     [property: JsonPropertyName("furniture")] List<FurnitureItem>? Furniture,

@@ -38,6 +38,7 @@ public sealed class MapScene
     public DockLocation? Dock { get; init; }
     public IReadOnlyList<CorePoint>? Path { get; init; }
     public IReadOnlyList<CorePoint>? Obstacles { get; init; }
+    public IReadOnlyList<DirtSpot>? DirtSpots { get; init; }
     public IReadOnlySet<string>? SelectedZoneIds { get; init; }
     /// <summary>Zone id to its position in the clean order, shown as a badge.</summary>
     public IReadOnlyDictionary<string, int>? ZoneOrder { get; init; }
@@ -59,6 +60,7 @@ public sealed class MapScene
         }
         if (Path is { } p) pts.AddRange(p);
         if (Obstacles is { } obs) pts.AddRange(obs);
+        if (DirtSpots is { } dirt) pts.AddRange(dirt.Select(d => new CorePoint(d.X, d.Y)));
         // The dock location is sometimes a sentinel far outside the real floor plan (observed:
         // (1100, 1100) on maps the robot has zone definitions for but has never actually mapped
         // a run on). Blindly including it would balloon the bounding box and shrink the real
@@ -193,6 +195,12 @@ public static class MapRenderer
             DrawObstacleMarker(dc, p);
         }
 
+        foreach (var d in scene.DirtSpots ?? [])
+        {
+            var p = m.Transform(new Point(d.X, d.Y));
+            DrawDirtMarker(dc, p);
+        }
+
         foreach (var z in scene.Map?.Zones ?? [])
         {
             if (z.NameLocation is not { } n) continue;
@@ -280,6 +288,23 @@ public static class MapRenderer
         geo.Freeze();
         dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(0xe0, 0xa0, 0x30)), new Pen(Brushes.Black, 1), geo);
         dc.DrawEllipse(Brushes.Black, null, new Point(p.X, p.Y + 1.5), 0.8, 0.8);
+    }
+
+    /// <summary>
+    /// One shape for every stain: only "liquid" is confirmed so far (the app is said to show
+    /// several distinct icons by type, but the others haven't been observed in a capture yet).
+    /// </summary>
+    private static void DrawDirtMarker(DrawingContext dc, Point p)
+    {
+        var geo = new StreamGeometry();
+        using (var g = geo.Open())
+        {
+            g.BeginFigure(new Point(p.X, p.Y - 7), true, true);
+            g.QuadraticBezierTo(new Point(p.X + 6, p.Y + 2), new Point(p.X, p.Y + 7), true, true);
+            g.QuadraticBezierTo(new Point(p.X - 6, p.Y + 2), new Point(p.X, p.Y - 7), true, true);
+        }
+        geo.Freeze();
+        dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(0x30, 0x90, 0xe0)), new Pen(Brushes.Black, 1), geo);
     }
 
     private static void DrawGrid(DrawingContext dc, MapGrid grid, Matrix m, IReadOnlySet<string>? selected)

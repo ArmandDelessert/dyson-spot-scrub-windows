@@ -129,7 +129,7 @@ public partial class App : Application
         var map = await ctx.Api.GetPersistentMapAsync(s, current.Id);
         // The occupancy grid and the live robot position/path only ever describe the currently
         // active map; attaching them to another map would overlay an unrelated task's stray path.
-        MapGrid? grid = null; RobotPosition? robotPos = null; List<MyDyson.Core.Point>? cleanPath = null; List<MyDyson.Core.Point>? obstacles = null;
+        MapGrid? grid = null; RobotPosition? robotPos = null; List<MyDyson.Core.Point>? cleanPath = null; List<MyDyson.Core.Point>? obstacles = null; List<DirtSpot>? dirt = null;
         if (current.IsCurrentMap)
         {
             grid = MapGrid.From(await ctx.Api.GetMappingMapAsync(s));
@@ -137,12 +137,13 @@ public partial class App : Application
             robotPos = live.RobotLocation;
             cleanPath = live.CleanPath;
             obstacles = live.Obstacles;
+            dirt = live.Dirt;
         }
 
         var scene = new MapScene
         {
             Grid = grid, Map = map, ZoneMetadata = current.Zones,
-            Dock = map.DockLocation, Robot = robotPos, Path = cleanPath, Obstacles = obstacles,
+            Dock = map.DockLocation, Robot = robotPos, Path = cleanPath, Obstacles = obstacles, DirtSpots = dirt,
         };
         MapRenderer.ExportPng(scene, 1200, 1400, path);
         Console.WriteLine($"Carte {current.Name} exportée vers {path}");

@@ -262,6 +262,7 @@ public partial class MainViewModel : ObservableObject
     /// <summary>Grown in real time from the jdm "cur_path" push (see RobotStateTracker.CleanPath); takes over from the REST snapshot in _lastPath as soon as it has any points.</summary>
     private IReadOnlyList<MyDyson.Core.Point>? _liveTrail;
     private IReadOnlyList<MyDyson.Core.Point>? _liveObstacles;
+    private IReadOnlyList<DirtSpot>? _liveDirt;
 
     // ---- Raw capture: every message on the robot's topics, for finding what the tracker doesn't know ----
     [ObservableProperty] private bool _isCapturing;
@@ -514,6 +515,7 @@ public partial class MainViewModel : ObservableObject
                 _robotPosition ??= live.RobotLocation;
                 _lastPath = live.CleanPath;
                 _liveObstacles = live.Obstacles;
+                _liveDirt = live.Dirt;
             }
             RebuildScene();
         }
@@ -533,6 +535,7 @@ public partial class MainViewModel : ObservableObject
             Robot = isCurrent ? _robotPosition : null,
             Path = isCurrent ? (_liveTrail is { Count: > 0 } ? _liveTrail : _lastPath) : null,
             Obstacles = isCurrent ? _liveObstacles : null,
+            DirtSpots = isCurrent ? _liveDirt : null,
             SelectedZoneIds = Zones.Where(z => z.Selected).Select(z => z.Id).ToHashSet(),
             ZoneOrder = Zones.Where(z => z.Selected).ToDictionary(z => z.Id, z => z.Order),
         };
@@ -611,6 +614,7 @@ public partial class MainViewModel : ObservableObject
 
     private IReadOnlyList<MyDyson.Core.Point>? _historyPath;
     private IReadOnlyList<MyDyson.Core.Point>? _historyObstacles;
+    private IReadOnlyList<DirtSpot>? _historyDirt;
     private PersistentMap? _historyMap;
 
     private async Task ShowCleanAsync(CleanItem item)
@@ -620,6 +624,7 @@ public partial class MainViewModel : ObservableObject
             var detail = await GetCleanDetailCachedAsync(item.Summary.CleanId);
             _historyPath = detail.CleanPath;
             _historyObstacles = detail.Obstacles;
+            _historyDirt = detail.Dirt;
             // The REST clean list has no overall success/failure field (see docs/protocole.md); the
             // closest thing is each zone's own status from this per-clean detail call. Only surface
             // zones that didn't simply complete, so an ordinary clean just reads "Terminé".
@@ -657,6 +662,7 @@ public partial class MainViewModel : ObservableObject
             Dock = _historyMap?.DockLocation,
             Path = _historyPath,
             Obstacles = _historyObstacles,
+            DirtSpots = _historyDirt,
         };
     }
 
