@@ -21,6 +21,10 @@
             <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
+        <Style TargetType="TextBlock" x:Key="NumericCell" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+        </Style>
         <Style TargetType="TextBlock" x:Key="Section" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -233,7 +237,7 @@
                                 <TextBlock Text="{Binding Battery, StringFormat='{}{0} %'}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                             </Grid>
                             <WrapPanel Margin="0,12,0,-8">
-                                <Button Content="⏸ Pause" Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}" Style="{StaticResource Secondary}"/>
+                                <Button Content="{Binding PauseResumeLabel}" Command="{Binding PauseResumeCommand}" IsEnabled="{Binding CanPause}" Style="{StaticResource Secondary}"/>
                                 <Button Content="⌂ Retour à la station" Command="{Binding AbortCommand}" IsEnabled="{Binding CanAbort}" Style="{StaticResource Secondary}"/>
                             </WrapPanel>
                         </StackPanel>
@@ -410,10 +414,20 @@
                             <ListView.View>
                                 <GridView>
                                     <GridViewColumn Header="Date" Width="140" DisplayMemberBinding="{Binding When}"/>
-                                    <GridViewColumn Header="Durée" Width="80" DisplayMemberBinding="{Binding Duration}"/>
-                                    <GridViewColumn Header="Surface" Width="90" DisplayMemberBinding="{Binding Area}"/>
+                                    <GridViewColumn Header="Durée" Width="70">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate><TextBlock Text="{Binding Duration}" Style="{StaticResource NumericCell}"/></DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Fin" Width="140" DisplayMemberBinding="{Binding End}"/>
+                                    <GridViewColumn Header="Surface" Width="80">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate><TextBlock Text="{Binding Area}" Style="{StaticResource NumericCell}"/></DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
                                     <GridViewColumn Header="Batterie" Width="110" DisplayMemberBinding="{Binding Battery}"/>
-                                    <GridViewColumn Header="Fautes" Width="70" DisplayMemberBinding="{Binding Faults}"/>
+                                    <GridViewColumn Header="Fautes" Width="60" DisplayMemberBinding="{Binding Faults}"/>
+                                    <GridViewColumn Header="Pièces" Width="200" DisplayMemberBinding="{Binding Rooms}"/>
                                 </GridView>
                             </ListView.View>
                         </ListView>
@@ -428,6 +442,9 @@
                                 </DockPanel>
                                 <TextBlock Style="{StaticResource Muted}" Margin="0,2,0,0" TextWrapping="Wrap">
                                     <Run Text="Résultat : "/><Run Text="{Binding HistoryResultText, Mode=OneWay}" FontWeight="SemiBold"/>
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource Muted}" Margin="0,2,0,0" TextWrapping="Wrap">
+                                    <Run Text="Réglages au départ : "/><Run Text="{Binding SelectedClean.RoomSettings, Mode=OneWay}" FontWeight="SemiBold"/>
                                 </TextBlock>
                             </StackPanel>
                             <controls:MapView x:Name="HistoryCanvas" Scene="{Binding HistoryScene}"/>

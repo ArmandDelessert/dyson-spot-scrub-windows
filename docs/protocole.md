@@ -80,7 +80,8 @@ panne. La famille `21xx` sert d'indicateur de statut.
 
 ### Autres messages classiques observés
 
-`MAP-UPLOAD-STATUS` signale la fin d'un envoi de carte : `{ "status": "COMPLETE", "persistentMapId": "1000000003" }`.
+`MAP-UPLOAD-STATUS` signale la fin d'un envoi de carte : `{ "status": "COMPLETE", "persistentMapId": "1000000003" }`
+après une modification de carte, ou `{ "status": "COMPLETE", "cleanId": "..." }` après un nettoyage.
 
 `START` et `ABORT-DOCK-ACTION` sont détaillés plus bas, dans la section des commandes.
 
@@ -342,6 +343,18 @@ La charge utile du START :
 
 Les champs `fullCleanType` et `zonesDefinitionLastUpdatedDate` ne figurent dans aucune
 implémentation communautaire connue. L'application les envoie systématiquement.
+
+`service.set_cur_map` fait partie de cette séquence même quand la carte visée est déjà active (donc
+sans effet) : rejouer la séquence sur une carte différente de l'active revient exactement à
+combiner « changer de carte active » et « démarrer un nettoyage » en une seule action, ce que
+l'application mobile ne propose jamais en un clic (elle oblige à changer de carte au préalable dans
+son propre sélecteur). Le robot a été entendu annoncer deux fois « Lancer un nettoyage
+personnalisé » lors d'un tel démarrage sur une carte différente ; une capture prise le 20 septembre
+2026 pendant ce scénario montre plusieurs `service.set_cur_map` et `service.set_room_clean` dans
+une fenêtre de quelques dizaines de millisecondes, mais elle ne permet pas de distinguer les
+messages du client Windows de ceux du téléphone (les deux ont pu être utilisés pendant la capture) :
+la cause exacte de la double annonce reste donc non confirmée, à isoler avec une capture n'impliquant
+que l'application Windows.
 
 ### Arrêt d'une action du dock
 

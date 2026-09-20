@@ -85,6 +85,21 @@ public partial class ZoneItem : ObservableObject
         }
     }
 
+    /// <summary>Same recap as <see cref="Summary"/>, computed directly from REST settings for read-only contexts such as history, rather than from this class's own editable selection state.</summary>
+    public static string DescribeSettings(ZoneSettings? s)
+    {
+        var type = CleanTypes.FromRest(s?.CleanType);
+        var parts = new List<string> { CleanTypeOptions.First(o => o.Value == type).Label };
+        if (type is CleanType.Vacuum or CleanType.VacuumAndMop or CleanType.VacuumThenMop)
+            parts.Add(StrategyOptions.First(o => o.Value == CleaningStrategies.FromRest(s?.CleaningStrategy)).Label);
+        if (type is CleanType.Mop or CleanType.VacuumAndMop or CleanType.VacuumThenMop)
+        {
+            parts.Add(WaterLevelOptions.First(o => o.Value == WaterLevels.FromRest(s?.WaterLevel)).Label);
+            parts.Add((MopPassesOptions.FirstOrDefault(o => o.Value == s?.MopPasses) ?? MopPassesOptions[0]).Label);
+        }
+        return string.Join(" · ", parts);
+    }
+
     public ZoneItem(ZoneMetadata z)
     {
         Id = z.Id;
@@ -143,10 +158,20 @@ public sealed record MapItem(MapMetadata Metadata)
 public sealed record CleanItem(CleanSummary Summary)
 {
     public string When => Summary.Start?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "?";
+    public string End => Summary.End?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "";
     public string Duration => Summary.CleanDurationMinutes is { } m ? $"{m} min" : "";
     public string Area => Summary.AreaCleanedSquareMetres is { } a ? $"{a:F1} m²" : "";
     public string Battery => Summary.StartBattery is { } s && Summary.EndBattery is { } e ? $"{s:F0} → {e:F0} %" : "";
     public string Faults => Summary.Faults is { Count: > 0 } f ? $"{f.Count}" : "";
+
+    private IReadOnlyList<MapZone> SelectedZones => Summary.Zones?.Where(z => z.IsSelected == true).ToList() ?? [];
+
+    /// <summary>Rooms picked when this clean was launched: already in the history list, unlike Résultat.</summary>
+    public string Rooms => string.Join(", ", SelectedZones.Select(z => RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)));
+
+    /// <summary>What was chosen per room at launch, in the same wording as the room list's own recap.</summary>
+    public string RoomSettings => string.Join(" · ", SelectedZones.Select(z =>
+        $"{RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)} : {ZoneItem.DescribeSettings(z.Settings)}"));
 }
 
 /// <summary>Consumable as shown by the app: percentage of life left, replace at 0.</summary>
@@ -195,6 +220,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _canAbort;
     [ObservableProperty] private bool _dockBusy;
     [ObservableProperty] private string _washDryLabel = "Laver et sécher";
+    [ObservableProperty] private string _pauseResumeLabel = "⏸ Pause";
     private string? _dockState;
 
     // Settings (wording of the official app)
@@ -363,7 +389,8 @@ public partial class MainViewModel : ObservableObject
                 : "";
 
             CanStart = s.IsDocked || s.State is "INACTIVE_DISCHARGING" or "FULL_CLEAN_FINISHED" or "ABORTED";
-            CanPause = s.IsCleaning && !s.IsPaused;
+            CanPause = s.IsCleaning; // true whether running or already paused: this is the pause/resume toggle
+            PauseResumeLabel = s.IsPaused ? "▶ Reprendre" : "⏸ Pause";
             CanAbort = s.IsCleaning || s.IsPaused || s.IsMapping;
 
             if (s.HotWaterMop is { } hwm) HotWaterMop = hwm;
@@ -635,7 +662,10 @@ public partial class MainViewModel : ObservableObject
         return RunAsync($"démarrage de {rooms.Count} pièce(s)", c => CleaningSequence.StartAsync(c, mapId, rooms));
     }
 
-    [RelayCommand] private Task PauseAsync() => RunAsync("pause", c => c.PauseAsync());
+    [RelayCommand]
+    private Task PauseResumeAsync() => _session?.Tracker.State?.IsPaused == true
+        ? RunAsync("reprise", c => c.ResumeAsync(_session!.Tracker.State?.CurrentCleaningMode ?? "zoneConfigured"))
+        : RunAsync("pause", c => c.PauseAsync());
 
     [RelayCommand]
     private Task AbortAsync() => RunAsync("retour à la station", async c =>
@@ -776,7 +806,7 @@ public partial class MainViewModel : ObservableObject
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
             Filter = "JSON Lines (*.jsonl)|*.jsonl",
-            FileName = $"capture-{DateTime.Now:yyyyMMdd-HHmmss}.jsonl",
+            FileName = $"capture-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.jsonl",
         };
         if (dlg.ShowDialog() != true) return;
 

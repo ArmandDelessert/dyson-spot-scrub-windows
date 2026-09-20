@@ -66,7 +66,11 @@ public sealed record MapZone(
     [property: JsonPropertyName("visited")] List<Point>? Visited,
     [property: JsonPropertyName("presentation")] List<PresentationSegment>? Presentation,
     [property: JsonPropertyName("cleanStatus")] string? CleanStatus,
-    [property: JsonPropertyName("area")] double? Area);
+    [property: JsonPropertyName("area")] double? Area,
+    // Present on clean-maps (history list) and clean-maps-data (history detail) zones: which rooms
+    // were picked for that task and with what settings, at the time it ran.
+    [property: JsonPropertyName("isSelected")] bool? IsSelected = null,
+    [property: JsonPropertyName("settings")] ZoneSettings? Settings = null);
 
 /// <summary>
 /// French label for a zone's cleanStatus, as seen in clean-maps-data/live-maps. Confirmed values:

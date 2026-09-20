@@ -62,7 +62,8 @@ titre de comparaison et de diagnostic.
 le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 
 - **Thème** : suit le mode clair ou sombre de Windows, y compris en cours d'exécution.
-- **État** : état du robot en clair, batterie, fautes réelles en rouge, pause et retour à la station.
+- **État** : état du robot en clair, batterie, fautes réelles en rouge, retour à la station. Le
+  bouton de pause devient « Reprendre » une fois le nettoyage effectivement en pause.
 - **Nettoyage** : choix de la carte, avec un bouton pour en faire la carte active du compte (comme
   le sélecteur de carte de l'application mobile), pièces triées par nom (l'ordre renvoyé par le
   cloud n'est ni alphabétique ni par identifiant), cochées ici ou cliquées sur la carte, ordre de
@@ -82,16 +83,18 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 - **Compte** : bouton « Se déconnecter » dans l'en-tête, avec confirmation ; ramène à l'écran de
   connexion sans redémarrer l'application.
 - **Carte** : grille d'occupation colorée par pièce, meubles, station, position du robot, tracé en
-  temps réel du nettoyage en cours, colonisé au fil de l'eau depuis le flux `cur_path` du robot, en
+  temps réel du nettoyage en cours, construit au fil de l'eau depuis le flux `cur_path` du robot, en
   gris là où il ne fait que se déplacer et dans la couleur du type de nettoyage de la pièce là où il
   travaille réellement. Icônes pour les obstacles détectés. Clic pour sélectionner une pièce, molette
   pour zoomer, glisser pour déplacer. Export en PNG. Les pièces d'un type reconnu (cuisine, chambre,
   salon…) portent le même nom que dans l'application mobile, même quand le nom enregistré sur le
   compte diffère.
-- **Historique** : chaque nettoyage avec durée, surface, batterie et fautes, et sa propre carte,
-  celle du nettoyage choisi, avec le trajet parcouru (même code couleur que la carte en direct) et
-  les obstacles détectés. Le résultat pièce par pièce (terminée, injoignable…) s'affiche sous la
-  carte, cette donnée n'existant qu'au niveau du détail d'un nettoyage, pas dans la liste.
+- **Historique** : date, durée, fin, surface, batterie, fautes et pièces sélectionnées pour chaque
+  nettoyage, avec sa propre carte, celle du nettoyage choisi, avec le trajet parcouru (même code
+  couleur que la carte en direct) et les obstacles détectés. Le résultat pièce par pièce (terminée,
+  injoignable…) et les réglages choisis au départ pour chaque pièce (aspirer, laver…) s'affichent
+  sous la carte pour le nettoyage sélectionné ; le résultat n'existe qu'au niveau du détail d'un
+  nettoyage précis, pas dans la liste, contrairement aux pièces sélectionnées et à leurs réglages.
 - **Réglages** : les mêmes libellés que l'application Android, en trois groupes : lavage, station,
   vocaux. Chaque réglage part au robot dans les deux dialectes.
 - **Journal** : événements du robot et résultats des commandes.
