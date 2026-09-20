@@ -291,21 +291,12 @@ public static class MapRenderer
     }
 
     /// <summary>
-    /// One shape for every stain: only "liquid" is confirmed so far (the app is said to show
-    /// several distinct icons by type, but the others haven't been observed in a capture yet).
+    /// A plain green dot, matching the colour of the app's own splash icon for "liquid" (the only
+    /// stain type confirmed so far; the app shows several distinct icons by type, but the others
+    /// haven't been observed in a capture yet, so there's nothing to distinguish them by here).
     /// </summary>
-    private static void DrawDirtMarker(DrawingContext dc, Point p)
-    {
-        var geo = new StreamGeometry();
-        using (var g = geo.Open())
-        {
-            g.BeginFigure(new Point(p.X, p.Y - 7), true, true);
-            g.QuadraticBezierTo(new Point(p.X + 6, p.Y + 2), new Point(p.X, p.Y + 7), true, true);
-            g.QuadraticBezierTo(new Point(p.X - 6, p.Y + 2), new Point(p.X, p.Y - 7), true, true);
-        }
-        geo.Freeze();
-        dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(0x30, 0x90, 0xe0)), new Pen(Brushes.Black, 1), geo);
-    }
+    private static void DrawDirtMarker(DrawingContext dc, Point p) =>
+        dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(0x3c, 0xb4, 0x3c)), new Pen(Brushes.Black, 1), p, 5, 5);
 
     private static void DrawGrid(DrawingContext dc, MapGrid grid, Matrix m, IReadOnlySet<string>? selected)
     {

@@ -127,6 +127,13 @@
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Padding" Value="4,3"/>
             <Style.Triggers>
+                <!-- IsSelected already used our own brushes; IsMouseOver didn't, so hovering used the
+                     OS theme's own highlight (near-white) while the text stayed our light TextBrush
+                     in dark mode — unreadable. -->
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SelectionBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{DynamicResource SelectionBrush}"/>
                     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
@@ -202,7 +209,7 @@
                 <StackPanel>
                     <TextBlock Text="{Binding RobotName}" FontSize="18" FontWeight="SemiBold"/>
                     <TextBlock Style="{StaticResource Muted}">
-                        <Run Text="{Binding Serial, Mode=OneWay}"/> · firmware <Run Text="{Binding Firmware, Mode=OneWay}"/>
+                        <Run Text="{Binding Serial, Mode=OneWay}"/> · firmware <Run Text="{Binding Firmware, Mode=OneWay}"/> · compte <Run Text="{Binding AccountEmail, Mode=OneWay}"/>
                     </TextBlock>
                 </StackPanel>
             </DockPanel>

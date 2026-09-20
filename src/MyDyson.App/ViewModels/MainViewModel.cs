@@ -197,6 +197,8 @@ public partial class MainViewModel : ObservableObject
     public string RobotName => _ctx.Robot?.Name ?? "Robot";
     public string Serial => _ctx.Robot?.SerialNumber ?? "";
     public string Firmware => _ctx.Robot?.ConnectedConfiguration?.Firmware?.Version ?? "";
+    /// <summary>The only account information the login flow ever returns: no display name, just the email used to sign in.</summary>
+    public string AccountEmail => _ctx.Stored.Email;
 
     [ObservableProperty] private string _connection = "Connexion…";
     [ObservableProperty] private bool _connected;

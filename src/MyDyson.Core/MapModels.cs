@@ -78,7 +78,9 @@ public sealed record MapZone(
 /// <summary>
 /// French label for a zone's cleanStatus, as seen in clean-maps-data/live-maps. Confirmed values:
 /// CLEAN_NOT_REQUESTED (not selected for this task), CLEAN_COMPLETE, CANT_CLEAN (the robot gave up
-/// reaching it, see event.Unable_all_area_recharge.post in docs/protocole.md); others unconfirmed.
+/// reaching it, see event.Unable_all_area_recharge.post in docs/protocole.md), CLEAN_PENDING (the
+/// room was selected but the task ended before its turn came, seen on a 0-minute clean whose path
+/// had a single point); others unconfirmed.
 /// </summary>
 public static class CleanStatusLabels
 {
@@ -87,6 +89,7 @@ public static class CleanStatusLabels
         "CLEAN_COMPLETE" => "Terminée",
         "CANT_CLEAN" => "Injoignable",
         "CLEAN_NOT_REQUESTED" => "Non demandée",
+        "CLEAN_PENDING" => "Non commencée",
         null => "",
         var s => s,
     };

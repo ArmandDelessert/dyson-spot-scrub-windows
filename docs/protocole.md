@@ -164,8 +164,11 @@ reste donc inconnue.
 ### cleanStatus des pièces
 
 `persistent-maps`, `live-maps` et `clean-maps-data` portent chacun un `cleanStatus` par pièce :
-`CLEAN_NOT_REQUESTED` (non sélectionnée pour cette tâche), `CLEAN_COMPLETE`, et `CANT_CLEAN`
-(le robot a renoncé à l'atteindre, voir `event.Unable_all_area_recharge.post` plus haut). C'est la
+`CLEAN_NOT_REQUESTED` (non sélectionnée pour cette tâche), `CLEAN_COMPLETE`, `CANT_CLEAN`
+(le robot a renoncé à l'atteindre, voir `event.Unable_all_area_recharge.post` plus haut), et
+`CLEAN_PENDING` (sélectionnée mais son tour n'est jamais arrivé : observé sur un nettoyage de
+0 minute dont le tracé ne contient qu'un seul point, la tâche s'étant arrêtée avant même de
+commencer à nettoyer cette pièce). C'est la
 seule donnée de résultat par pièce disponible : la liste `GET /v2/{serial}/clean-maps` (utilisée
 pour l'historique) n'a ni ce champ ni aucun équivalent global de succès/échec pour toute la tâche —
 seul `clean-maps-data/{cleanId}` (le détail d'un nettoyage précis) l'expose, d'où le choix de
