@@ -47,6 +47,51 @@ public static class CleanTypes
     };
 }
 
+/// <summary>Vacuum power. REST value of settings.cleaningStrategy. Confirmed value: "auto".</summary>
+public enum CleaningStrategy { Auto, Quick, Quiet, Boost }
+
+public static class CleaningStrategies
+{
+    public static string ToRest(this CleaningStrategy s) => s switch
+    {
+        CleaningStrategy.Quick => "quick",
+        CleaningStrategy.Quiet => "quiet",
+        CleaningStrategy.Boost => "boost",
+        _ => "auto",
+    };
+
+    public static CleaningStrategy FromRest(string? s) => s switch
+    {
+        "quick" => CleaningStrategy.Quick,
+        "quiet" => CleaningStrategy.Quiet,
+        "boost" => CleaningStrategy.Boost,
+        _ => CleaningStrategy.Auto,
+    };
+}
+
+/// <summary>
+/// Mop water level. REST value of settings.waterLevel. Confirmed value: "low". The app also has a
+/// "very low" level not offered on this screen, so it is not modelled here.
+/// </summary>
+public enum WaterLevel { Low, Medium, High }
+
+public static class WaterLevels
+{
+    public static string ToRest(this WaterLevel w) => w switch
+    {
+        WaterLevel.Medium => "medium",
+        WaterLevel.High => "high",
+        _ => "low",
+    };
+
+    public static WaterLevel FromRest(string? s) => s switch
+    {
+        "medium" => WaterLevel.Medium,
+        "high" => WaterLevel.High,
+        _ => WaterLevel.Low,
+    };
+}
+
 /// <summary>One room of a clean request: which zone, how, in which order.</summary>
 public sealed record RoomSelection(string ZoneId, CleanType CleanType, int Order);
 

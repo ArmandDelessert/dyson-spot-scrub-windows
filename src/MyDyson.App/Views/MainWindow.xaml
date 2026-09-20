@@ -250,23 +250,49 @@
                             <ItemsControl ItemsSource="{Binding Zones}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:ZoneItem}">
-                                        <Grid Margin="0,2">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="22"/>
-                                                <ColumnDefinition/>
-                                                <ColumnDefinition Width="140"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding OrderText}" FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
-                                            <CheckBox Grid.Column="1" IsChecked="{Binding Selected}">
-                                                <TextBlock TextTrimming="CharacterEllipsis">
-                                                    <Run Text="{Binding Name, Mode=OneWay}"/>
-                                                    <Run Text="{Binding Area, Mode=OneWay, StringFormat='({0:F1} m²)'}" Foreground="{DynamicResource MutedBrush}"/>
-                                                </TextBlock>
-                                            </CheckBox>
-                                            <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:ZoneItem.CleanTypeOptions}" SelectedItem="{Binding SelectedCleanType}" Margin="8,0,0,0" FontSize="12">
-                                                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
-                                            </ComboBox>
-                                        </Grid>
+                                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,6" Margin="0,0,0,2">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="22"/>
+                                                        <ColumnDefinition/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding OrderText}" FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
+                                                    <CheckBox Grid.Column="1" IsChecked="{Binding Selected}">
+                                                        <TextBlock TextTrimming="CharacterEllipsis">
+                                                            <Run Text="{Binding DisplayName, Mode=OneWay}"/>
+                                                            <Run Text="{Binding Area, Mode=OneWay, StringFormat='({0:F1} m²)'}" Foreground="{DynamicResource MutedBrush}"/>
+                                                        </TextBlock>
+                                                    </CheckBox>
+                                                </Grid>
+                                                <Grid Margin="22,4,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition/>
+                                                        <ColumnDefinition Width="8"/>
+                                                        <ColumnDefinition/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ComboBox ItemsSource="{x:Static vm:ZoneItem.CleanTypeOptions}" SelectedItem="{Binding SelectedCleanType}" FontSize="12" Margin="0">
+                                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                    <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:ZoneItem.StrategyOptions}" SelectedItem="{Binding SelectedStrategy}" FontSize="12" Margin="0">
+                                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                </Grid>
+                                                <Grid Margin="22,4,0,0" Visibility="{Binding HasMop, Converter={StaticResource Show}}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition/>
+                                                        <ColumnDefinition Width="8"/>
+                                                        <ColumnDefinition/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ComboBox ItemsSource="{x:Static vm:ZoneItem.WaterLevelOptions}" SelectedItem="{Binding SelectedWaterLevel}" FontSize="12" Margin="0">
+                                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                    <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:ZoneItem.MopPassesOptions}" SelectedItem="{Binding SelectedMopPasses}" FontSize="12" Margin="0">
+                                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -279,7 +305,7 @@
                         <StackPanel>
                             <TextBlock Text="Station" Style="{StaticResource Section}"/>
                             <WrapPanel Margin="0,0,0,-8">
-                                <Button Content="Collecteur vide" Command="{Binding CollectDustCommand}" Style="{StaticResource Secondary}"/>
+                                <Button Content="Vider le collecteur" Command="{Binding CollectDustCommand}" Style="{StaticResource Secondary}"/>
                                 <Button Content="{Binding WashDryLabel}" Command="{Binding WashDryCommand}" Style="{StaticResource Secondary}"/>
                             </WrapPanel>
                         </StackPanel>
@@ -289,7 +315,7 @@
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
                             <TextBlock Text="Consommables" Style="{StaticResource Section}"/>
-                            <TextBlock Text="Durée de vie restante ; à remplacer à 0 %." Style="{StaticResource Muted}" FontSize="11" Margin="0,-4,0,8"/>
+                            <TextBlock Text="Durée de vie restante. À remplacer à 0 %." Style="{StaticResource Muted}" FontSize="11" Margin="0,-4,0,8"/>
                             <ItemsControl ItemsSource="{Binding Consumables}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -364,17 +390,17 @@
                             <Border Style="{StaticResource Card}">
                                 <StackPanel>
                                     <CheckBox IsChecked="{Binding HotWaterMop}" FontWeight="SemiBold" Content="Laver à l'eau chaude"/>
-                                    <TextBlock Text="Idéal pour les nettoyages en profondeur, déconseillé pour les parquets ou stratifiés" Style="{StaticResource Muted}" Margin="20,0,0,10"/>
+                                    <TextBlock Text="Idéal pour les nettoyages en profondeur, déconseillé pour les parquets ou stratifiés." Style="{StaticResource Muted}" Margin="20,0,0,10"/>
                                     <CheckBox IsChecked="{Binding Detergent}" FontWeight="SemiBold" Content="Laver avec le produit de nettoyage"/>
-                                    <TextBlock Text="Votre robot lavera le sol avec le produit de nettoyage dans la station" Style="{StaticResource Muted}" Margin="20,0,0,10"/>
+                                    <TextBlock Text="Votre robot lavera le sol avec le produit de nettoyage dans la station." Style="{StaticResource Muted}" Margin="20,0,0,10"/>
                                     <DockPanel Margin="0,4,0,0">
                                         <TextBlock DockPanel.Dock="Right" Text="{Binding SolutionStatus}" Style="{StaticResource Muted}"/>
                                         <TextBlock Text="Produit de nettoyage" FontWeight="SemiBold"/>
                                     </DockPanel>
-                                    <TextBlock Text="Indique s'il reste suffisamment de produit dans la station" Style="{StaticResource Muted}" Margin="0,0,0,10"/>
+                                    <TextBlock Text="Indique s'il reste suffisamment de produit dans la station." Style="{StaticResource Muted}" Margin="0,0,0,10"/>
                                     <CheckBox IsChecked="{Binding WashMopBeforeClean}" FontWeight="SemiBold" Content="Prolonger les préparatifs de lavage"/>
-                                    <TextBlock Text="Garantit une couverture de nettoyage homogène en consacrant plus de temps à la préparation sur la station d'accueil" Style="{StaticResource Muted}" Margin="20,0,0,0"/>
-                                    <TextBlock Text="Le robot ne communique pas encore cet état ; la case reflète le dernier choix fait ici." Style="{StaticResource Muted}" FontSize="11" Margin="20,2,0,0"
+                                    <TextBlock Text="Garantit une couverture de nettoyage homogène en consacrant plus de temps à la préparation sur la station d'accueil." Style="{StaticResource Muted}" Margin="20,0,0,0"/>
+                                    <TextBlock Text="Le robot ne communique pas encore cet état. Cette case reflète donc le dernier choix fait ici." Style="{StaticResource Muted}" FontSize="11" Margin="20,2,0,0"
                                                Visibility="{Binding WashMopBeforeCleanKnown, Converter={StaticResource Collapse}}"/>
                                 </StackPanel>
                             </Border>
@@ -383,7 +409,7 @@
                             <Border Style="{StaticResource Card}">
                                 <StackPanel>
                                     <TextBlock Text="Intervalle d'auto-nettoyage" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Définissez la fréquence à laquelle votre robot revient nettoyer son rouleau humide ou vider le collecteur pendant le nettoyage" Style="{StaticResource Muted}" Margin="0,0,0,6"/>
+                                    <TextBlock Text="Définissez la fréquence à laquelle votre robot revient nettoyer son rouleau humide ou vider le collecteur pendant le nettoyage." Style="{StaticResource Muted}" Margin="0,0,0,6"/>
                                     <ComboBox ItemsSource="{Binding BackWashOptions}" SelectedItem="{Binding BackWash}" Width="260" HorizontalAlignment="Left">
                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
                                     </ComboBox>
@@ -400,7 +426,7 @@
                             <TextBlock Text="Réglages vocaux du robot" Style="{StaticResource Section}"/>
                             <Border Style="{StaticResource Card}">
                                 <StackPanel>
-                                    <CheckBox IsChecked="{Binding Alarm}" FontWeight="SemiBold" Content="Sons" Margin="0,0,0,10"/>
+                                    <CheckBox IsChecked="{Binding Alarm}" FontWeight="SemiBold" Content="Activer les commandes vocales du robot" Margin="0,0,0,10"/>
                                     <TextBlock Text="Volume" FontWeight="SemiBold"/>
                                     <StackPanel Orientation="Horizontal">
                                         <Slider Value="{Binding Volume}" Minimum="0" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="True" Width="200" VerticalAlignment="Center"/>

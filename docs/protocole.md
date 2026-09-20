@@ -175,7 +175,50 @@ reste tel quel.
 Côté REST, `settings.cleanType` prend `vacuum`, `mop`, `vacuumAndMop`, `vacuumThenMop` ; l'application
 connaît aussi une stratégie (`auto`, `quick`, `quiet`, `boost`), un niveau d'eau (`veryLow`, `low`,
 `medium`, `high`) et un nombre de passages (1 ou 2). `PUT /v2/app/{serial}/persistent-map-metadata/{mapId}`
-avec la liste des zones enregistre ces réglages côté cloud.
+avec la liste des zones enregistre ces réglages côté cloud. La stratégie et le niveau d'eau n'ont
+pas d'équivalent connu dans les tableaux `room_preference` du jdm ; seul le type de nettoyage
+(indice 3) y figure. Ce sont donc des réglages purement REST, invisibles pour un client qui n'écoute
+que le MQTT.
+
+### Le nom stocké n'est pas toujours le nom affiché
+
+Décompiler l'énumération des types de pièce (classe `d11.a`, trente valeurs de `BALCONY` à
+`UTILITY_ROOM` plus `CUSTOM`, déclarées par ordre alphabétique avec une clé de traduction chacune)
+révèle que l'application affiche, pour une pièce d'un type reconnu, le libellé propre à ce type et
+non le champ `name` stocké. Une pièce de type `toilet` dont le nom stocké vaut `Salle de bain`
+s'affiche « W.-C. » ; une pièce `livingRoom` nommée `Salon2` s'affiche « Salon ». Seul le type
+`custom`, qui n'a pas de libellé par défaut, affiche le nom stocké tel quel, par exemple `Pièce1`.
+Le champ `name` continue probablement de servir ailleurs, par exemple aux assistants vocaux, mais
+plus à l'affichage de la liste des pièces.
+
+Correspondances confirmées par recoupement avec des données réelles de compte :
+
+| Type REST | Libellé affiché |
+|---|---|
+| `kitchen` | Cuisine |
+| `hallway` | Couloir |
+| `bedroom` | Chambre |
+| `livingRoom` | Salon |
+| `bathroom` | Salle de bain |
+| `toilet` | W.-C. |
+| `office` | Bureau |
+| `dining` | Salle à manger |
+
+Les vingt-deux autres types de l'énumération (`balcony`, `boxroom`, `cloakroom`, `closet`,
+`conservatory`, `ensuite`, `entrance`, `familyRoom`, `guestBathroom`, `guestBedroom`, `guestRoom`,
+`kidsBedroom`, `laundryRoom`, `nursery`, `pantry`, `playRoom`, `primaryBathroom`, `primaryBedroom`,
+`recreationRoom`, `storageRoom`, `study`, `utilityRoom`) n'ont pas été observés avec un nom stocké
+différent du libellé qu'on pourrait en déduire ; leur traduction française reste donc inconnue.
+
+### Ordre d'affichage des pièces
+
+`GET /v2/app/{serial}/persistent-map-metadata` renvoie les zones dans un ordre qui n'est ni
+alphabétique ni croissant par identifiant, probablement celui de leur détection pendant la
+cartographie. L'application Android semble grouper par type de pièce, mais cet ordre ne correspond
+pas à celui, alphabétique par nom, de l'énumération des types elle-même : sur un compte de test,
+l'ordre affiché a été cuisine, couloir, chambre, salon, quand l'ordre alphabétique des types
+correspondants aurait été chambre, couloir, cuisine, salon. L'algorithme exact de tri du côté
+Android n'a pas été identifié.
 
 ### Méthodes et événements jdm observés
 

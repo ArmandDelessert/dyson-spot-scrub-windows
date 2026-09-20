@@ -159,7 +159,8 @@ public static class MapRenderer
         foreach (var z in scene.Map?.Zones ?? [])
         {
             if (z.NameLocation is not { } n) continue;
-            var label = scene.ZoneMetadata?.FirstOrDefault(zm => zm.Id == z.Id)?.Name ?? z.Name ?? z.Id;
+            var meta = scene.ZoneMetadata?.FirstOrDefault(zm => zm.Id == z.Id);
+            var label = RoomTypeLabels.Resolve(meta?.Type ?? z.Type, meta?.Name ?? z.Name, z.Id);
             var at = m.Transform(new Point(n.X, n.Y));
             var labelRect = DrawLabel(dc, label, at);
             if (scene.ZoneOrder is { } order && order.TryGetValue(z.Id, out var rank))
