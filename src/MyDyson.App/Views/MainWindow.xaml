@@ -209,7 +209,7 @@
                 <StackPanel>
                     <TextBlock Text="{Binding RobotName}" FontSize="18" FontWeight="SemiBold"/>
                     <TextBlock Style="{StaticResource Muted}">
-                        <Run Text="{Binding Serial, Mode=OneWay}"/> · firmware <Run Text="{Binding Firmware, Mode=OneWay}"/> · compte <Run Text="{Binding AccountEmail, Mode=OneWay}"/>
+                        Numéro de série <Run Text="{Binding Serial, Mode=OneWay}"/> · Firmware <Run Text="{Binding Firmware, Mode=OneWay}"/> · Compte <Run Text="{Binding AccountEmail, Mode=OneWay}"/>
                     </TextBlock>
                 </StackPanel>
             </DockPanel>

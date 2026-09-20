@@ -328,7 +328,23 @@ public static class MapRenderer
                                  new Point(grid.OffsetX + grid.Width * grid.Resolution, grid.OffsetY + grid.Height * grid.Resolution));
         var p0 = m.Transform(new Point(worldRect.Left, worldRect.Bottom));
         var p1 = m.Transform(new Point(worldRect.Right, worldRect.Top));
-        dc.DrawImage(bmp, new Rect(p0, p1));
+        // A destination rect at a fractional pixel position gets its edges blended against the
+        // background regardless of scaling mode; snapping to whole device pixels is what actually
+        // keeps cell boundaries crisp instead of a faint blur.
+        p0 = new Point(Math.Round(p0.X), Math.Round(p0.Y));
+        p1 = new Point(Math.Round(p1.X), Math.Round(p1.Y));
+
+        // NearestNeighbor on the bitmap keeps each 5 cm cell a sharp block instead of a smooth
+        // gradient, but WPF's compositor still anti-aliases the drawn image's own edges unless told
+        // not to. EdgeMode is scoped to this DrawingGroup rather than set on the MapView itself, so
+        // labels, the robot and the path stay anti-aliased as normal.
+        var group = new DrawingGroup();
+        RenderOptions.SetEdgeMode(group, EdgeMode.Aliased);
+        RenderOptions.SetBitmapScalingMode(group, BitmapScalingMode.NearestNeighbor);
+        using (var gdc = group.Open())
+            gdc.DrawImage(bmp, new Rect(p0, p1));
+        group.Freeze();
+        dc.DrawDrawing(group);
     }
 
     /// <summary>Without a grid (maps other than the current one), the visited points give the rooms' shape.</summary>
