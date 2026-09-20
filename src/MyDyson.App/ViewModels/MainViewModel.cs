@@ -56,6 +56,7 @@ public partial class ZoneItem : ObservableObject
 
     [ObservableProperty] private bool _selected;
     [ObservableProperty] private int _order;
+    [ObservableProperty] private bool _isExpanded;
     [ObservableProperty] private CleanTypeOption _selectedCleanType;
     [ObservableProperty] private StrategyOption _selectedStrategy;
     [ObservableProperty] private WaterLevelOption _selectedWaterLevel;
@@ -66,8 +67,23 @@ public partial class ZoneItem : ObservableObject
     /// <summary>What the phone app would show: the room type's own label, since it ignores the stored name for typed rooms.</summary>
     public string DisplayName => RoomTypeLabels.Resolve(string.IsNullOrEmpty(Type) ? null : Type, Name, Id);
 
+    /// <summary>Whether the vacuum-power setting applies: every clean type except mop alone.</summary>
+    public bool HasVacuum => SelectedCleanType.Value is CleanType.Vacuum or CleanType.VacuumAndMop or CleanType.VacuumThenMop;
+
     /// <summary>Whether the mop-only settings (water level, passes) apply to the current clean type.</summary>
     public bool HasMop => SelectedCleanType.Value is CleanType.Mop or CleanType.VacuumAndMop or CleanType.VacuumThenMop;
+
+    /// <summary>One-line recap shown when the row is collapsed, in the phone app's own style.</summary>
+    public string Summary
+    {
+        get
+        {
+            var parts = new List<string> { SelectedCleanType.Label };
+            if (HasVacuum) parts.Add(SelectedStrategy.Label);
+            if (HasMop) { parts.Add(SelectedWaterLevel.Label); parts.Add(SelectedMopPasses.Label); }
+            return string.Join(" · ", parts);
+        }
+    }
 
     public ZoneItem(ZoneMetadata z)
     {
@@ -96,9 +112,26 @@ public partial class ZoneItem : ObservableObject
         },
     };
 
-    partial void OnSelectedChanged(bool value) => OnPropertyChanged(nameof(OrderText));
+    partial void OnSelectedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(OrderText));
+        // Expand a room's settings as soon as it is picked, collapse them again once removed;
+        // the manual toggle still works independently, e.g. to peek at an unselected room.
+        IsExpanded = value;
+    }
+
     partial void OnOrderChanged(int value) => OnPropertyChanged(nameof(OrderText));
-    partial void OnSelectedCleanTypeChanged(CleanTypeOption value) => OnPropertyChanged(nameof(HasMop));
+
+    partial void OnSelectedCleanTypeChanged(CleanTypeOption value)
+    {
+        OnPropertyChanged(nameof(HasVacuum));
+        OnPropertyChanged(nameof(HasMop));
+        OnPropertyChanged(nameof(Summary));
+    }
+
+    partial void OnSelectedStrategyChanged(StrategyOption value) => OnPropertyChanged(nameof(Summary));
+    partial void OnSelectedWaterLevelChanged(WaterLevelOption value) => OnPropertyChanged(nameof(Summary));
+    partial void OnSelectedMopPassesChanged(MopPassesOption value) => OnPropertyChanged(nameof(Summary));
 }
 
 public sealed record MapItem(MapMetadata Metadata)
@@ -205,6 +238,17 @@ public partial class MainViewModel : ObservableObject
     private RobotPosition? _robotPosition;
     private IReadOnlyList<MyDyson.Core.Point>? _lastPath;
 
+    // ---- Raw capture: every message on the robot's topics, for finding what the tracker doesn't know ----
+    [ObservableProperty] private bool _isCapturing;
+    [ObservableProperty] private string _captureButtonLabel = "Capturer tous les messages…";
+    [ObservableProperty] private string _captureInfo = "";
+    private System.IO.StreamWriter? _captureWriter;
+    private readonly object _captureLock = new();
+    private string? _captureFileName;
+    private int _captureCount;
+
+    public event Action? LoggedOut;
+
     public MainViewModel(RobotContext ctx)
     {
         _ctx = ctx;
@@ -244,6 +288,9 @@ public partial class MainViewModel : ObservableObject
             });
             _session.Tracker.StateChanged += st => Post(() => ApplyState(st));
             _session.Tracker.EventReceived += (name, json) => Post(() => AddLog($"{name} {Truncate(json.ToJsonString(), 120)}"));
+            // Every message on the robot's topics, regardless of whether the tracker recognises it;
+            // only written anywhere once a capture file has been opened (see ToggleCaptureCommand).
+            _session.MessageReceived += CaptureMessage;
             Connected = true;
             Connection = "Connecté";
 
@@ -651,9 +698,92 @@ public partial class MainViewModel : ObservableObject
     /// <summary>For screenshots: selects the most recent clean.</summary>
     public void SelectFirstClean() => SelectedClean = History.FirstOrDefault();
 
+    // ---- Raw capture ----------------------------------------------------------
+
+    /// <summary>
+    /// Writes every message the robot exchanges, one JSON object per line, in the same shape the
+    /// CLI's "watch --log" produces. The Journal tab only ever shows a curated subset (recognised
+    /// events and our own command results); this is the way to see everything, including message
+    /// types nothing in this app understands yet.
+    /// </summary>
+    private void CaptureMessage(RobotMessage m)
+    {
+        System.IO.StreamWriter? w;
+        lock (_captureLock) { w = _captureWriter; }
+        if (w is null) return;
+
+        var line = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            time = m.ReceivedUtc,
+            topic = m.Topic,
+            payload = (object?)m.Json ?? m.Payload,
+        });
+        lock (_captureLock) { _captureWriter?.WriteLine(line); }
+        _captureCount++;
+        Post(() => CaptureInfo = $"{_captureCount} message(s) → {_captureFileName}");
+    }
+
+    [RelayCommand]
+    private void ToggleCapture()
+    {
+        if (IsCapturing) { StopCapture(); return; }
+
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "JSON Lines (*.jsonl)|*.jsonl",
+            FileName = $"capture-{DateTime.Now:yyyyMMdd-HHmmss}.jsonl",
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        lock (_captureLock)
+        {
+            // No byte order mark: a BOM at the head of a JSON Lines file breaks standard JSON parsers.
+            _captureWriter = new System.IO.StreamWriter(dlg.FileName, append: false, new System.Text.UTF8Encoding(false)) { AutoFlush = true };
+            _captureCount = 0;
+        }
+        _captureFileName = System.IO.Path.GetFileName(dlg.FileName);
+        IsCapturing = true;
+        CaptureButtonLabel = "Arrêter la capture";
+        CaptureInfo = $"0 message(s) → {_captureFileName}";
+        AddLog($"capture démarrée : {dlg.FileName}");
+    }
+
+    private void StopCapture()
+    {
+        System.IO.StreamWriter? w;
+        lock (_captureLock) { w = _captureWriter; _captureWriter = null; }
+        w?.Dispose();
+        IsCapturing = false;
+        CaptureButtonLabel = "Capturer tous les messages…";
+        CaptureInfo = _captureCount > 0 ? $"Dernière capture : {_captureCount} message(s) dans {_captureFileName}" : "";
+        AddLog($"capture arrêtée, {_captureCount} message(s) enregistré(s)");
+    }
+
+    // ---- Account ---------------------------------------------------------------
+
+    [RelayCommand]
+    private async Task LogoutAsync()
+    {
+        var result = MessageBox.Show(
+            "Vous devrez ressaisir votre e-mail, votre mot de passe et un code reçu par e-mail pour vous reconnecter.\n\nSe déconnecter du compte MyDyson ?",
+            "Déconnexion",
+            MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (result != MessageBoxResult.Yes) return;
+
+        await ShutdownAsync();
+        SessionStore.Delete();
+        LoggedOut?.Invoke();
+    }
+
     public async Task ShutdownAsync()
     {
         _refresh.Stop();
+        StopCaptureIfAny();
         await _ctx.DisposeAsync();
+    }
+
+    private void StopCaptureIfAny()
+    {
+        if (IsCapturing) StopCapture();
     }
 }

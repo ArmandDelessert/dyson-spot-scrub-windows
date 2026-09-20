@@ -8,12 +8,16 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
 
+    /// <summary>Raised when the user logs out from within the window, just before it closes.</summary>
+    public event Action? LoggedOut;
+
     public MainWindow(RobotContext ctx)
     {
         InitializeComponent();
         _vm = new MainViewModel(ctx);
         DataContext = _vm;
         MapCanvas.ZoneClicked += _vm.ToggleZone;
+        _vm.LoggedOut += () => { LoggedOut?.Invoke(); Close(); };
         Loaded += async (_, _) => await _vm.StartAsync();
         Closing += async (_, _) => await _vm.ShutdownAsync();
     }

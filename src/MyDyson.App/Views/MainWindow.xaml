@@ -188,7 +188,8 @@
                     </Ellipse>
                     <TextBlock Text="{Binding Connection}" VerticalAlignment="Center" Margin="0,0,12,0"/>
                     <TextBlock Text="{Binding LastUpdate, StringFormat='mis à jour {0}'}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                    <Button Content="↻ Actualiser" Command="{Binding RefreshCommand}" Style="{StaticResource Secondary}" Margin="0"/>
+                    <Button Content="↻ Actualiser" Command="{Binding RefreshCommand}" Style="{StaticResource Secondary}" Margin="0,0,8,0"/>
+                    <Button Content="Se déconnecter" Command="{Binding LogoutCommand}" Style="{StaticResource Secondary}" Margin="0"/>
                 </StackPanel>
                 <StackPanel>
                     <TextBlock Text="{Binding RobotName}" FontSize="18" FontWeight="SemiBold"/>
@@ -246,7 +247,25 @@
                             <ComboBox ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}">
                                 <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
                             </ComboBox>
-                            <TextBlock Text="Pièces, dans l'ordre de passage souhaité. Cochez-les ici ou cliquez-les sur la carte." Style="{StaticResource Label}" TextWrapping="Wrap"/>
+                            <TextBlock Text="Pièces, dans l'ordre de passage souhaité. Cochez-les ici ou cliquez-les sur la carte. Cliquez une pièce cochée pour replier ou déplier ses réglages." Style="{StaticResource Label}" TextWrapping="Wrap"/>
+
+                            <!-- Explains the four per-room controls once, rather than repeating a full
+                                 sentence under each of them for every room in the list. -->
+                            <StackPanel Margin="0,6,0,8">
+                                <TextBlock Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap">
+                                    <Run FontWeight="SemiBold" Text="Type de nettoyage : "/><Run Text="ce que le robot doit faire dans la pièce."/>
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0">
+                                    <Run FontWeight="SemiBold" Text="Mode d'aspiration : "/><Run Text="définissez le mode d'aspiration utilisé pour nettoyer le sol."/>
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0">
+                                    <Run FontWeight="SemiBold" Text="Niveau d'hydratation : "/><Run Text="définissez la quantité d'eau que votre robot utilise pour laver le sol."/>
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0">
+                                    <Run FontWeight="SemiBold" Text="Répétitions de lavage : "/><Run Text="définissez combien de passages votre robot doit effectuer pour laver le sol."/>
+                                </TextBlock>
+                            </StackPanel>
+
                             <ItemsControl ItemsSource="{Binding Zones}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:ZoneItem}">
@@ -256,6 +275,7 @@
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="22"/>
                                                         <ColumnDefinition/>
+                                                        <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="{Binding OrderText}" FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
                                                     <CheckBox Grid.Column="1" IsChecked="{Binding Selected}">
@@ -264,33 +284,55 @@
                                                             <Run Text="{Binding Area, Mode=OneWay, StringFormat='({0:F1} m²)'}" Foreground="{DynamicResource MutedBrush}"/>
                                                         </TextBlock>
                                                     </CheckBox>
+                                                    <ToggleButton Grid.Column="2" IsChecked="{Binding IsExpanded}" Width="22" Height="20" Padding="0" Cursor="Hand">
+                                                        <ToggleButton.Style>
+                                                            <Style TargetType="ToggleButton">
+                                                                <Setter Property="Content" Value="▸"/>
+                                                                <Setter Property="Template">
+                                                                    <Setter.Value>
+                                                                        <ControlTemplate TargetType="ToggleButton">
+                                                                            <Border Background="Transparent">
+                                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                                  TextElement.Foreground="{DynamicResource MutedBrush}"/>
+                                                                            </Border>
+                                                                        </ControlTemplate>
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="IsChecked" Value="True">
+                                                                        <Setter Property="Content" Value="▾"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </ToggleButton.Style>
+                                                    </ToggleButton>
                                                 </Grid>
-                                                <Grid Margin="22,4,0,0">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition/>
-                                                        <ColumnDefinition Width="8"/>
-                                                        <ColumnDefinition/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <ComboBox ItemsSource="{x:Static vm:ZoneItem.CleanTypeOptions}" SelectedItem="{Binding SelectedCleanType}" FontSize="12" Margin="0">
+
+                                                <TextBlock Text="{Binding Summary}" Style="{StaticResource Muted}" FontSize="11" Margin="22,2,0,0"
+                                                           Visibility="{Binding IsExpanded, Converter={StaticResource Collapse}}"/>
+
+                                                <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource Show}}">
+                                                    <ComboBox ItemsSource="{x:Static vm:ZoneItem.CleanTypeOptions}" SelectedItem="{Binding SelectedCleanType}" FontSize="12" Margin="22,4,0,0">
                                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
                                                     </ComboBox>
-                                                    <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:ZoneItem.StrategyOptions}" SelectedItem="{Binding SelectedStrategy}" FontSize="12" Margin="0">
+                                                    <ComboBox ItemsSource="{x:Static vm:ZoneItem.StrategyOptions}" SelectedItem="{Binding SelectedStrategy}" FontSize="12" Margin="22,4,0,0"
+                                                              Visibility="{Binding HasVacuum, Converter={StaticResource Show}}">
                                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
                                                     </ComboBox>
-                                                </Grid>
-                                                <Grid Margin="22,4,0,0" Visibility="{Binding HasMop, Converter={StaticResource Show}}">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition/>
-                                                        <ColumnDefinition Width="8"/>
-                                                        <ColumnDefinition/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <ComboBox ItemsSource="{x:Static vm:ZoneItem.WaterLevelOptions}" SelectedItem="{Binding SelectedWaterLevel}" FontSize="12" Margin="0">
-                                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
-                                                    </ComboBox>
-                                                    <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:ZoneItem.MopPassesOptions}" SelectedItem="{Binding SelectedMopPasses}" FontSize="12" Margin="0">
-                                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
-                                                    </ComboBox>
-                                                </Grid>
+                                                    <Grid Margin="22,4,0,0" Visibility="{Binding HasMop, Converter={StaticResource Show}}">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition/>
+                                                            <ColumnDefinition Width="8"/>
+                                                            <ColumnDefinition/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <ComboBox ItemsSource="{x:Static vm:ZoneItem.WaterLevelOptions}" SelectedItem="{Binding SelectedWaterLevel}" FontSize="12" Margin="0">
+                                                            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                                        </ComboBox>
+                                                        <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:ZoneItem.MopPassesOptions}" SelectedItem="{Binding SelectedMopPasses}" FontSize="12" Margin="0">
+                                                            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                                        </ComboBox>
+                                                    </Grid>
+                                                </StackPanel>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -375,7 +417,7 @@
                             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                                 <Button DockPanel.Dock="Right" Content="Réinitialiser le zoom" Click="ResetHistoryZoom_Click" Style="{StaticResource Secondary}" Margin="0"/>
                                 <TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center">
-                                    <Run Text="Trajet du nettoyage sélectionné sur la carte"/> <Run Text="{Binding HistoryMapName, Mode=OneWay}" FontWeight="SemiBold"/>
+                                    <Run Text="Trajet du nettoyage sélectionné sur la carte "/><Run Text="{Binding HistoryMapName, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="."/>
                                 </TextBlock>
                             </DockPanel>
                             <controls:MapView x:Name="HistoryCanvas" Scene="{Binding HistoryScene}"/>
@@ -441,7 +483,16 @@
                 </TabItem>
 
                 <TabItem Header="Journal">
-                    <ListBox ItemsSource="{Binding Log}" FontFamily="Consolas" FontSize="12" Margin="0,8,0,0"/>
+                    <DockPanel Margin="0,8,0,0">
+                        <TextBlock DockPanel.Dock="Top" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10">
+                            Le journal affiche les événements notables signalés par le robot (fautes, fin de nettoyage, changement de carte…) et le résultat des commandes envoyées depuis cette fenêtre. Il n'enregistre pas chaque message échangé avec le robot : activez la capture ci-dessous pour tout enregistrer dans un fichier, ce qui peut aider à repérer des messages encore non identifiés.
+                        </TextBlock>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding CaptureInfo}" Style="{StaticResource Muted}" VerticalAlignment="Center"/>
+                            <Button Content="{Binding CaptureButtonLabel}" Command="{Binding ToggleCaptureCommand}" Style="{StaticResource Secondary}" Margin="0,0,10,0"/>
+                        </DockPanel>
+                        <ListBox ItemsSource="{Binding Log}" FontFamily="Consolas" FontSize="12"/>
+                    </DockPanel>
                 </TabItem>
             </TabControl>
         </Grid>

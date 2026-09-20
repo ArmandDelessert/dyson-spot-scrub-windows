@@ -65,11 +65,18 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 - **État** : état du robot en clair, batterie, fautes réelles en rouge, pause et retour à la station.
 - **Nettoyage** : choix de la carte, pièces triées par nom (l'ordre renvoyé par le cloud n'est ni
   alphabétique ni par identifiant), cochées ici ou cliquées sur la carte, ordre de passage affiché.
-  Pour chaque pièce : type de nettoyage, mode de l'aspirateur (Auto, Rapide, Silencieux, Boost), et
-  si le type inclut la serpillière, niveau d'hydratation et nombre de passages. Le tout est
-  enregistré côté cloud pour que l'application mobile le voie aussi.
+  Une pièce cochée déplie ses réglages : type de nettoyage, mode de l'aspirateur (masqué si le type
+  est « Laver » seul), et si le type inclut la serpillière, niveau d'hydratation et nombre de
+  passages. Une pièce non cochée reste repliée avec un résumé d'une ligne, et peut être dépliée à la
+  main pour consultation sans être sélectionnée. Le tout est enregistré côté cloud pour que
+  l'application mobile le voie aussi.
 - **Station** : « Vider le collecteur » et « Laver et sécher », qui devient l'arrêt de l'action en cours.
 - **Consommables** : durée de vie restante, à remplacer à zéro, comme dans l'application.
+- **Journal** : les événements notables du robot et le résultat des commandes envoyées depuis la
+  fenêtre, pas chaque message MQTT. Un bouton lance une capture complète dans un fichier JSON Lines,
+  pour repérer des messages non encore identifiés.
+- **Compte** : bouton « Se déconnecter » dans l'en-tête, avec confirmation ; ramène à l'écran de
+  connexion sans redémarrer l'application.
 - **Carte** : grille d'occupation colorée par pièce, meubles, station, position du robot, tracé du
   dernier nettoyage. Clic pour sélectionner une pièce, molette pour zoomer, glisser pour déplacer.
   Export en PNG. Les pièces d'un type reconnu (cuisine, chambre, salon…) portent le même nom que
