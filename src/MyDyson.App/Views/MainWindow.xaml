@@ -21,8 +21,12 @@
             <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
+        <!-- GridViewRowPresenter arranges each GridViewColumn.CellTemplate's root at exactly its own
+             desired size, not the column's width, so HorizontalAlignment/Stretch have no slack to
+             move into; a TextBlock here needs an explicit Width (matching its column) for
+             TextAlignment to have any room to right-align within. -->
         <Style TargetType="TextBlock" x:Key="NumericCell" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="TextAlignment" Value="Right"/>
             <Setter Property="Margin" Value="0,0,6,0"/>
         </Style>
         <Style TargetType="TextBlock" x:Key="Section" BasedOn="{StaticResource {x:Type TextBlock}}">
@@ -414,20 +418,21 @@
                             <ListView.View>
                                 <GridView>
                                     <GridViewColumn Header="Date" Width="140" DisplayMemberBinding="{Binding When}"/>
-                                    <GridViewColumn Header="Durée" Width="70">
+                                    <GridViewColumn Header="Durée" Width="130">
                                         <GridViewColumn.CellTemplate>
-                                            <DataTemplate><TextBlock Text="{Binding Duration}" Style="{StaticResource NumericCell}"/></DataTemplate>
+                                            <DataTemplate><TextBlock Text="{Binding Duration}" Width="85" Style="{StaticResource NumericCell}"/></DataTemplate>
                                         </GridViewColumn.CellTemplate>
                                     </GridViewColumn>
                                     <GridViewColumn Header="Fin" Width="140" DisplayMemberBinding="{Binding End}"/>
-                                    <GridViewColumn Header="Surface" Width="80">
+                                    <GridViewColumn Header="Carte" Width="130" DisplayMemberBinding="{Binding MapName}"/>
+                                    <GridViewColumn Header="Pièces" Width="200" DisplayMemberBinding="{Binding Rooms}"/>
+                                    <GridViewColumn Header="Surface" Width="120">
                                         <GridViewColumn.CellTemplate>
-                                            <DataTemplate><TextBlock Text="{Binding Area}" Style="{StaticResource NumericCell}"/></DataTemplate>
+                                            <DataTemplate><TextBlock Text="{Binding Area}" Width="80" Style="{StaticResource NumericCell}"/></DataTemplate>
                                         </GridViewColumn.CellTemplate>
                                     </GridViewColumn>
                                     <GridViewColumn Header="Batterie" Width="110" DisplayMemberBinding="{Binding Battery}"/>
                                     <GridViewColumn Header="Fautes" Width="60" DisplayMemberBinding="{Binding Faults}"/>
-                                    <GridViewColumn Header="Pièces" Width="200" DisplayMemberBinding="{Binding Rooms}"/>
                                 </GridView>
                             </ListView.View>
                         </ListView>
@@ -442,9 +447,6 @@
                                 </DockPanel>
                                 <TextBlock Style="{StaticResource Muted}" Margin="0,2,0,0" TextWrapping="Wrap">
                                     <Run Text="Résultat : "/><Run Text="{Binding HistoryResultText, Mode=OneWay}" FontWeight="SemiBold"/>
-                                </TextBlock>
-                                <TextBlock Style="{StaticResource Muted}" Margin="0,2,0,0" TextWrapping="Wrap">
-                                    <Run Text="Réglages au départ : "/><Run Text="{Binding SelectedClean.RoomSettings, Mode=OneWay}" FontWeight="SemiBold"/>
                                 </TextBlock>
                             </StackPanel>
                             <controls:MapView x:Name="HistoryCanvas" Scene="{Binding HistoryScene}"/>

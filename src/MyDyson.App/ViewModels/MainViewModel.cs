@@ -85,21 +85,6 @@ public partial class ZoneItem : ObservableObject
         }
     }
 
-    /// <summary>Same recap as <see cref="Summary"/>, computed directly from REST settings for read-only contexts such as history, rather than from this class's own editable selection state.</summary>
-    public static string DescribeSettings(ZoneSettings? s)
-    {
-        var type = CleanTypes.FromRest(s?.CleanType);
-        var parts = new List<string> { CleanTypeOptions.First(o => o.Value == type).Label };
-        if (type is CleanType.Vacuum or CleanType.VacuumAndMop or CleanType.VacuumThenMop)
-            parts.Add(StrategyOptions.First(o => o.Value == CleaningStrategies.FromRest(s?.CleaningStrategy)).Label);
-        if (type is CleanType.Mop or CleanType.VacuumAndMop or CleanType.VacuumThenMop)
-        {
-            parts.Add(WaterLevelOptions.First(o => o.Value == WaterLevels.FromRest(s?.WaterLevel)).Label);
-            parts.Add((MopPassesOptions.FirstOrDefault(o => o.Value == s?.MopPasses) ?? MopPassesOptions[0]).Label);
-        }
-        return string.Join(" · ", parts);
-    }
-
     public ZoneItem(ZoneMetadata z)
     {
         Id = z.Id;
@@ -155,8 +140,15 @@ public sealed record MapItem(MapMetadata Metadata)
     public string Name => (Metadata.Name ?? Metadata.Id) + (Metadata.IsCurrentMap ? "  (active)" : "");
 }
 
-public sealed record CleanItem(CleanSummary Summary)
+/// <summary>
+/// One row of the history list. A class rather than a record: MapName and Rooms are filled in after
+/// construction (see MainViewModel.FillHistoryDetailsAsync), since the accurate source for "which
+/// rooms" needs a per-clean detail call the list itself doesn't carry (see Rooms's own remark).
+/// </summary>
+public sealed partial class CleanItem(CleanSummary Summary) : ObservableObject
 {
+    public CleanSummary Summary { get; } = Summary;
+
     public string When => Summary.Start?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "?";
     public string End => Summary.End?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "";
     public string Duration => Summary.CleanDurationMinutes is { } m ? $"{m} min" : "";
@@ -164,14 +156,16 @@ public sealed record CleanItem(CleanSummary Summary)
     public string Battery => Summary.StartBattery is { } s && Summary.EndBattery is { } e ? $"{s:F0} → {e:F0} %" : "";
     public string Faults => Summary.Faults is { Count: > 0 } f ? $"{f.Count}" : "";
 
-    private IReadOnlyList<MapZone> SelectedZones => Summary.Zones?.Where(z => z.IsSelected == true).ToList() ?? [];
-
-    /// <summary>Rooms picked when this clean was launched: already in the history list, unlike Résultat.</summary>
-    public string Rooms => string.Join(", ", SelectedZones.Select(z => RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)));
-
-    /// <summary>What was chosen per room at launch, in the same wording as the room list's own recap.</summary>
-    public string RoomSettings => string.Join(" · ", SelectedZones.Select(z =>
-        $"{RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)} : {ZoneItem.DescribeSettings(z.Settings)}"));
+    [ObservableProperty] private string _mapName = "";
+    /// <summary>
+    /// "…" until filled in from that clean's own detail. The list's own zones[].isSelected is NOT
+    /// reliable here: verified against a capture that it mirrors the map's *current* room
+    /// preference, not what was actually picked for this particular clean (a room excluded at
+    /// launch showed isSelected true weeks... minutes later, once its selection changed again).
+    /// zones[].cleanStatus, only present in the per-clean detail, is the one field confirmed to
+    /// reflect this specific run (CLEAN_NOT_REQUESTED for a room not part of it).
+    /// </summary>
+    [ObservableProperty] private string _rooms = "…";
 }
 
 /// <summary>Consumable as shown by the app: percentage of life left, replace at 0.</summary>
@@ -195,6 +189,7 @@ public partial class MainViewModel : ObservableObject
     private string? _gridMapId;
     private PersistentMap? _map;
     private readonly Dictionary<string, PersistentMap> _mapCache = new();
+    private readonly Dictionary<string, CleanDetail> _cleanDetailCache = new();
     private int _nextOrder = 1;
     private bool _applyingState;
     private bool _loadingZones;
@@ -345,6 +340,7 @@ public partial class MainViewModel : ObservableObject
 
             await Task.WhenAll(RefreshStateAsync(), LoadMapsAsync(), LoadHistoryAsync());
             _refresh.Start();
+            _ = FillHistoryDetailsAsync();
         }
         catch (Exception ex)
         {
@@ -567,6 +563,46 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex) { AddLog($"historique: {ex.Message}"); }
     }
 
+    /// <summary>
+    /// Resolves each history row's map name (cheap, from the already-loaded Maps) and, one at a time
+    /// so as not to fetch several hundred KB per entry all at once, its actual room list from that
+    /// clean's own detail. Called after Maps and History have both loaded.
+    /// </summary>
+    private async Task FillHistoryDetailsAsync()
+    {
+        foreach (var item in History)
+            item.MapName = Maps.FirstOrDefault(m => m.Id == item.Summary.PersistentMapId)?.Metadata.Name
+                ?? item.Summary.PersistentMapId ?? "";
+
+        foreach (var item in History)
+        {
+            try
+            {
+                var detail = await GetCleanDetailCachedAsync(item.Summary.CleanId);
+                item.Rooms = DescribeRooms(detail);
+            }
+            catch (Exception ex) { item.Rooms = ""; AddLog($"pièces du nettoyage {item.Summary.CleanId}: {ex.Message}"); }
+        }
+    }
+
+    private async Task<CleanDetail> GetCleanDetailCachedAsync(string cleanId)
+    {
+        if (!_cleanDetailCache.TryGetValue(cleanId, out var detail))
+            _cleanDetailCache[cleanId] = detail = await _ctx.Api.GetCleanDetailAsync(Serial, cleanId);
+        return detail;
+    }
+
+    /// <summary>
+    /// The rooms actually part of a clean. zones[].isSelected mirrors the map's *current* room
+    /// preference rather than what was picked for this specific task (confirmed against a capture:
+    /// a room excluded at launch still showed isSelected true once its selection later changed), so
+    /// cleanStatus is used instead — CLEAN_NOT_REQUESTED is the one value confirmed to reflect this
+    /// particular run rather than the map's present state.
+    /// </summary>
+    private static string DescribeRooms(CleanDetail detail) => string.Join(", ", (detail.Zones ?? [])
+        .Where(z => z.CleanStatus is not (null or "CLEAN_NOT_REQUESTED"))
+        .Select(z => RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)));
+
     partial void OnSelectedCleanChanged(CleanItem? value)
     {
         if (value is null) { HistoryScene = new MapScene(); HistoryMapName = ""; HistoryResultText = ""; return; }
@@ -581,7 +617,7 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            var detail = await _ctx.Api.GetCleanDetailAsync(Serial, item.Summary.CleanId);
+            var detail = await GetCleanDetailCachedAsync(item.Summary.CleanId);
             _historyPath = detail.CleanPath;
             _historyObstacles = detail.Obstacles;
             // The REST clean list has no overall success/failure field (see docs/protocole.md); the
@@ -592,6 +628,7 @@ public partial class MainViewModel : ObservableObject
                 .Select(z => $"{RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)} : {CleanStatusLabels.Resolve(z.CleanStatus)}")
                 .ToList() ?? [];
             HistoryResultText = problems.Count > 0 ? string.Join(", ", problems) : "Terminé";
+            item.Rooms = DescribeRooms(detail);
             var mapId = detail.PersistentMapId ?? item.Summary.PersistentMapId;
             _historyMap = null;
             if (mapId is not null)
@@ -680,7 +717,12 @@ public partial class MainViewModel : ObservableObject
         : RunAsync("laver et sécher", c => c.WashAndDryMopAsync());
 
     [RelayCommand] private Task CollectDustAsync() => RunAsync("vidage du collecteur", c => c.CollectDustAsync());
-    [RelayCommand] private Task RefreshAsync() => Task.WhenAll(RefreshStateAsync(), LoadMapsAsync(), LoadHistoryAsync());
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        await Task.WhenAll(RefreshStateAsync(), LoadMapsAsync(), LoadHistoryAsync());
+        _ = FillHistoryDetailsAsync();
+    }
 
     /// <summary>Makes the selected map the account's active map, as the phone app does from its map picker.</summary>
     [RelayCommand]

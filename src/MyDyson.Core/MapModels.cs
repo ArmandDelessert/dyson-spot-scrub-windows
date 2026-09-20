@@ -67,8 +67,11 @@ public sealed record MapZone(
     [property: JsonPropertyName("presentation")] List<PresentationSegment>? Presentation,
     [property: JsonPropertyName("cleanStatus")] string? CleanStatus,
     [property: JsonPropertyName("area")] double? Area,
-    // Present on clean-maps (history list) and clean-maps-data (history detail) zones: which rooms
-    // were picked for that task and with what settings, at the time it ran.
+    // Present on clean-maps (history list) and clean-maps-data (history detail) zones, but NOT a
+    // historical snapshot despite appearing on a specific past clean: confirmed by capture to mirror
+    // the map's *current* room preference regardless of which clean is being asked about (a room
+    // excluded at launch still read isSelected true once its selection later changed). Use
+    // CleanStatus instead to know which rooms an actual past clean touched.
     [property: JsonPropertyName("isSelected")] bool? IsSelected = null,
     [property: JsonPropertyName("settings")] ZoneSettings? Settings = null);
 

@@ -89,12 +89,16 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   pour zoomer, glisser pour déplacer. Export en PNG. Les pièces d'un type reconnu (cuisine, chambre,
   salon…) portent le même nom que dans l'application mobile, même quand le nom enregistré sur le
   compte diffère.
-- **Historique** : date, durée, fin, surface, batterie, fautes et pièces sélectionnées pour chaque
-  nettoyage, avec sa propre carte, celle du nettoyage choisi, avec le trajet parcouru (même code
-  couleur que la carte en direct) et les obstacles détectés. Le résultat pièce par pièce (terminée,
-  injoignable…) et les réglages choisis au départ pour chaque pièce (aspirer, laver…) s'affichent
-  sous la carte pour le nettoyage sélectionné ; le résultat n'existe qu'au niveau du détail d'un
-  nettoyage précis, pas dans la liste, contrairement aux pièces sélectionnées et à leurs réglages.
+- **Historique** : date, durée, fin, carte, pièces réellement nettoyées, surface, batterie et
+  fautes pour chaque nettoyage. Les pièces se remplissent en arrière-plan une par une après le
+  chargement de la liste, chacune nécessitant le détail complet de son nettoyage (l'API ne dit pas,
+  autrement, quelles pièces une tâche a couvertes). Chaque nettoyage a sa propre carte, celle du
+  nettoyage choisi, avec le trajet parcouru (même code couleur que la carte en direct) et les
+  obstacles détectés. Le résultat pièce par pièce (terminée, injoignable…) s'affiche sous la carte
+  pour le nettoyage sélectionné ; il n'existe qu'au niveau du détail d'un nettoyage précis, pas dans
+  la liste. Le réglage utilisé par pièce (aspirer, laver…) au lancement d'un nettoyage passé n'est en
+  revanche pas récupérable après coup : l'API ne renvoie que la préférence *actuelle* de la carte,
+  pas celle du moment.
 - **Réglages** : les mêmes libellés que l'application Android, en trois groupes : lavage, station,
   vocaux. Chaque réglage part au robot dans les deux dialectes.
 - **Journal** : événements du robot et résultats des commandes.

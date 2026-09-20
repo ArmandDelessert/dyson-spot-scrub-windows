@@ -165,6 +165,20 @@ l'afficher uniquement pièce par pièce dans le détail d'un nettoyage sélectio
 colonne de la liste (qui obligerait à télécharger le détail, plusieurs centaines de Ko avec le
 tracé complet, de chaque entrée juste pour remplir une colonne).
 
+**`isSelected` et `settings` ne sont pas un instantané historique**, contrairement à `cleanStatus` :
+présents sur les zones de `clean-maps` (liste) comme de `clean-maps-data` (détail), ils reflètent la
+préférence *actuelle* de la carte, pas celle utilisée par le nettoyage consulté. Confirmé par
+recoupement entre une capture et l'API pour le même nettoyage : une pièce explicitement exclue au
+lancement (`room_preference` avec l'indice 8 à 0) est ensuite revenue avec `isSelected: true` dans
+`clean-maps` et `clean-maps-data` sitôt que sa sélection avait changé, y compris pour ce nettoyage
+déjà terminé. Son `cleanStatus`, lui, restait correctement `CLEAN_NOT_REQUESTED`. Autre écart observé
+sur le même nettoyage : `settings.cleanType` valait `vacuum` pour toutes les pièces dans l'API,
+alors que la capture montre plusieurs pièces lancées avec la serpillière (indice 3 du
+`room_preference` à 1 ou 3). Il n'existe donc pas de source REST fiable pour retrouver a posteriori
+quel type de nettoyage a été choisi pour une pièce lors d'un nettoyage précis ; seule une capture
+prise au moment même le permet. L'affichage des pièces d'un nettoyage dans l'historique se base donc
+sur `cleanStatus` (pièces dont le statut n'est pas `CLEAN_NOT_REQUESTED`), jamais sur `isSelected`.
+
 ### service.get_map_list
 
 ```json
