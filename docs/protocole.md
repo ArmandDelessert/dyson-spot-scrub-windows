@@ -191,24 +191,47 @@ s'affiche « W.-C. » ; une pièce `livingRoom` nommée `Salon2` s'affiche « Sa
 Le champ `name` continue probablement de servir ailleurs, par exemple aux assistants vocaux, mais
 plus à l'affichage de la liste des pièces.
 
-Correspondances confirmées par recoupement avec des données réelles de compte :
+Les trente correspondances ont été confirmées en une fois : une carte de test a été découpée en
+une pièce par type, et le libellé affiché par l'application pour chacune recoupé avec le champ
+`type` REST de la pièce correspondante. Plusieurs noms stockés portent d'ailleurs un suffixe
+numérique que l'application n'affiche jamais (`Chambre1`, `Salon12` à `Salon15`, `Salle de bain1`) :
+Dyson pré-remplit le nom stocké d'une nouvelle pièce avec le libellé par défaut de son type, et
+n'ajoute un numéro que pour garder ce champ unique en base quand plusieurs pièces partagent un
+type, puisque l'affichage ne s'en sert de toute façon jamais pour une pièce typée.
 
 | Type REST | Libellé affiché |
 |---|---|
-| `kitchen` | Cuisine |
-| `hallway` | Couloir |
-| `bedroom` | Chambre |
-| `livingRoom` | Salon |
+| `balcony` | Balcon |
 | `bathroom` | Salle de bain |
-| `toilet` | W.-C. |
-| `office` | Bureau |
+| `bedroom` | Chambre |
+| `boxroom` | Cagibi |
+| `cloakroom` | Toilettes |
+| `closet` | Dressing |
+| `conservatory` | Véranda |
 | `dining` | Salle à manger |
-
-Les vingt-deux autres types de l'énumération (`balcony`, `boxroom`, `cloakroom`, `closet`,
-`conservatory`, `ensuite`, `entrance`, `familyRoom`, `guestBathroom`, `guestBedroom`, `guestRoom`,
-`kidsBedroom`, `laundryRoom`, `nursery`, `pantry`, `playRoom`, `primaryBathroom`, `primaryBedroom`,
-`recreationRoom`, `storageRoom`, `study`, `utilityRoom`) n'ont pas été observés avec un nom stocké
-différent du libellé qu'on pourrait en déduire ; leur traduction française reste donc inconnue.
+| `ensuite` | Salle de bain attenante |
+| `entrance` | Hall d'entrée |
+| `familyRoom` | Pièce familiale |
+| `guestBathroom` | Salle de bain invités |
+| `guestBedroom` | Chambre d'amis |
+| `guestRoom` | Chambre invités |
+| `hallway` | Couloir |
+| `kidsBedroom` | Chambre d'enfant |
+| `kitchen` | Cuisine |
+| `laundryRoom` | Buanderie |
+| `livingRoom` | Salon |
+| `nursery` | Chambre de bébé |
+| `office` | Bureau |
+| `pantry` | Cellier |
+| `playRoom` | Salle de jeux |
+| `primaryBathroom` | Salle de bain parentale |
+| `primaryBedroom` | Chambre parentale |
+| `recreationRoom` | Salle de loisirs |
+| `storageRoom` | Débarras |
+| `study` | Bibliothèque |
+| `toilet` | W.-C. |
+| `utilityRoom` | Cave |
+| `custom` | (pas de libellé par défaut : nom stocké affiché tel quel) |
 
 ### Ordre d'affichage des pièces
 
@@ -367,6 +390,14 @@ Déroulé d'un échec de localisation, capturé en conditions réelles : le robo
 `FULL_CLEAN_DISCOVERING` avec la faute `2108`, échoue, émet `event.locate_fail.post` puis la faute
 `589`, abandonne avec `record_task_status: 4`, et revient à la base.
 
+Autre déroulé, distinct : nettoyage lancé sur une pièce que le robot ne peut pas atteindre depuis sa
+position (`service.set_room_clean` répond d'ailleurs `code: 1` au lieu de `0`, mais le nettoyage
+démarre quand même, `event.startClean.post` suivant immédiatement). Après plusieurs minutes à
+chercher un chemin, le robot émet `event.Unable_all_area_recharge.post` (params vide), puis
+`event.clean_finish.post` et `event.clean_record.post` avec `record_task_status: 4`, sans jamais
+avoir posté de faute `589`. Ce message signale donc « pièce sélectionnée injoignable », un cas
+différent de l'échec de localisation.
+
 ## Topic de carte
 
 `RB05/{serial}/status/jdm/map` porte l'état du traitement des cartes côté cloud :
@@ -456,6 +487,7 @@ lavage.
 
 | Méthode | Paramètres | Réponse |
 |---|---|---|
+| `service.set_cur_map` | `{map_id}` | `{result: 0}` |
 | `service.rename_map` | `{map_id, map_name}` | `{result: 0}` |
 | `service.rename_room` | `{map_id, room_id, room_name}` | `{map_id, map_type: 3, timestamp}` |
 | `service.split_room` | `{map_id, room_id, split_points: [x1, y1, x2, y2], lang}` | `{map_id, map_type: 3, timestamp}` |
@@ -463,6 +495,9 @@ lavage.
 | `service.adjust_furniture` | `{timestamp, package: [1, 1], furniture_list: "[[id, type, …, 8 coordonnées]]"}` | `{map_id, map_type, timestamp, package}` |
 | `service.arrange_room` | `{map_id, room_ids: [16, 15], lang}` | `{map_id, map_type: 3, timestamp}` |
 
+`service.set_cur_map` change la carte active du compte, exactement l'action du sélecteur de carte
+de l'application mobile ; c'est aussi la première étape de tout nettoyage par pièce (voir plus
+haut, `CleaningSequence.StartAsync`), puisqu'on ne peut lancer un nettoyage que sur la carte active.
 `service.arrange_room` fusionne les pièces listées. `lang` vaut 5 pour le français.
 
 `room_name` suit la double forme décrite plus haut, chaîne simple ou objet JSON encodé avec `type`
@@ -533,6 +568,24 @@ murs sont des artefacts du lidar à travers les vitres.
 
 `GET /v1/telemetry/device/{serial}/sessions` exige `start` et `end` et répond 400 quelle que soit
 leur forme : il sert vraisemblablement aux purificateurs, pas au robot.
+
+### Cartes non actives : pas de grille, et parfois une station factice
+
+`live-maps/mapping` ne renvoie la grille d'occupation que pour la carte actuellement active : les
+autres cartes du compte n'ont que la géométrie de `persistent-maps/{mapId}` (points visités et
+segments par pièce, pas de grille). L'application les affiche donc différemment : la carte active
+avec des surfaces de pièce pleines (grille), les autres avec seulement le tracé emprunté par le
+robot lors de leur cartographie (points visités reliés en segments).
+
+Certaines cartes non actives renvoient malgré tout un `dockLocation` factice, observé à
+`(1100.0, 1100.0)` sur deux cartes qui possédaient par ailleurs des points visités bien réels
+(centaines de points, dans les coordonnées attendues du logement). Rien d'autre ne distingue ces
+cartes de `Appartement Rez v2`, dont la station est correcte (`-0.67, -0.02`) ; la cause exacte côté
+Dyson n'est pas connue. Inclure cette valeur telle quelle dans le calcul du cadrage de la vue fait
+gonfler la boîte englobante à plus de 1000 m de côté et réduit toute la géométrie réelle à moins
+d'un pixel, ce qui donnait une carte visuellement vide (juste l'icône de station coincée dans un
+coin). `MapScene.WorldBounds()` ignore désormais la station pour le cadrage quand elle tombe très
+loin du reste des données.
 
 ## Pause, abandon et cartographie
 

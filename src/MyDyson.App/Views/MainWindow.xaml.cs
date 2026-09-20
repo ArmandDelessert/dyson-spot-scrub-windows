@@ -7,6 +7,7 @@ namespace MyDyson.App.Views;
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
+    private readonly NotificationService _notifications = new();
 
     /// <summary>Raised when the user logs out from within the window, just before it closes.</summary>
     public event Action? LoggedOut;
@@ -18,8 +19,16 @@ public partial class MainWindow : Window
         DataContext = _vm;
         MapCanvas.ZoneClicked += _vm.ToggleZone;
         _vm.LoggedOut += () => { LoggedOut?.Invoke(); Close(); };
+        _vm.NotifyRequested += (title, text) => _notifications.Show(title, text, onClick: () =>
+        {
+            Show();
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Activate();
+            SelectTab(1);
+        });
         Loaded += async (_, _) => await _vm.StartAsync();
         Closing += async (_, _) => await _vm.ShutdownAsync();
+        Closed += (_, _) => _notifications.Dispose();
     }
 
     private void ResetZoom_Click(object sender, RoutedEventArgs e) => MapCanvas.ResetView();

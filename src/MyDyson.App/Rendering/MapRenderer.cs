@@ -9,26 +9,18 @@ using CorePoint = MyDyson.Core.Point;
 
 namespace MyDyson.App.Rendering;
 
-/// <summary>Colours of the map, one set per theme.</summary>
-public sealed record MapPalette(Color Background, Color Obstacle, Color LabelBackground, Color LabelText, Color Path, Color Furniture, Color[] Zones)
+/// <summary>Colours of the map, one set per theme. Zone colours are generated (see <see cref="MapRenderer.ZoneColor"/>), not listed, so any number of rooms gets visibly distinct hues.</summary>
+public sealed record MapPalette(Color Background, Color Obstacle, Color LabelBackground, Color LabelText, Color Path, Color Furniture, double ZoneSaturation, double ZoneLightness)
 {
     public static readonly MapPalette Dark = new(
         Color.FromRgb(0x1e, 0x1e, 0x22), Color.FromRgb(0x50, 0x50, 0x58),
         Color.FromArgb(0xa0, 0, 0, 0), Colors.White, Color.FromArgb(0xc0, 0xff, 0xff, 0xff), Color.FromArgb(0xa0, 0xff, 0xff, 0xff),
-        [
-            Color.FromRgb(0x6c, 0x9e, 0xd6), Color.FromRgb(0x8b, 0xc3, 0x8b), Color.FromRgb(0xd6, 0xa7, 0x6c),
-            Color.FromRgb(0xc3, 0x8b, 0xb8), Color.FromRgb(0x6c, 0xd6, 0xc9), Color.FromRgb(0xd6, 0xd0, 0x6c),
-            Color.FromRgb(0xb8, 0x8b, 0x6c), Color.FromRgb(0x9e, 0x6c, 0xd6),
-        ]);
+        ZoneSaturation: 0.55, ZoneLightness: 0.63);
 
     public static readonly MapPalette Light = new(
         Color.FromRgb(0xf6, 0xf6, 0xf8), Color.FromRgb(0x60, 0x60, 0x68),
         Color.FromArgb(0xd0, 0xff, 0xff, 0xff), Color.FromRgb(0x1a, 0x1a, 0x1e), Color.FromArgb(0xd0, 0x20, 0x20, 0x30), Color.FromArgb(0xa0, 0x20, 0x20, 0x30),
-        [
-            Color.FromRgb(0x9e, 0xc4, 0xee), Color.FromRgb(0xb2, 0xdd, 0xb2), Color.FromRgb(0xf0, 0xcc, 0x9a),
-            Color.FromRgb(0xe0, 0xb4, 0xd6), Color.FromRgb(0xa2, 0xe6, 0xdc), Color.FromRgb(0xec, 0xe6, 0x9a),
-            Color.FromRgb(0xd8, 0xb4, 0x9a), Color.FromRgb(0xc4, 0xa2, 0xee),
-        ]);
+        ZoneSaturation: 0.65, ZoneLightness: 0.78);
 }
 
 /// <summary>Everything the map view knows how to draw. All optional; missing layers are skipped.</summary>
@@ -60,7 +52,23 @@ public sealed class MapScene
             if (z.NameLocation is { } n) pts.Add(n);
         }
         if (Path is { } p) pts.AddRange(p);
-        if (Dock is { } d) pts.Add(new CorePoint(d.X, d.Y));
+        // The dock location is sometimes a sentinel far outside the real floor plan (observed:
+        // (1100, 1100) on maps the robot has zone definitions for but has never actually mapped
+        // a run on). Blindly including it would balloon the bounding box and shrink the real
+        // geometry to a few pixels, so it only counts towards the bounds when it is plausibly
+        // close to the rest of the data.
+        if (Dock is { } d)
+        {
+            if (pts.Count == 0) pts.Add(new CorePoint(d.X, d.Y));
+            else
+            {
+                var minX0 = pts.Min(q => q.X); var maxX0 = pts.Max(q => q.X);
+                var minY0 = pts.Min(q => q.Y); var maxY0 = pts.Max(q => q.Y);
+                var margin = Math.Max(Math.Max(maxX0 - minX0, maxY0 - minY0), 5);
+                if (d.X >= minX0 - margin && d.X <= maxX0 + margin && d.Y >= minY0 - margin && d.Y <= maxY0 + margin)
+                    pts.Add(new CorePoint(d.X, d.Y));
+            }
+        }
         if (pts.Count == 0) return null;
         var minX = pts.Min(p => p.X); var maxX = pts.Max(p => p.X);
         var minY = pts.Min(p => p.Y); var maxY = pts.Max(p => p.Y);
@@ -93,7 +101,33 @@ public static class MapRenderer
 {
     public static MapPalette Palette { get; set; } = MapPalette.Dark;
 
-    public static Color ZoneColor(int zoneId) => Palette.Zones[Math.Abs(zoneId) % Palette.Zones.Length];
+    // The golden angle conjugate spreads hues around the wheel so that consecutive zone ids never
+    // land near each other, unlike a short fixed palette cycling modulo its length (8 rooms used to
+    // repeat the same colour: see docs/protocole.md).
+    private const double GoldenAngleTurns = 0.6180339887498949;
+
+    public static Color ZoneColor(int zoneId)
+    {
+        var hue = Math.Abs(zoneId) * GoldenAngleTurns % 1.0 * 360.0;
+        return FromHsl(hue, Palette.ZoneSaturation, Palette.ZoneLightness);
+    }
+
+    private static Color FromHsl(double h, double s, double l)
+    {
+        var c = (1 - Math.Abs(2 * l - 1)) * s;
+        var x = c * (1 - Math.Abs(h / 60 % 2 - 1));
+        var m = l - c / 2;
+        var (r, g, b) = h switch
+        {
+            < 60 => (c, x, 0.0),
+            < 120 => (x, c, 0.0),
+            < 180 => (0.0, c, x),
+            < 240 => (0.0, x, c),
+            < 300 => (x, 0.0, c),
+            _ => (c, 0.0, x),
+        };
+        return Color.FromRgb((byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255));
+    }
 
     /// <summary>Uniform world-to-screen transform that fits the bounds into the size with a margin.</summary>
     public static Matrix FitTransform(Rect world, Size size, double margin = 16)

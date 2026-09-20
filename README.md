@@ -63,8 +63,10 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 
 - **Thème** : suit le mode clair ou sombre de Windows, y compris en cours d'exécution.
 - **État** : état du robot en clair, batterie, fautes réelles en rouge, pause et retour à la station.
-- **Nettoyage** : choix de la carte, pièces triées par nom (l'ordre renvoyé par le cloud n'est ni
-  alphabétique ni par identifiant), cochées ici ou cliquées sur la carte, ordre de passage affiché.
+- **Nettoyage** : choix de la carte, avec un bouton pour en faire la carte active du compte (comme
+  le sélecteur de carte de l'application mobile), pièces triées par nom (l'ordre renvoyé par le
+  cloud n'est ni alphabétique ni par identifiant), cochées ici ou cliquées sur la carte, ordre de
+  passage affiché.
   Une pièce cochée déplie ses réglages : type de nettoyage, mode de l'aspirateur (masqué si le type
   est « Laver » seul), et si le type inclut la serpillière, niveau d'hydratation et nombre de
   passages. Une pièce non cochée reste repliée avec un résumé d'une ligne, et peut être dépliée à la
@@ -75,6 +77,8 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 - **Journal** : les événements notables du robot et le résultat des commandes envoyées depuis la
   fenêtre, pas chaque message MQTT. Un bouton lance une capture complète dans un fichier JSON Lines,
   pour repérer des messages non encore identifiés.
+- **Notifications** : une notification Windows à la fin d'un nettoyage, ou si une pièce sélectionnée
+  n'a pas pu être atteinte. Cliquer dessus ramène la fenêtre au premier plan sur l'historique.
 - **Compte** : bouton « Se déconnecter » dans l'en-tête, avec confirmation ; ramène à l'écran de
   connexion sans redémarrer l'application.
 - **Carte** : grille d'occupation colorée par pièce, meubles, station, position du robot, tracé du

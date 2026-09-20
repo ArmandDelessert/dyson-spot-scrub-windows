@@ -17,16 +17,18 @@ public partial class App : Application
         if (themeIdx >= 0 && themeIdx + 1 < e.Args.Length)
             ThemeService.Apply(e.Args[themeIdx + 1].Equals("dark", StringComparison.OrdinalIgnoreCase));
 
-        // Headless helper: render the current map to a PNG and exit. Used to check the renderer
-        // without a window, and handy for sharing a map.
-        //   MyDyson.App.exe --export-map out.png [--serial S]
+        // Headless helper: render a map to a PNG and exit. Used to check the renderer without a
+        // window, and handy for sharing a map. Defaults to the current map.
+        //   MyDyson.App.exe --export-map out.png [--serial S] [--map-id ID]
         var args = e.Args;
         var export = Array.IndexOf(args, "--export-map");
         if (export >= 0 && export + 1 < args.Length)
         {
             var serialIdx = Array.IndexOf(args, "--serial");
             var serial = serialIdx >= 0 && serialIdx + 1 < args.Length ? args[serialIdx + 1] : null;
-            Environment.ExitCode = await ExportMapAsync(args[export + 1], serial);
+            var mapIdIdx = Array.IndexOf(args, "--map-id");
+            var mapId = mapIdIdx >= 0 && mapIdIdx + 1 < args.Length ? args[mapIdIdx + 1] : null;
+            Environment.ExitCode = await ExportMapAsync(args[export + 1], serial, mapId);
             Shutdown();
             return;
         }
@@ -112,7 +114,7 @@ public partial class App : Application
         }
     }
 
-    private static async Task<int> ExportMapAsync(string path, string? serial)
+    private static async Task<int> ExportMapAsync(string path, string? serial, string? mapId = null)
     {
         var ctx = RobotContext.FromStoredSession();
         if (ctx is null) { Console.Error.WriteLine("Aucune session. Lancez l'application et connectez-vous d'abord."); return 2; }
@@ -121,15 +123,25 @@ public partial class App : Application
         var s = robot.SerialNumber;
 
         var maps = await ctx.Api.GetMapMetadataAsync(s);
-        var current = maps.FirstOrDefault(m => m.IsCurrentMap) ?? maps.First();
+        var current = mapId is not null
+            ? maps.FirstOrDefault(m => m.Id == mapId) ?? throw new InvalidOperationException($"Carte {mapId} introuvable.")
+            : maps.FirstOrDefault(m => m.IsCurrentMap) ?? maps.First();
         var map = await ctx.Api.GetPersistentMapAsync(s, current.Id);
-        var grid = MapGrid.From(await ctx.Api.GetMappingMapAsync(s));
-        var live = await ctx.Api.GetLiveCleaningMapAsync(s);
+        // The occupancy grid and the live robot position/path only ever describe the currently
+        // active map; attaching them to another map would overlay an unrelated task's stray path.
+        MapGrid? grid = null; RobotPosition? robotPos = null; List<MyDyson.Core.Point>? cleanPath = null;
+        if (current.IsCurrentMap)
+        {
+            grid = MapGrid.From(await ctx.Api.GetMappingMapAsync(s));
+            var live = await ctx.Api.GetLiveCleaningMapAsync(s);
+            robotPos = live.RobotLocation;
+            cleanPath = live.CleanPath;
+        }
 
         var scene = new MapScene
         {
             Grid = grid, Map = map, ZoneMetadata = current.Zones,
-            Dock = map.DockLocation, Robot = live.RobotLocation, Path = live.CleanPath,
+            Dock = map.DockLocation, Robot = robotPos, Path = cleanPath,
         };
         MapRenderer.ExportPng(scene, 1200, 1400, path);
         Console.WriteLine($"Carte {current.Name} exportée vers {path}");

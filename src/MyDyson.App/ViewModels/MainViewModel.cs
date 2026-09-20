@@ -248,6 +248,8 @@ public partial class MainViewModel : ObservableObject
     private int _captureCount;
 
     public event Action? LoggedOut;
+    /// <summary>A robot event worth a Windows notification: title, body.</summary>
+    public event Action<string, string>? NotifyRequested;
 
     public MainViewModel(RobotContext ctx)
     {
@@ -287,7 +289,19 @@ public partial class MainViewModel : ObservableObject
                 };
             });
             _session.Tracker.StateChanged += st => Post(() => ApplyState(st));
-            _session.Tracker.EventReceived += (name, json) => Post(() => AddLog($"{name} {Truncate(json.ToJsonString(), 120)}"));
+            _session.Tracker.EventReceived += (name, json) => Post(() =>
+            {
+                AddLog($"{name} {Truncate(json.ToJsonString(), 120)}");
+                switch (name)
+                {
+                    case "event.clean_finish.post":
+                        NotifyRequested?.Invoke("Nettoyage terminé", "Le robot a terminé son nettoyage.");
+                        break;
+                    case "event.Unable_all_area_recharge.post":
+                        NotifyRequested?.Invoke("Zone inaccessible", "Le robot n'a pas pu atteindre une ou plusieurs pièces sélectionnées.");
+                        break;
+                }
+            });
             // Every message on the robot's topics, regardless of whether the tracker recognises it;
             // only written anywhere once a capture file has been opened (see ToggleCaptureCommand).
             _session.MessageReceived += CaptureMessage;
@@ -614,7 +628,16 @@ public partial class MainViewModel : ObservableObject
         : RunAsync("laver et sécher", c => c.WashAndDryMopAsync());
 
     [RelayCommand] private Task CollectDustAsync() => RunAsync("vidage du collecteur", c => c.CollectDustAsync());
-    [RelayCommand] private Task RefreshAsync() => Task.WhenAll(RefreshStateAsync(), LoadHistoryAsync());
+    [RelayCommand] private Task RefreshAsync() => Task.WhenAll(RefreshStateAsync(), LoadMapsAsync(), LoadHistoryAsync());
+
+    /// <summary>Makes the selected map the account's active map, as the phone app does from its map picker.</summary>
+    [RelayCommand]
+    private async Task SetActiveMapAsync()
+    {
+        if (SelectedMap is not { } map || map.Metadata.IsCurrentMap) return;
+        await RunAsync($"carte active : {map.Metadata.Name}", c => c.SetCurrentMapAsync(long.Parse(map.Id)));
+        await LoadMapsAsync();
+    }
 
     [RelayCommand]
     private void ExportMap()
