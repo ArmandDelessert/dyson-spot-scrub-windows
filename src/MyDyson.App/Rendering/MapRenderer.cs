@@ -10,17 +10,22 @@ using CorePoint = MyDyson.Core.Point;
 namespace MyDyson.App.Rendering;
 
 /// <summary>Colours of the map, one set per theme. Zone colours are generated (see <see cref="MapRenderer.ZoneColor"/>), not listed, so any number of rooms gets visibly distinct hues.</summary>
-public sealed record MapPalette(Color Background, Color Obstacle, Color LabelBackground, Color LabelText, Color Path, Color Furniture, double ZoneSaturation, double ZoneLightness)
+public sealed record MapPalette(Color Background, Color Obstacle, Color LabelBackground, Color LabelText, Color Path, Color Furniture, double ZoneSaturation, double ZoneLightness, Color[] ActionColors)
 {
+    // Indexed by (int)CleanType: Vacuum, Mop, VacuumAndMop, VacuumThenMop. Used for the driven-path
+    // segments where the robot was actively working (see MapRenderer.DrawActionPath); segments where
+    // it was merely repositioning use Path instead, same as before this distinction existed.
     public static readonly MapPalette Dark = new(
         Color.FromRgb(0x1e, 0x1e, 0x22), Color.FromRgb(0x50, 0x50, 0x58),
         Color.FromArgb(0xa0, 0, 0, 0), Colors.White, Color.FromArgb(0xc0, 0xff, 0xff, 0xff), Color.FromArgb(0xa0, 0xff, 0xff, 0xff),
-        ZoneSaturation: 0.55, ZoneLightness: 0.63);
+        ZoneSaturation: 0.55, ZoneLightness: 0.63,
+        ActionColors: [Color.FromRgb(0x5a, 0xa9, 0xf0), Color.FromRgb(0x4d, 0xd6, 0xc4), Color.FromRgb(0xc4, 0x7a, 0xf0), Color.FromRgb(0xf0, 0xa8, 0x4d)]);
 
     public static readonly MapPalette Light = new(
         Color.FromRgb(0xf6, 0xf6, 0xf8), Color.FromRgb(0x60, 0x60, 0x68),
         Color.FromArgb(0xd0, 0xff, 0xff, 0xff), Color.FromRgb(0x1a, 0x1a, 0x1e), Color.FromArgb(0xd0, 0x20, 0x20, 0x30), Color.FromArgb(0xa0, 0x20, 0x20, 0x30),
-        ZoneSaturation: 0.65, ZoneLightness: 0.78);
+        ZoneSaturation: 0.65, ZoneLightness: 0.78,
+        ActionColors: [Color.FromRgb(0x1f, 0x6f, 0xc9), Color.FromRgb(0x1a, 0x9e, 0x8c), Color.FromRgb(0x9a, 0x3c, 0xd6), Color.FromRgb(0xc9, 0x7a, 0x14)]);
 }
 
 /// <summary>Everything the map view knows how to draw. All optional; missing layers are skipped.</summary>
@@ -32,6 +37,7 @@ public sealed class MapScene
     public RobotPosition? Robot { get; init; }
     public DockLocation? Dock { get; init; }
     public IReadOnlyList<CorePoint>? Path { get; init; }
+    public IReadOnlyList<CorePoint>? Obstacles { get; init; }
     public IReadOnlySet<string>? SelectedZoneIds { get; init; }
     /// <summary>Zone id to its position in the clean order, shown as a badge.</summary>
     public IReadOnlyDictionary<string, int>? ZoneOrder { get; init; }
@@ -52,6 +58,7 @@ public sealed class MapScene
             if (z.NameLocation is { } n) pts.Add(n);
         }
         if (Path is { } p) pts.AddRange(p);
+        if (Obstacles is { } obs) pts.AddRange(obs);
         // The dock location is sometimes a sentinel far outside the real floor plan (observed:
         // (1100, 1100) on maps the robot has zone definitions for but has never actually mapped
         // a run on). Blindly including it would balloon the bounding box and shrink the real
@@ -178,16 +185,12 @@ public static class MapRenderer
             DrawPolygon(dc, r.Points, m, new Pen(new SolidColorBrush(Color.FromRgb(0xe0, 0x50, 0x50)), 2), new SolidColorBrush(Color.FromArgb(0x40, 0xe0, 0x50, 0x50)));
 
         if (scene.Path is { Count: > 1 } path)
+            DrawActionPath(dc, scene, path, m);
+
+        foreach (var o in scene.Obstacles ?? [])
         {
-            var geo = new StreamGeometry();
-            using (var g = geo.Open())
-            {
-                g.BeginFigure(m.Transform(new Point(path[0].X, path[0].Y)), false, false);
-                for (var i = 1; i < path.Count; i++)
-                    g.LineTo(m.Transform(new Point(path[i].X, path[i].Y)), true, false);
-            }
-            geo.Freeze();
-            dc.DrawGeometry(null, new Pen(new SolidColorBrush(Palette.Path), 1.5) { LineJoin = PenLineJoin.Round }, geo);
+            var p = m.Transform(new Point(o.X, o.Y));
+            DrawObstacleMarker(dc, p);
         }
 
         foreach (var z in scene.Map?.Zones ?? [])
@@ -218,6 +221,66 @@ public static class MapRenderer
 
     public static void Render(DrawingContext dc, MapScene scene, Size size, out Matrix worldToScreen) =>
         Render(dc, scene, size, out worldToScreen, 1, default);
+
+    /// <summary>
+    /// Draws the driven path in consecutive same-colour runs: grey where the robot was only
+    /// repositioning (point's "update" is 0 or missing, e.g. path data with no such field), and
+    /// otherwise the colour of the clean type assigned to whichever room the point falls in — the
+    /// data only confirms a binary "working or not" flag per point, not which tool was engaged, so
+    /// the tool colour is inferred from the room's own setting rather than observed directly.
+    /// </summary>
+    private static void DrawActionPath(DrawingContext dc, MapScene scene, IReadOnlyList<CorePoint> path, Matrix m)
+    {
+        var runStart = 0;
+        var runColor = ActionColorAt(scene, path[0]);
+        for (var i = 1; i < path.Count; i++)
+        {
+            var color = ActionColorAt(scene, path[i]);
+            if (color == runColor) continue;
+            DrawPathRun(dc, path, runStart, i, runColor, m);
+            runStart = i;
+            runColor = color;
+        }
+        DrawPathRun(dc, path, runStart, path.Count - 1, runColor, m);
+    }
+
+    /// <summary>Draws points [from, to] (inclusive) as one polyline; a single point has nothing to join, so it's skipped.</summary>
+    private static void DrawPathRun(DrawingContext dc, IReadOnlyList<CorePoint> path, int from, int to, Color color, Matrix m)
+    {
+        if (to <= from) return;
+        var geo = new StreamGeometry();
+        using (var g = geo.Open())
+        {
+            g.BeginFigure(m.Transform(new Point(path[from].X, path[from].Y)), false, false);
+            for (var j = from + 1; j <= to; j++)
+                g.LineTo(m.Transform(new Point(path[j].X, path[j].Y)), true, false);
+        }
+        geo.Freeze();
+        dc.DrawGeometry(null, new Pen(new SolidColorBrush(color), 2) { LineJoin = PenLineJoin.Round }, geo);
+    }
+
+    private static Color ActionColorAt(MapScene scene, CorePoint p)
+    {
+        if (p.Update is not 1) return Palette.Path;
+        var zoneId = scene.ZoneAt(p.X, p.Y);
+        var settings = zoneId is null ? null : scene.ZoneMetadata?.FirstOrDefault(z => z.Id == zoneId)?.Settings;
+        var type = CleanTypes.FromRest(settings?.CleanType);
+        return Palette.ActionColors[(int)type % Palette.ActionColors.Length];
+    }
+
+    private static void DrawObstacleMarker(DrawingContext dc, Point p)
+    {
+        var geo = new StreamGeometry();
+        using (var g = geo.Open())
+        {
+            g.BeginFigure(new Point(p.X, p.Y - 7), true, true);
+            g.LineTo(new Point(p.X + 6, p.Y + 5), true, true);
+            g.LineTo(new Point(p.X - 6, p.Y + 5), true, true);
+        }
+        geo.Freeze();
+        dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(0xe0, 0xa0, 0x30)), new Pen(Brushes.Black, 1), geo);
+        dc.DrawEllipse(Brushes.Black, null, new Point(p.X, p.Y + 1.5), 0.8, 0.8);
+    }
 
     private static void DrawGrid(DrawingContext dc, MapGrid grid, Matrix m, IReadOnlySet<string>? selected)
     {

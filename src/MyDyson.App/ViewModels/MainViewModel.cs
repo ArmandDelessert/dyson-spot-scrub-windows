@@ -234,9 +234,13 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private MapScene _scene = new();
     [ObservableProperty] private MapScene _historyScene = new();
     [ObservableProperty] private string _historyMapName = "";
+    [ObservableProperty] private string _historyResultText = "";
 
     private RobotPosition? _robotPosition;
     private IReadOnlyList<MyDyson.Core.Point>? _lastPath;
+    /// <summary>Grown in real time from the jdm "cur_path" push (see RobotStateTracker.CleanPath); takes over from the REST snapshot in _lastPath as soon as it has any points.</summary>
+    private IReadOnlyList<MyDyson.Core.Point>? _liveTrail;
+    private IReadOnlyList<MyDyson.Core.Point>? _liveObstacles;
 
     // ---- Raw capture: every message on the robot's topics, for finding what the tracker doesn't know ----
     [ObservableProperty] private bool _isCapturing;
@@ -289,6 +293,11 @@ public partial class MainViewModel : ObservableObject
                 };
             });
             _session.Tracker.StateChanged += st => Post(() => ApplyState(st));
+            _session.Tracker.CleanPathChanged += path => Post(() =>
+            {
+                _liveTrail = path.Select(p => new MyDyson.Core.Point(p.X, p.Y, p.Update)).ToList();
+                RebuildScene();
+            });
             _session.Tracker.EventReceived += (name, json) => Post(() =>
             {
                 AddLog($"{name} {Truncate(json.ToJsonString(), 120)}");
@@ -481,6 +490,7 @@ public partial class MainViewModel : ObservableObject
                 var live = await _ctx.Api.GetLiveCleaningMapAsync(Serial);
                 _robotPosition ??= live.RobotLocation;
                 _lastPath = live.CleanPath;
+                _liveObstacles = live.Obstacles;
             }
             RebuildScene();
         }
@@ -498,7 +508,8 @@ public partial class MainViewModel : ObservableObject
             ZoneMetadata = SelectedMap?.Metadata.Zones,
             Dock = _map?.Id == mapId ? _map?.DockLocation : null,
             Robot = isCurrent ? _robotPosition : null,
-            Path = isCurrent ? _lastPath : null,
+            Path = isCurrent ? (_liveTrail is { Count: > 0 } ? _liveTrail : _lastPath) : null,
+            Obstacles = isCurrent ? _liveObstacles : null,
             SelectedZoneIds = Zones.Where(z => z.Selected).Select(z => z.Id).ToHashSet(),
             ZoneOrder = Zones.Where(z => z.Selected).ToDictionary(z => z.Id, z => z.Order),
         };
@@ -531,11 +542,12 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedCleanChanged(CleanItem? value)
     {
-        if (value is null) { HistoryScene = new MapScene(); HistoryMapName = ""; return; }
+        if (value is null) { HistoryScene = new MapScene(); HistoryMapName = ""; HistoryResultText = ""; return; }
         _ = ShowCleanAsync(value);
     }
 
     private IReadOnlyList<MyDyson.Core.Point>? _historyPath;
+    private IReadOnlyList<MyDyson.Core.Point>? _historyObstacles;
     private PersistentMap? _historyMap;
 
     private async Task ShowCleanAsync(CleanItem item)
@@ -544,6 +556,15 @@ public partial class MainViewModel : ObservableObject
         {
             var detail = await _ctx.Api.GetCleanDetailAsync(Serial, item.Summary.CleanId);
             _historyPath = detail.CleanPath;
+            _historyObstacles = detail.Obstacles;
+            // The REST clean list has no overall success/failure field (see docs/protocole.md); the
+            // closest thing is each zone's own status from this per-clean detail call. Only surface
+            // zones that didn't simply complete, so an ordinary clean just reads "Terminé".
+            var problems = detail.Zones?
+                .Where(z => z.CleanStatus is not (null or "CLEAN_NOT_REQUESTED" or "CLEAN_COMPLETE"))
+                .Select(z => $"{RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)} : {CleanStatusLabels.Resolve(z.CleanStatus)}")
+                .ToList() ?? [];
+            HistoryResultText = problems.Count > 0 ? string.Join(", ", problems) : "Terminé";
             var mapId = detail.PersistentMapId ?? item.Summary.PersistentMapId;
             _historyMap = null;
             if (mapId is not null)
@@ -571,6 +592,7 @@ public partial class MainViewModel : ObservableObject
             ZoneMetadata = Maps.FirstOrDefault(m => m.Id == mapId)?.Metadata.Zones,
             Dock = _historyMap?.DockLocation,
             Path = _historyPath,
+            Obstacles = _historyObstacles,
         };
     }
 

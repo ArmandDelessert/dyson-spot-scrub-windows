@@ -6,9 +6,11 @@ namespace MyDyson.Core;
 // Models for the map endpoints of appapi.cp.dyson.com, as returned for an RB05 in September 2026.
 // Coordinates are metres relative to the dock. Every list is optional: the server omits empty ones.
 
+/// <param name="Update">Only meaningful on a cleanPath point: 0 driving, 1 actively cleaning. Null elsewhere.</param>
 public sealed record Point(
     [property: JsonPropertyName("x")] double X,
-    [property: JsonPropertyName("y")] double Y);
+    [property: JsonPropertyName("y")] double Y,
+    [property: JsonPropertyName("update")] int? Update = null);
 
 public sealed record DockLocation(
     [property: JsonPropertyName("x")] double X,
@@ -66,6 +68,23 @@ public sealed record MapZone(
     [property: JsonPropertyName("cleanStatus")] string? CleanStatus,
     [property: JsonPropertyName("area")] double? Area);
 
+/// <summary>
+/// French label for a zone's cleanStatus, as seen in clean-maps-data/live-maps. Confirmed values:
+/// CLEAN_NOT_REQUESTED (not selected for this task), CLEAN_COMPLETE, CANT_CLEAN (the robot gave up
+/// reaching it, see event.Unable_all_area_recharge.post in docs/protocole.md); others unconfirmed.
+/// </summary>
+public static class CleanStatusLabels
+{
+    public static string Resolve(string? status) => status switch
+    {
+        "CLEAN_COMPLETE" => "Terminée",
+        "CANT_CLEAN" => "Injoignable",
+        "CLEAN_NOT_REQUESTED" => "Non demandée",
+        null => "",
+        var s => s,
+    };
+}
+
 public sealed record FurnitureItem(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("type")] string? Type,
@@ -102,7 +121,13 @@ public sealed record LiveMap(
     [property: JsonPropertyName("cleanPath")] List<Point>? CleanPath,
     [property: JsonPropertyName("dockLocation")] DockLocation? DockLocation,
     [property: JsonPropertyName("furniture")] List<FurnitureItem>? Furniture,
-    [property: JsonPropertyName("restrictions")] List<Restriction>? Restrictions)
+    [property: JsonPropertyName("restrictions")] List<Restriction>? Restrictions,
+    [property: JsonPropertyName("obstacles")] List<Point>? Obstacles = null,
+    // See CleanDetail: same fields, always empty in every response observed so far.
+    [property: JsonPropertyName("dirt")] List<JsonElement>? Dirt = null,
+    [property: JsonPropertyName("hazardZones")] List<JsonElement>? HazardZones = null,
+    [property: JsonPropertyName("groutLines")] List<JsonElement>? GroutLines = null,
+    [property: JsonPropertyName("swingDoors")] List<JsonElement>? SwingDoors = null)
 {
     [JsonExtensionData] public Dictionary<string, JsonElement>? Extra { get; init; }
 }
@@ -161,11 +186,17 @@ public sealed record CleanDetail(
     [property: JsonPropertyName("boundary")] MapBoundary? Boundary,
     [property: JsonPropertyName("zones")] List<MapZone>? Zones,
     [property: JsonPropertyName("cleanPath")] List<Point>? CleanPath,
+    // "dirt" was empty in every clean observed so far; shape unconfirmed, kept raw for now.
     [property: JsonPropertyName("dirt")] List<JsonElement>? Dirt,
-    [property: JsonPropertyName("obstacles")] List<JsonElement>? Obstacles,
+    [property: JsonPropertyName("obstacles")] List<Point>? Obstacles,
     [property: JsonPropertyName("dockLocation")] DockLocation? DockLocation,
     [property: JsonPropertyName("furniture")] List<FurnitureItem>? Furniture,
-    [property: JsonPropertyName("faults")] List<JsonElement>? Faults)
+    [property: JsonPropertyName("faults")] List<JsonElement>? Faults,
+    // Present in every response but always empty so far ("cable in the way" style hazards, grout
+    // lines, swing doors): shape unconfirmed, kept raw until a capture shows one populated.
+    [property: JsonPropertyName("hazardZones")] List<JsonElement>? HazardZones = null,
+    [property: JsonPropertyName("groutLines")] List<JsonElement>? GroutLines = null,
+    [property: JsonPropertyName("swingDoors")] List<JsonElement>? SwingDoors = null)
 {
     [JsonExtensionData] public Dictionary<string, JsonElement>? Extra { get; init; }
 }

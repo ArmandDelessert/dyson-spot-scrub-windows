@@ -19,6 +19,19 @@ public sealed class RobotStateTracker
     public event Action<RobotState>? StateChanged;
     public event Action<JdmProperties>? JdmChanged;
     public event Action<string, JsonObject>? EventReceived;
+    public event Action<IReadOnlyList<RobotPosition>>? CleanPathChanged;
+
+    /// <summary>
+    /// The current task's driven path, accumulated from the jdm "cur_path" property pushed
+    /// incrementally throughout a clean (not retained by the robot itself: REST's own live-map
+    /// endpoint only has a snapshot from whenever it was last polled). Each push is a flat array
+    /// <c>[firstId, x1,y1,angle1,update1, x2,y2,angle2,update2, …, unixTimestamp]</c>; reset when a
+    /// new task's ids restart from a lower value, or explicitly on <c>event.startClean.post</c>.
+    /// </summary>
+    public IReadOnlyList<RobotPosition> CleanPath => _cleanPath;
+
+    private readonly List<RobotPosition> _cleanPath = [];
+    private long? _lastCleanPathId;
 
     /// <summary>Applies one message. Returns true when the visible state changed.</summary>
     public bool Apply(RobotMessage message)
@@ -68,6 +81,7 @@ public sealed class RobotStateTracker
         switch (method)
         {
             case "prop.post" when json["params"] is JsonObject pushed:
+                if (pushed["cur_path"] is JsonArray path) AppendCleanPath(path);
                 Jdm.Merge(pushed);
                 JdmChanged?.Invoke(Jdm);
                 return true;
@@ -77,6 +91,13 @@ public sealed class RobotStateTracker
                 JdmChanged?.Invoke(Jdm);
                 return true;
 
+            case "event.startClean.post":
+                _cleanPath.Clear();
+                _lastCleanPathId = null;
+                CleanPathChanged?.Invoke(_cleanPath);
+                EventReceived?.Invoke(method!, json);
+                return false;
+
             case { } m when m.StartsWith("event.", StringComparison.Ordinal):
                 EventReceived?.Invoke(m, json);
                 return false;
@@ -84,5 +105,28 @@ public sealed class RobotStateTracker
             default:
                 return false;
         }
+    }
+
+    private void AppendCleanPath(JsonArray arr)
+    {
+        var nums = new List<double>(arr.Count);
+        foreach (var n in arr)
+        {
+            if (n is not JsonValue v || !v.TryGetValue<double>(out var d)) return; // malformed batch, ignore
+            nums.Add(d);
+        }
+        if (nums.Count < 6 || (nums.Count - 2) % 4 != 0) return;
+
+        var firstId = (long)nums[0];
+        if (_lastCleanPathId is { } last && firstId < last) _cleanPath.Clear(); // a new task's ids restarted
+        _lastCleanPathId = firstId;
+
+        var pointCount = (nums.Count - 2) / 4;
+        for (var i = 0; i < pointCount; i++)
+        {
+            var b = 1 + i * 4;
+            _cleanPath.Add(new RobotPosition(firstId + i, nums[b], nums[b + 1], nums[b + 2], (int)nums[b + 3]));
+        }
+        CleanPathChanged?.Invoke(_cleanPath);
     }
 }

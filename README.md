@@ -81,12 +81,17 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   n'a pas pu être atteinte. Cliquer dessus ramène la fenêtre au premier plan sur l'historique.
 - **Compte** : bouton « Se déconnecter » dans l'en-tête, avec confirmation ; ramène à l'écran de
   connexion sans redémarrer l'application.
-- **Carte** : grille d'occupation colorée par pièce, meubles, station, position du robot, tracé du
-  dernier nettoyage. Clic pour sélectionner une pièce, molette pour zoomer, glisser pour déplacer.
-  Export en PNG. Les pièces d'un type reconnu (cuisine, chambre, salon…) portent le même nom que
-  dans l'application mobile, même quand le nom enregistré sur le compte diffère.
+- **Carte** : grille d'occupation colorée par pièce, meubles, station, position du robot, tracé en
+  temps réel du nettoyage en cours, colonisé au fil de l'eau depuis le flux `cur_path` du robot, en
+  gris là où il ne fait que se déplacer et dans la couleur du type de nettoyage de la pièce là où il
+  travaille réellement. Icônes pour les obstacles détectés. Clic pour sélectionner une pièce, molette
+  pour zoomer, glisser pour déplacer. Export en PNG. Les pièces d'un type reconnu (cuisine, chambre,
+  salon…) portent le même nom que dans l'application mobile, même quand le nom enregistré sur le
+  compte diffère.
 - **Historique** : chaque nettoyage avec durée, surface, batterie et fautes, et sa propre carte,
-  celle du nettoyage choisi, avec le trajet parcouru.
+  celle du nettoyage choisi, avec le trajet parcouru (même code couleur que la carte en direct) et
+  les obstacles détectés. Le résultat pièce par pièce (terminée, injoignable…) s'affiche sous la
+  carte, cette donnée n'existant qu'au niveau du détail d'un nettoyage, pas dans la liste.
 - **Réglages** : les mêmes libellés que l'application Android, en trois groupes : lavage, station,
   vocaux. Chaque réglage part au robot dans les deux dialectes.
 - **Journal** : événements du robot et résultats des commandes.

@@ -127,6 +127,43 @@ Champs jdm présents mais toujours nuls au repos : `auto_water_complete_flag`,
 `auto_water_self_check`, `clean_wash_attachment`, `empty_bin_time`, `empty_bin_type`,
 `global_clean_status`, `mop_pad_life`, `robot_auto_updown_type`, `store_demo_mode`, `taskBeginTs`.
 
+### cur_path : le tracé en temps réel
+
+Poussé par lots de un à une quinzaine de points pendant tout le nettoyage. Chaque lot est un
+tableau à plat, pas un tableau d'objets :
+
+```json
+{ "cur_path": [103, -0.771649,3.225564,-1.557448,1, -0.762950,3.119714,-1.595241,1, 1789915756] }
+```
+
+Premier élément un identifiant de lot, puis des groupes de quatre valeurs `x, y, angle, update`
+(un par point du lot), et un timestamp Unix en dernière position. `update` vaut `0` quand le robot
+se contente de se déplacer et `1` quand il travaille réellement à cet endroit ; seules ces deux
+valeurs ont été observées, sur un nettoyage aspirateur seul — un nettoyage lavage ou mixte pourrait
+en révéler d'autres. C'est un flux, pas un état : `RobotStateTracker` l'accumule lot par lot dans
+`CleanPath`, en le vidant quand l'identifiant de lot repart à une valeur plus basse (nouvelle tâche)
+ou sur `event.startClean.post`. Le classique `RobotPosition` (position en direct) porte le même
+champ `update` sur un point unique, d'où sa réutilisation ici plutôt qu'un nouveau type.
+
+Côté REST, `GET /v1/app/{serial}/live-maps/cleaning` et `GET /v2/{serial}/clean-maps-data/{cleanId}`
+renvoient le même tracé complet sous forme d'objets `{x, y, update}`, avec les mêmes deux valeurs
+observées pour `update`. Les deux endpoints renvoient aussi, à côté du tracé : `obstacles` (liste de
+points `{x, y}`, confirmée non vide — un câble ou un objet détecté), et `dirt`, `hazardZones`,
+`groutLines`, `swingDoors`, toujours vides dans toutes les captures observées jusqu'ici ; leur forme
+reste donc inconnue, y compris s'ils distinguent les types de tache que montre l'application Android.
+
+### cleanStatus des pièces
+
+`persistent-maps`, `live-maps` et `clean-maps-data` portent chacun un `cleanStatus` par pièce :
+`CLEAN_NOT_REQUESTED` (non sélectionnée pour cette tâche), `CLEAN_COMPLETE`, et `CANT_CLEAN`
+(le robot a renoncé à l'atteindre, voir `event.Unable_all_area_recharge.post` plus haut). C'est la
+seule donnée de résultat par pièce disponible : la liste `GET /v2/{serial}/clean-maps` (utilisée
+pour l'historique) n'a ni ce champ ni aucun équivalent global de succès/échec pour toute la tâche —
+seul `clean-maps-data/{cleanId}` (le détail d'un nettoyage précis) l'expose, d'où le choix de
+l'afficher uniquement pièce par pièce dans le détail d'un nettoyage sélectionné, plutôt qu'en
+colonne de la liste (qui obligerait à télécharger le détail, plusieurs centaines de Ko avec le
+tracé complet, de chaque entrée juste pour remplir une colonne).
+
 ### service.get_map_list
 
 ```json

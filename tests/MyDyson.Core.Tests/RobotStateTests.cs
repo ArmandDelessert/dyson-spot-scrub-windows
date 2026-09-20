@@ -107,6 +107,36 @@ public class RobotStateTests
     }
 
     [Fact]
+    public void CleanPathAccumulatesAcrossPushesAndResetsOnANewTask()
+    {
+        var tracker = new RobotStateTracker();
+        var pushes = 0;
+        tracker.CleanPathChanged += _ => pushes++;
+
+        // One point, then a two-point batch, as actually observed on the wire.
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"1","method":"prop.post","params":{"cur_path":[101,-0.76,3.23,-2.64,1,1789915754]}}"""));
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"2","method":"prop.post","params":{"cur_path":[103,-0.77,3.22,-1.55,1,-0.76,3.11,-1.59,0,1789915756]}}"""));
+
+        Assert.Equal(2, pushes);
+        Assert.Equal(3, tracker.CleanPath.Count);
+        Assert.Equal(1, tracker.CleanPath[0].Update);
+        Assert.Equal(0, tracker.CleanPath[2].Update);
+        Assert.Equal(-0.76, tracker.CleanPath[2].X, 2);
+
+        // A lower leading id means a new task started: the old points are dropped.
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"3","method":"prop.post","params":{"cur_path":[5,0,0,0,1,10]}}"""));
+        Assert.Single(tracker.CleanPath);
+
+        // event.startClean.post also clears it, even without an id rollback.
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"4","method":"event.startClean.post","params":{}}"""));
+        Assert.Empty(tracker.CleanPath);
+    }
+
+    [Fact]
     public void VoiceDownloadStatusIsTracked()
     {
         var tracker = new RobotStateTracker();
