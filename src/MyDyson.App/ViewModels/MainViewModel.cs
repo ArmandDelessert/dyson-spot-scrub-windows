@@ -193,7 +193,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly Dictionary<string, CleanDetail> _cleanDetailCache = new();
     private int _nextOrder = 1;
     private bool _applyingState;
-    private bool _loadingZones;
+    /// <summary>Cancelled by <see cref="ShutdownAsync"/> so REST calls still in flight stop instead of landing on a view model that is going away.</summary>
+    private readonly CancellationTokenSource _lifetime = new();
+    private CancellationToken Ct => _lifetime.Token;
 
     public string RobotName => _ctx.Robot?.Name ?? "Robot";
     public string Serial => _ctx.Robot?.SerialNumber ?? "";
@@ -305,7 +307,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            _session = await _ctx.ConnectAsync();
+            _session = await _ctx.ConnectAsync(Ct);
             _session.ConnectionChanged += (s, d) => Post(() =>
             {
                 Connected = s == RobotConnectionStatus.Connected;
@@ -347,6 +349,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _refresh.Start();
             _ = FillHistoryDetailsAsync();
         }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Message = ex.Message;
@@ -434,11 +437,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var maps = await _ctx.Api.GetMapMetadataAsync(Serial);
+            var maps = await _ctx.Api.GetMapMetadataAsync(Serial, Ct);
             Maps.Clear();
             foreach (var m in maps) Maps.Add(new MapItem(m));
             SelectedMap = Maps.FirstOrDefault(m => m.Metadata.IsCurrentMap) ?? Maps.FirstOrDefault();
         }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex) { AddLog($"cartes: {ex.Message}"); }
     }
 
@@ -450,33 +454,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task LoadZonesAsync(MapItem map)
     {
-        _loadingZones = true;
-        try
+        Zones.Clear();
+        _nextOrder = 1;
+        // The cloud API returns zones in an unexplained order (probably the order the robot
+        // detected them in while mapping), neither by id nor alphabetical. Sorting by name
+        // gives a predictable list; it will not exactly match the phone app, which appears to
+        // group by room type rather than sort by name.
+        var ordered = (map.Metadata.Zones ?? []).OrderBy(z => z.Name, StringComparer.Create(new System.Globalization.CultureInfo("fr-FR"), ignoreCase: true));
+        foreach (var z in ordered)
         {
-            Zones.Clear();
-            _nextOrder = 1;
-            // The cloud API returns zones in an unexplained order (probably the order the robot
-            // detected them in while mapping), neither by id nor alphabetical. Sorting by name
-            // gives a predictable list; it will not exactly match the phone app, which appears to
-            // group by room type rather than sort by name.
-            var ordered = (map.Metadata.Zones ?? []).OrderBy(z => z.Name, StringComparer.Create(new System.Globalization.CultureInfo("fr-FR"), ignoreCase: true));
-            foreach (var z in ordered)
+            // Subscribed after construction, so only the user's edits land here — including any
+            // made while the geometry below is still downloading, which must not be lost.
+            var item = new ZoneItem(z);
+            item.PropertyChanged += (_, e) =>
             {
-                var item = new ZoneItem(z);
-                item.PropertyChanged += (_, e) =>
-                {
-                    if (_loadingZones) return;
-                    if (e.PropertyName == nameof(ZoneItem.Selected)) OnZoneSelectionChanged(item);
-                    else if (e.PropertyName is nameof(ZoneItem.SelectedCleanType) or nameof(ZoneItem.SelectedStrategy)
-                             or nameof(ZoneItem.SelectedWaterLevel) or nameof(ZoneItem.SelectedMopPasses))
-                        _ = PersistZoneSettingsAsync();
-                    RebuildScene();
-                };
-                Zones.Add(item);
-            }
-            await LoadMapGeometryAsync(map.Id);
+                if (e.PropertyName == nameof(ZoneItem.Selected)) OnZoneSelectionChanged(item);
+                else if (e.PropertyName is nameof(ZoneItem.SelectedCleanType) or nameof(ZoneItem.SelectedStrategy)
+                         or nameof(ZoneItem.SelectedWaterLevel) or nameof(ZoneItem.SelectedMopPasses))
+                    ScheduleZoneSettingsPersist();
+                RebuildScene();
+            };
+            Zones.Add(item);
         }
-        finally { _loadingZones = false; }
+        await LoadMapGeometryAsync(map.Id);
         RebuildScene();
     }
 
@@ -512,16 +512,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (!_mapCache.TryGetValue(mapId, out var map))
             {
-                map = await _ctx.Api.GetPersistentMapAsync(Serial, mapId);
+                map = await _ctx.Api.GetPersistentMapAsync(Serial, mapId, Ct);
                 _mapCache[mapId] = map;
             }
             _map = map;
             var isCurrent = Maps.FirstOrDefault(m => m.Id == mapId)?.Metadata.IsCurrentMap == true;
             if (isCurrent && _gridMapId != mapId)
             {
-                _grid = MapGrid.From(await _ctx.Api.GetMappingMapAsync(Serial));
+                _grid = MapGrid.From(await _ctx.Api.GetMappingMapAsync(Serial, Ct));
                 _gridMapId = mapId;
-                var live = await _ctx.Api.GetLiveCleaningMapAsync(Serial);
+                var live = await _ctx.Api.GetLiveCleaningMapAsync(Serial, Ct);
                 _robotPosition ??= live.RobotLocation;
                 _lastPath = live.CleanPath;
                 _liveObstacles = live.Obstacles;
@@ -529,6 +529,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             RebuildScene();
         }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex) { AddLog($"carte {mapId}: {ex.Message}"); }
     }
 
@@ -551,15 +552,42 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
     }
 
-    /// <summary>Saves the per-room clean types on the cloud so the phone app shows the same choice.</summary>
-    private async Task PersistZoneSettingsAsync()
+    private static readonly TimeSpan PersistZonesDebounce = TimeSpan.FromMilliseconds(500);
+    private CancellationTokenSource? _persistZonesPending;
+    private readonly SemaphoreSlim _persistZonesLock = new(1, 1);
+
+    /// <summary>
+    /// Saves the per-room settings on the cloud so the phone app shows the same choice. Every
+    /// ComboBox change lands here and the PUT carries the whole zone list, so changes are coalesced
+    /// for half a second and sent one at a time; the rooms' state at send time is what goes out.
+    /// The map and its rooms are pinned now, so switching maps during the wait cannot redirect
+    /// the save to the wrong map.
+    /// </summary>
+    private void ScheduleZoneSettingsPersist()
     {
-        if (SelectedMap is null) return;
+        if (SelectedMap is not { } map) return;
+        _persistZonesPending?.Cancel();
+        _persistZonesPending?.Dispose();
+        var pending = _persistZonesPending = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        _ = PersistZoneSettingsAsync(map, Zones.ToList(), pending.Token);
+    }
+
+    private async Task PersistZoneSettingsAsync(MapItem map, IReadOnlyList<ZoneItem> zones, CancellationToken pending)
+    {
         try
         {
-            await _ctx.Api.UpdateMapZonesAsync(Serial, SelectedMap.Id, Zones.Select(z => z.ToMetadata()).ToList());
-            AddLog("réglages des pièces enregistrés");
+            await Task.Delay(PersistZonesDebounce, pending);
+            await _persistZonesLock.WaitAsync(pending);
+            try
+            {
+                // Once it is on the wire a newer edit no longer cancels it: that edit queues its own
+                // PUT behind this one, and only shutting down aborts the request.
+                await _ctx.Api.UpdateMapZonesAsync(Serial, map.Id, zones.Select(z => z.ToMetadata()).ToList(), Ct);
+                AddLog("réglages des pièces enregistrés");
+            }
+            finally { _persistZonesLock.Release(); }
         }
+        catch (OperationCanceledException) when (pending.IsCancellationRequested) { } // superseded, or shutting down
         catch (Exception ex) { AddLog($"réglages des pièces: {ex.Message}"); }
     }
 
@@ -570,9 +598,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             History.Clear();
-            foreach (var c in await _ctx.Api.GetCleanHistoryAsync(Serial))
+            foreach (var c in await _ctx.Api.GetCleanHistoryAsync(Serial, Ct))
                 History.Add(new CleanItem(c));
         }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex) { AddLog($"historique: {ex.Message}"); }
     }
 
@@ -594,6 +623,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 var detail = await GetCleanDetailCachedAsync(item.Summary.CleanId);
                 item.Rooms = DescribeRooms(detail);
             }
+            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return; }
             catch (Exception ex) { item.Rooms = ""; AddLog($"pièces du nettoyage {item.Summary.CleanId}: {ex.Message}"); }
         }
     }
@@ -601,7 +631,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task<CleanDetail> GetCleanDetailCachedAsync(string cleanId)
     {
         if (!_cleanDetailCache.TryGetValue(cleanId, out var detail))
-            _cleanDetailCache[cleanId] = detail = await _ctx.Api.GetCleanDetailAsync(Serial, cleanId);
+            _cleanDetailCache[cleanId] = detail = await _ctx.Api.GetCleanDetailAsync(Serial, cleanId, Ct);
         return detail;
     }
 
@@ -650,14 +680,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 if (!_mapCache.TryGetValue(mapId, out var map))
                 {
-                    try { map = await _ctx.Api.GetPersistentMapAsync(Serial, mapId); _mapCache[mapId] = map; }
-                    catch (Exception ex) { AddLog($"carte {mapId} du nettoyage: {ex.Message}"); }
+                    try { map = await _ctx.Api.GetPersistentMapAsync(Serial, mapId, Ct); _mapCache[mapId] = map; }
+                    catch (Exception ex) when (!_lifetime.IsCancellationRequested) { AddLog($"carte {mapId} du nettoyage: {ex.Message}"); }
                 }
                 _historyMap = map;
             }
             HistoryMapName = Maps.FirstOrDefault(m => m.Id == mapId)?.Metadata.Name ?? mapId ?? "carte supprimée";
             RebuildHistoryScene();
         }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex) { AddLog($"nettoyage: {ex.Message}"); }
     }
 
@@ -683,7 +714,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (_session is null || _session.Status != RobotConnectionStatus.Connected) return;
         // Runs from an async-void timer tick: anything escaping here is an unhandled exception that
         // ends the process, and a periodic refresh is never worth that, whatever went wrong.
-        try { await _session.RefreshStateAsync(); }
+        try { await _session.RefreshStateAsync(Ct); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex) { AddLog($"état: {ex.Message}"); }
     }
 
@@ -696,9 +728,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await action(client);
             AddLog(label);
-            await Task.Delay(1500);
+            await Task.Delay(1500, Ct);
             await RefreshStateAsync();
         }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex)
         {
             Message = ex.Message;
@@ -931,6 +964,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public async Task ShutdownAsync()
     {
         _refresh.Stop();
+        _lifetime.Cancel();
         StopCaptureIfAny();
         await _ctx.DisposeAsync();
     }
@@ -940,10 +974,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (IsCapturing) StopCapture();
     }
 
-    /// <summary>The only disposable this owns outright is the capture file; the robot context is released by <see cref="ShutdownAsync"/>.</summary>
+    /// <summary>
+    /// Owns the capture file and its cancellation sources; the robot context is released by
+    /// <see cref="ShutdownAsync"/>. The persist lock is left alone on purpose: a PUT cancelled by
+    /// the lifetime token still releases it from a later continuation, and an unused SemaphoreSlim
+    /// holds nothing that needs disposing.
+    /// </summary>
     public void Dispose()
     {
         _refresh.Stop();
+        _lifetime.Cancel();
         StopCaptureIfAny();
+        _persistZonesPending?.Dispose();
+        _lifetime.Dispose();
     }
 }
