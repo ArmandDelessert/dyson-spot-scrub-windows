@@ -27,10 +27,17 @@ public sealed class RobotStateTracker
     /// endpoint only has a snapshot from whenever it was last polled). Each push is a flat array
     /// <c>[firstId, x1,y1,angle1,update1, x2,y2,angle2,update2, …, unixTimestamp]</c>; reset when a
     /// new task's ids restart from a lower value, or explicitly on <c>event.startClean.post</c>.
+    /// Always a snapshot: the list itself is appended to on the MQTT thread while the UI reads it
+    /// (typically later, from a dispatcher callback), and handing out the live list would let the
+    /// two collide mid-enumeration. <see cref="CleanPathChanged"/> carries a snapshot too.
     /// </summary>
-    public IReadOnlyList<RobotPosition> CleanPath => _cleanPath;
+    public IReadOnlyList<RobotPosition> CleanPath
+    {
+        get { lock (_cleanPathLock) return _cleanPath.ToArray(); }
+    }
 
     private readonly List<RobotPosition> _cleanPath = [];
+    private readonly object _cleanPathLock = new();
     private long? _lastCleanPathId;
 
     /// <summary>Applies one message. Returns true when the visible state changed.</summary>
@@ -92,9 +99,12 @@ public sealed class RobotStateTracker
                 return true;
 
             case "event.startClean.post":
-                _cleanPath.Clear();
-                _lastCleanPathId = null;
-                CleanPathChanged?.Invoke(_cleanPath);
+                lock (_cleanPathLock)
+                {
+                    _cleanPath.Clear();
+                    _lastCleanPathId = null;
+                }
+                CleanPathChanged?.Invoke([]);
                 EventReceived?.Invoke(method!, json);
                 return false;
 
@@ -118,15 +128,20 @@ public sealed class RobotStateTracker
         if (nums.Count < 6 || (nums.Count - 2) % 4 != 0) return;
 
         var firstId = (long)nums[0];
-        if (_lastCleanPathId is { } last && firstId < last) _cleanPath.Clear(); // a new task's ids restarted
-        _lastCleanPathId = firstId;
-
-        var pointCount = (nums.Count - 2) / 4;
-        for (var i = 0; i < pointCount; i++)
+        RobotPosition[] snapshot;
+        lock (_cleanPathLock)
         {
-            var b = 1 + i * 4;
-            _cleanPath.Add(new RobotPosition(firstId + i, nums[b], nums[b + 1], nums[b + 2], (int)nums[b + 3]));
+            if (_lastCleanPathId is { } last && firstId < last) _cleanPath.Clear(); // a new task's ids restarted
+            _lastCleanPathId = firstId;
+
+            var pointCount = (nums.Count - 2) / 4;
+            for (var i = 0; i < pointCount; i++)
+            {
+                var b = 1 + i * 4;
+                _cleanPath.Add(new RobotPosition(firstId + i, nums[b], nums[b + 1], nums[b + 2], (int)nums[b + 3]));
+            }
+            snapshot = _cleanPath.ToArray();
         }
-        CleanPathChanged?.Invoke(_cleanPath);
+        CleanPathChanged?.Invoke(snapshot);
     }
 }

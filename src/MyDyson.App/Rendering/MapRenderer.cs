@@ -305,11 +305,15 @@ public static class MapRenderer
     // only; invalidated only when the grid instance or the selected set actually changes.
     private static MapGrid? _cachedGrid;
     private static IReadOnlySet<string>? _cachedSelected;
+    private static MapPalette? _cachedPalette;
     private static WriteableBitmap? _cachedGridBitmap;
 
     private static WriteableBitmap BuildGridBitmap(MapGrid grid, IReadOnlySet<string>? selected)
     {
-        if (_cachedGridBitmap is not null && ReferenceEquals(_cachedGrid, grid) && SameSelection(_cachedSelected, selected))
+        // The palette is part of the key: the pixels bake in zone and obstacle colours, and a theme
+        // switch replaces the palette without touching the grid instance or the selection.
+        if (_cachedGridBitmap is not null && ReferenceEquals(_cachedGrid, grid) && ReferenceEquals(_cachedPalette, Palette)
+            && SameSelection(_cachedSelected, selected))
             return _cachedGridBitmap;
 
         var bmp = new WriteableBitmap(grid.Width, grid.Height, 96, 96, PixelFormats.Bgra32, null);
@@ -338,6 +342,7 @@ public static class MapRenderer
 
         _cachedGrid = grid;
         _cachedSelected = selected;
+        _cachedPalette = Palette;
         _cachedGridBitmap = bmp;
         return bmp;
     }

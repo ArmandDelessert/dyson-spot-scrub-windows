@@ -137,6 +137,26 @@ public class RobotStateTests
     }
 
     [Fact]
+    public void CleanPathHandsOutSnapshotsNotTheLiveList()
+    {
+        // The UI enumerates what it received later, on another thread, while the MQTT thread keeps
+        // appending: what the event and the property hand out must not change under its feet.
+        var tracker = new RobotStateTracker();
+        IReadOnlyList<RobotPosition>? received = null;
+        tracker.CleanPathChanged += p => received ??= p;   // keep the first snapshot only
+
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"1","method":"prop.post","params":{"cur_path":[1,0,0,0,1,10]}}"""));
+        var fromProperty = tracker.CleanPath;
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"2","method":"prop.post","params":{"cur_path":[2,1,1,0,1,11]}}"""));
+
+        Assert.Single(received!);
+        Assert.Single(fromProperty);
+        Assert.Equal(2, tracker.CleanPath.Count);
+    }
+
+    [Fact]
     public void VoiceDownloadStatusIsTracked()
     {
         var tracker = new RobotStateTracker();
