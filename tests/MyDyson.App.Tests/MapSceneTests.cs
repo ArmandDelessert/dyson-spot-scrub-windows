@@ -77,6 +77,33 @@ public class MapSceneTests
     }
 
     [Fact]
+    public void PathRunsSplitWhereTheActionOrTheRoomChangesAndShareTheBoundaryPoint()
+    {
+        static ZoneMetadata Meta(string id, string cleanType) =>
+            new(id, null, null, null, null, null, null, new ZoneSettings("auto", cleanType, "low", 1, 1, true));
+        var scene = new MapScene
+        {
+            Map = MapWith(Zone("10", (0, 0)), Zone("11", (1, 0))),
+            ZoneMetadata = [Meta("10", "vacuum"), Meta("11", "mop")],
+            Path =
+            [
+                new Point(0, 0, Update: 0),      // driving to the first room
+                new Point(0, 0.1, Update: 1),    // working in 10
+                new Point(0.05, 0.1, Update: 1),
+                new Point(1, 0, Update: 1),      // working in 11
+                new Point(1, 0.1, Update: 0),    // repositioning again
+                new Point(1, 0.2),               // no flag at all counts as repositioning
+            ],
+        };
+
+        Assert.Equal(
+            [new PathRun(0, 1, null), new PathRun(1, 3, CleanType.Vacuum), new PathRun(3, 4, CleanType.Mop), new PathRun(4, 5, null)],
+            scene.PathRuns);
+        Assert.Same(scene.PathRuns, scene.PathRuns); // computed once
+        Assert.Empty(new MapScene { Path = [new Point(0, 0)] }.PathRuns);
+    }
+
+    [Fact]
     public void ZoneLookupUsesTheGridWhenThereIsOneAndVisitedPointsOtherwise()
     {
         var grid = new MapGrid(new MapDimensions(2, 1, 1, 0, 0), [10, 11]);

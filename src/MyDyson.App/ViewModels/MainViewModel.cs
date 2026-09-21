@@ -190,7 +190,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string? _gridMapId;
     private PersistentMap? _map;
     private readonly Dictionary<string, PersistentMap> _mapCache = new();
-    private readonly Dictionary<string, CleanDetail> _cleanDetailCache = new();
+    private readonly Dictionary<string, Task<CleanDetail>> _cleanDetailCache = new();
     private int _nextOrder = 1;
     private bool _applyingState;
     /// <summary>Cancelled by <see cref="ShutdownAsync"/> so REST calls still in flight stop instead of landing on a view model that is going away.</summary>
@@ -415,9 +415,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             if (s.Consumables is { } cons)
             {
-                Consumables.Clear();
-                foreach (var c in cons)
-                    Consumables.Add(new ConsumableItem(DescribeConsumable(c.Type), c.Usage, c.NeedsRefill));
+                // Replace only the rows that changed: clearing and refilling on every state message
+                // (several a minute while cleaning) re-created every row's visuals for nothing.
+                var items = cons.Select(c => new ConsumableItem(DescribeConsumable(c.Type), c.Usage, c.NeedsRefill)).ToList();
+                if (items.Count != Consumables.Count)
+                {
+                    Consumables.Clear();
+                    foreach (var item in items) Consumables.Add(item);
+                }
+                else
+                {
+                    for (var i = 0; i < items.Count; i++)
+                        if (Consumables[i] != items[i]) Consumables[i] = items[i];
+                }
                 var solution = cons.FirstOrDefault(c => c.Type == "cleaningSolution");
                 SolutionStatus = solution is null ? "" : solution.NeedsRefill == true ? "À recharger" : "Prêt à l'emploi";
             }
@@ -628,11 +638,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Caches the download itself, not just its result: clicking a history row while the background
+    /// fill is already fetching that same clean must join that download (several hundred KB), not
+    /// start a second one. A failed download is forgotten so the next request retries.
+    /// </summary>
     private async Task<CleanDetail> GetCleanDetailCachedAsync(string cleanId)
     {
-        if (!_cleanDetailCache.TryGetValue(cleanId, out var detail))
-            _cleanDetailCache[cleanId] = detail = await _ctx.Api.GetCleanDetailAsync(Serial, cleanId, Ct);
-        return detail;
+        if (!_cleanDetailCache.TryGetValue(cleanId, out var pending))
+            _cleanDetailCache[cleanId] = pending = _ctx.Api.GetCleanDetailAsync(Serial, cleanId, Ct);
+        try
+        {
+            return await pending;
+        }
+        catch
+        {
+            if (ReferenceEquals(_cleanDetailCache.GetValueOrDefault(cleanId), pending)) _cleanDetailCache.Remove(cleanId);
+            throw;
+        }
     }
 
     /// <summary>

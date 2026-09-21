@@ -12,13 +12,21 @@ namespace MyDyson.Core;
 
 public sealed record RobotMessage(DateTimeOffset ReceivedUtc, string Topic, string Payload)
 {
-    public JsonNode? Json
-    {
-        get { try { return JsonNode.Parse(Payload); } catch (JsonException) { return null; } }
-    }
+    /// <summary>
+    /// Parsed once, here, rather than on every access: the client, the tracker and the capture all
+    /// read it for each message, and Kind alone used to parse twice. Shared, so consumers must not
+    /// mutate it or attach it to another tree (JdmProperties.Merge clones for that reason).
+    /// </summary>
+    public JsonNode? Json { get; } = ParseOrNull(Payload);
 
     /// <summary>"msg" for classic Dyson messages, "method" for the JDM (JSON-RPC-like) layer.</summary>
     public string? Kind => Json?["msg"]?.GetValue<string>() ?? Json?["method"]?.GetValue<string>();
+
+    private static JsonNode? ParseOrNull(string payload)
+    {
+        try { return JsonNode.Parse(payload); }
+        catch (JsonException) { return null; }
+    }
 }
 
 /// <summary>

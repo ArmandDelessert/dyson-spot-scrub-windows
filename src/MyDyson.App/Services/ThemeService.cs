@@ -53,16 +53,18 @@ public static class ThemeService
     private static ResourceDictionary Dark() => Build(
         bg: "#1e1e22", panel: "#26262c", card: "#2d2d34", input: "#2a2a30", border: "#3c3c44",
         text: "#f2f2f2", muted: "#9a9aa4", accent: "#7c5cff", accentText: "#ffffff",
-        selection: "#3a3a7a", danger: "#e05050", success: "#3cb43c", disabled: "#3a3a40", disabledText: "#808088");
+        selection: "#3a3a7a", danger: "#e05050", success: "#3cb43c", disabled: "#3a3a40", disabledText: "#808088",
+        hoverOverlay: "#1affffff", pressedOverlay: "#33ffffff");
 
     private static ResourceDictionary Light() => Build(
         bg: "#f6f6f8", panel: "#ffffff", card: "#eeeef2", input: "#ffffff", border: "#d0d0d8",
         text: "#1a1a1e", muted: "#5c5c66", accent: "#5b3ddf", accentText: "#ffffff",
-        selection: "#d6cffa", danger: "#c83c3c", success: "#2e9e2e", disabled: "#e2e2e6", disabledText: "#9a9aa4");
+        selection: "#d6cffa", danger: "#c83c3c", success: "#2e9e2e", disabled: "#e2e2e6", disabledText: "#9a9aa4",
+        hoverOverlay: "#14000000", pressedOverlay: "#29000000");
 
     private static ResourceDictionary Build(string bg, string panel, string card, string input, string border,
         string text, string muted, string accent, string accentText, string selection, string danger, string success,
-        string disabled, string disabledText)
+        string disabled, string disabledText, string hoverOverlay, string pressedOverlay)
     {
         var d = new ResourceDictionary();
         void Add(string key, string hex)
@@ -75,6 +77,10 @@ public static class ThemeService
         Add("BorderBrush", border); Add("TextBrush", text); Add("MutedBrush", muted); Add("AccentBrush", accent);
         Add("AccentTextBrush", accentText); Add("SelectionBrush", selection); Add("DangerBrush", danger);
         Add("SuccessBrush", success); Add("DisabledBrush", disabled); Add("DisabledTextBrush", disabledText);
+        // Translucent layers drawn over a control on hover and press, so one pair works on the
+        // accent and on the card backgrounds alike: white lightens in the dark theme, black darkens
+        // in the light one.
+        Add("HoverOverlayBrush", hoverOverlay); Add("PressedOverlayBrush", pressedOverlay);
         return d;
     }
 }

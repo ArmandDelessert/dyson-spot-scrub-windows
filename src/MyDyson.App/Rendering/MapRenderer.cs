@@ -28,6 +28,9 @@ public sealed record MapPalette(Color Background, Color Obstacle, Color LabelBac
         ActionColors: [Color.FromRgb(0x1f, 0x6f, 0xc9), Color.FromRgb(0x1a, 0x9e, 0x8c), Color.FromRgb(0x9a, 0x3c, 0xd6), Color.FromRgb(0xc9, 0x7a, 0x14)]);
 }
 
+/// <summary>Points [From, To] of a path drawn in one colour: null Action where the robot was only repositioning, else the room's clean type.</summary>
+public readonly record struct PathRun(int From, int To, CleanType? Action);
+
 /// <summary>Everything the map view knows how to draw. All optional; missing layers are skipped.</summary>
 public sealed class MapScene
 {
@@ -42,6 +45,46 @@ public sealed class MapScene
     public IReadOnlySet<string>? SelectedZoneIds { get; init; }
     /// <summary>Zone id to its position in the clean order, shown as a badge.</summary>
     public IReadOnlyDictionary<string, int>? ZoneOrder { get; init; }
+
+    /// <summary>
+    /// The driven path cut into same-action runs, which is what the renderer colours by. Finding
+    /// the room under each point is the expensive part (on maps without a grid it is a nearest-
+    /// visited-point search), and the scene is immutable, so it is done once here rather than on
+    /// every pan or zoom frame. Consecutive runs share their boundary point so the line stays joined.
+    /// </summary>
+    public IReadOnlyList<PathRun> PathRuns => _pathRuns ??= ComputePathRuns();
+    private IReadOnlyList<PathRun>? _pathRuns;
+
+    private List<PathRun> ComputePathRuns()
+    {
+        if (Path is not { Count: > 1 } path) return [];
+        var cleanTypeByZone = new Dictionary<string, CleanType>(StringComparer.Ordinal);
+        foreach (var z in ZoneMetadata ?? [])
+            cleanTypeByZone[z.Id] = CleanTypes.FromRest(z.Settings?.CleanType);
+
+        var runs = new List<PathRun>();
+        var start = 0;
+        var action = ActionAt(path[0]);
+        for (var i = 1; i < path.Count; i++)
+        {
+            var a = ActionAt(path[i]);
+            if (a == action) continue;
+            runs.Add(new PathRun(start, i, action));
+            start = i;
+            action = a;
+        }
+        runs.Add(new PathRun(start, path.Count - 1, action));
+        return runs;
+
+        // The data only confirms a binary "working or not" flag per point, not which tool was
+        // engaged, so the tool is inferred from the room's own setting rather than observed.
+        CleanType? ActionAt(CorePoint p)
+        {
+            if (p.Update is not 1) return null;
+            var zoneId = ZoneAt(p.X, p.Y);
+            return zoneId is not null && cleanTypeByZone.TryGetValue(zoneId, out var t) ? t : CleanType.Vacuum;
+        }
+    }
 
     /// <summary>World-space bounds (metres) of what is worth showing.</summary>
     public Rect? WorldBounds()
@@ -110,6 +153,79 @@ public static class MapRenderer
 {
     public static MapPalette Palette { get; set; } = MapPalette.Dark;
 
+    /// <summary>
+    /// Frozen brushes and pens, built once per palette instead of on every frame: a new
+    /// SolidColorBrush per draw call is cheap individually but adds up over the hundreds of calls
+    /// a pan gesture triggers per second. Frozen objects are also cheaper for WPF to render.
+    /// </summary>
+    private sealed class Resources
+    {
+        public readonly Brush Background;
+        public readonly Brush LabelText;
+        public readonly Brush LabelBackground;
+        public readonly Pen FurniturePen;
+        public readonly Brush FurnitureFill;
+        public readonly Pen PathPen;
+        public readonly Pen[] ActionPens;   // indexed by (int)CleanType, like MapPalette.ActionColors
+        private readonly Dictionary<(int Id, bool Dimmed), Brush> _zoneBrushes = [];
+
+        public static readonly Pen RestrictionPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xe0, 0x50, 0x50))), 2));
+        public static readonly Brush RestrictionFill = Frozen(new SolidColorBrush(Color.FromArgb(0x40, 0xe0, 0x50, 0x50)));
+        public static readonly Brush DockFill = Frozen(new SolidColorBrush(Color.FromRgb(0xff, 0xd7, 0x00)));
+        public static readonly Brush RobotFill = Frozen(new SolidColorBrush(Color.FromRgb(0x3c, 0xb4, 0x3c)));
+        public static readonly Brush ObstacleFill = Frozen(new SolidColorBrush(Color.FromRgb(0xe0, 0xa0, 0x30)));
+        public static readonly Pen BlackPen = Frozen(new Pen(Brushes.Black, 1));
+        public static readonly Pen RobotOutline = Frozen(new Pen(Brushes.White, 1.5));
+        public static readonly Pen RobotHeading = Frozen(new Pen(Brushes.White, 2));
+        public static readonly Typeface LabelFont = new("Segoe UI");
+        public static readonly Typeface BadgeFont = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+
+        public Resources(MapPalette p)
+        {
+            Background = Frozen(new SolidColorBrush(p.Background));
+            LabelText = Frozen(new SolidColorBrush(p.LabelText));
+            LabelBackground = Frozen(new SolidColorBrush(p.LabelBackground));
+            FurniturePen = Frozen(new Pen(Frozen(new SolidColorBrush(p.Furniture)), 1));
+            FurnitureFill = Frozen(new SolidColorBrush(Color.FromArgb(0x30, p.Furniture.R, p.Furniture.G, p.Furniture.B)));
+            PathPen = LinePen(p.Path);
+            ActionPens = [.. p.ActionColors.Select(LinePen)];
+        }
+
+        public Brush ZoneBrush(int zoneId, bool dimmed)
+        {
+            if (!_zoneBrushes.TryGetValue((zoneId, dimmed), out var brush))
+            {
+                var c = ZoneColor(zoneId);
+                _zoneBrushes[(zoneId, dimmed)] = brush = Frozen(new SolidColorBrush(dimmed ? Dim(c) : c));
+            }
+            return brush;
+        }
+
+        private static Pen LinePen(Color c) => Frozen(new Pen(Frozen(new SolidColorBrush(c)), 2) { LineJoin = PenLineJoin.Round });
+
+        private static T Frozen<T>(T freezable) where T : Freezable
+        {
+            freezable.Freeze();
+            return freezable;
+        }
+    }
+
+    private static Resources? _resources;
+    private static MapPalette? _resourcesPalette;
+
+    private static Resources Current
+    {
+        get
+        {
+            if (_resources is null || !ReferenceEquals(_resourcesPalette, Palette))
+            {
+                _resources = new Resources(Palette);
+                _resourcesPalette = Palette;
+            }
+            return _resources;
+        }
+    }
+
     // The golden angle conjugate spreads hues around the wheel so that consecutive zone ids never
     // land near each other, unlike a short fixed palette cycling modulo its length (8 rooms used to
     // repeat the same colour: see docs/protocole.md).
@@ -156,8 +272,8 @@ public static class MapRenderer
     /// <summary>Renders with an extra zoom about the viewport centre and a pan, both in screen pixels.</summary>
     public static void Render(DrawingContext dc, MapScene scene, Size size, out Matrix worldToScreen, double zoom = 1, Vector pan = default)
     {
-        var bg = new SolidColorBrush(Palette.Background);
-        dc.DrawRectangle(bg, null, new Rect(size));
+        var res = Current;
+        dc.DrawRectangle(res.Background, null, new Rect(size));
         var bounds = scene.WorldBounds();
         if (bounds is null)
         {
@@ -178,16 +294,14 @@ public static class MapRenderer
         else
             DrawVisitedPoints(dc, scene, m);
 
-        var furniturePen = new Pen(new SolidColorBrush(Palette.Furniture), 1);
-        var furnitureFill = new SolidColorBrush(Color.FromArgb(0x30, Palette.Furniture.R, Palette.Furniture.G, Palette.Furniture.B));
         foreach (var f in scene.Map?.Furniture ?? [])
-            DrawPolygon(dc, f.Points, m, furniturePen, furnitureFill);
+            DrawPolygon(dc, f.Points, m, res.FurniturePen, res.FurnitureFill);
 
         foreach (var r in scene.Map?.Restrictions ?? [])
-            DrawPolygon(dc, r.Points, m, new Pen(new SolidColorBrush(Color.FromRgb(0xe0, 0x50, 0x50)), 2), new SolidColorBrush(Color.FromArgb(0x40, 0xe0, 0x50, 0x50)));
+            DrawPolygon(dc, r.Points, m, Resources.RestrictionPen, Resources.RestrictionFill);
 
         if (scene.Path is { Count: > 1 } path)
-            DrawActionPath(dc, scene, path, m);
+            DrawActionPath(dc, res, scene, path, m);
 
         foreach (var o in scene.Obstacles ?? [])
         {
@@ -215,15 +329,15 @@ public static class MapRenderer
         if (scene.Dock is { } dock)
         {
             var p = m.Transform(new Point(dock.X, dock.Y));
-            dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0xff, 0xd7, 0x00)), new Pen(Brushes.Black, 1), new Rect(p.X - 6, p.Y - 6, 12, 12));
+            dc.DrawRectangle(Resources.DockFill, Resources.BlackPen, new Rect(p.X - 6, p.Y - 6, 12, 12));
         }
 
         if (scene.Robot is { } robot)
         {
             var p = m.Transform(new Point(robot.X, robot.Y));
-            dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(0x3c, 0xb4, 0x3c)), new Pen(Brushes.White, 1.5), p, 8, 8);
+            dc.DrawEllipse(Resources.RobotFill, Resources.RobotOutline, p, 8, 8);
             var tip = m.Transform(new Point(robot.X + 0.35 * Math.Cos(robot.Angle), robot.Y + 0.35 * Math.Sin(robot.Angle)));
-            dc.DrawLine(new Pen(Brushes.White, 2), p, tip);
+            dc.DrawLine(Resources.RobotHeading, p, tip);
         }
     }
 
@@ -231,29 +345,21 @@ public static class MapRenderer
         Render(dc, scene, size, out worldToScreen, 1, default);
 
     /// <summary>
-    /// Draws the driven path in consecutive same-colour runs: grey where the robot was only
-    /// repositioning (point's "update" is 0 or missing, e.g. path data with no such field), and
-    /// otherwise the colour of the clean type assigned to whichever room the point falls in — the
-    /// data only confirms a binary "working or not" flag per point, not which tool was engaged, so
-    /// the tool colour is inferred from the room's own setting rather than observed directly.
+    /// Draws the driven path run by run (see <see cref="MapScene.PathRuns"/>): in the plain path
+    /// colour where the robot was only repositioning (point's "update" is 0 or missing, e.g. path
+    /// data with no such field), otherwise in the colour of the clean type of the room it was in.
     /// </summary>
-    private static void DrawActionPath(DrawingContext dc, MapScene scene, IReadOnlyList<CorePoint> path, Matrix m)
+    private static void DrawActionPath(DrawingContext dc, Resources res, MapScene scene, IReadOnlyList<CorePoint> path, Matrix m)
     {
-        var runStart = 0;
-        var runColor = ActionColorAt(scene, path[0]);
-        for (var i = 1; i < path.Count; i++)
+        foreach (var run in scene.PathRuns)
         {
-            var color = ActionColorAt(scene, path[i]);
-            if (color == runColor) continue;
-            DrawPathRun(dc, path, runStart, i, runColor, m);
-            runStart = i;
-            runColor = color;
+            var pen = run.Action is { } t ? res.ActionPens[(int)t % res.ActionPens.Length] : res.PathPen;
+            DrawPathRun(dc, path, run.From, run.To, pen, m);
         }
-        DrawPathRun(dc, path, runStart, path.Count - 1, runColor, m);
     }
 
     /// <summary>Draws points [from, to] (inclusive) as one polyline; a single point has nothing to join, so it's skipped.</summary>
-    private static void DrawPathRun(DrawingContext dc, IReadOnlyList<CorePoint> path, int from, int to, Color color, Matrix m)
+    private static void DrawPathRun(DrawingContext dc, IReadOnlyList<CorePoint> path, int from, int to, Pen pen, Matrix m)
     {
         if (to <= from) return;
         var geo = new StreamGeometry();
@@ -264,16 +370,7 @@ public static class MapRenderer
                 g.LineTo(m.Transform(new Point(path[j].X, path[j].Y)), true, false);
         }
         geo.Freeze();
-        dc.DrawGeometry(null, new Pen(new SolidColorBrush(color), 2) { LineJoin = PenLineJoin.Round }, geo);
-    }
-
-    private static Color ActionColorAt(MapScene scene, CorePoint p)
-    {
-        if (p.Update is not 1) return Palette.Path;
-        var zoneId = scene.ZoneAt(p.X, p.Y);
-        var settings = zoneId is null ? null : scene.ZoneMetadata?.FirstOrDefault(z => z.Id == zoneId)?.Settings;
-        var type = CleanTypes.FromRest(settings?.CleanType);
-        return Palette.ActionColors[(int)type % Palette.ActionColors.Length];
+        dc.DrawGeometry(null, pen, geo);
     }
 
     private static void DrawObstacleMarker(DrawingContext dc, Point p)
@@ -286,7 +383,7 @@ public static class MapRenderer
             g.LineTo(new Point(p.X - 6, p.Y + 5), true, true);
         }
         geo.Freeze();
-        dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(0xe0, 0xa0, 0x30)), new Pen(Brushes.Black, 1), geo);
+        dc.DrawGeometry(Resources.ObstacleFill, Resources.BlackPen, geo);
         dc.DrawEllipse(Brushes.Black, null, new Point(p.X, p.Y + 1.5), 0.8, 0.8);
     }
 
@@ -296,7 +393,7 @@ public static class MapRenderer
     /// haven't been observed in a capture yet, so there's nothing to distinguish them by here).
     /// </summary>
     private static void DrawDirtMarker(DrawingContext dc, Point p) =>
-        dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(0x3c, 0xb4, 0x3c)), new Pen(Brushes.Black, 1), p, 5, 5);
+        dc.DrawEllipse(Resources.RobotFill, Resources.BlackPen, p, 5, 5);
 
     // Panning/zooming re-renders every frame but never changes the grid's own pixels, only where
     // they're drawn: rebuilding an 84 000-cell bitmap on every single frame (as this used to do)
@@ -389,9 +486,8 @@ public static class MapRenderer
         foreach (var z in scene.Map?.Zones ?? [])
         {
             if (z.Visited is not { Count: > 0 } pts || !int.TryParse(z.Id, out var id)) continue;
-            var c = ZoneColor(id);
-            if (scene.SelectedZoneIds is { Count: > 0 } sel && !sel.Contains(z.Id)) c = Dim(c);
-            var brush = new SolidColorBrush(c);
+            var dimmed = scene.SelectedZoneIds is { Count: > 0 } sel && !sel.Contains(z.Id);
+            var brush = Current.ZoneBrush(id, dimmed);
             var r = Math.Max(2, 0.12 * m.M11);   // cell-sized dots
             foreach (var p in pts)
                 dc.DrawEllipse(brush, null, m.Transform(new Point(p.X, p.Y)), r, r);
@@ -418,9 +514,9 @@ public static class MapRenderer
     private static Rect DrawLabel(DrawingContext dc, string text, Point at)
     {
         var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-            new Typeface("Segoe UI"), 12, new SolidColorBrush(Palette.LabelText), 1.0);
+            Resources.LabelFont, 12, Current.LabelText, 1.0);
         var rect = new Rect(at.X - ft.Width / 2 - 4, at.Y - ft.Height / 2 - 2, ft.Width + 8, ft.Height + 4);
-        dc.DrawRoundedRectangle(new SolidColorBrush(Palette.LabelBackground), null, rect, 3, 3);
+        dc.DrawRoundedRectangle(Current.LabelBackground, null, rect, 3, 3);
         dc.DrawText(ft, new Point(rect.X + 4, rect.Y + 2));
         return rect;
     }
@@ -428,15 +524,15 @@ public static class MapRenderer
     private static void DrawBadge(DrawingContext dc, string text, Point at)
     {
         var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-            new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), 11, Brushes.Black, 1.0);
-        dc.DrawEllipse(Brushes.White, new Pen(Brushes.Black, 1), at, 9, 9);
+            Resources.BadgeFont, 11, Brushes.Black, 1.0);
+        dc.DrawEllipse(Brushes.White, Resources.BlackPen, at, 9, 9);
         dc.DrawText(ft, new Point(at.X - ft.Width / 2, at.Y - ft.Height / 2));
     }
 
     private static void DrawCentredText(DrawingContext dc, string text, Size size)
     {
         var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-            new Typeface("Segoe UI"), 16, new SolidColorBrush(Palette.LabelText), 1.0);
+            Resources.LabelFont, 16, Current.LabelText, 1.0);
         dc.DrawText(ft, new Point((size.Width - ft.Width) / 2, (size.Height - ft.Height) / 2));
     }
 

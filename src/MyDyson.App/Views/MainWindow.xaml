@@ -35,7 +35,7 @@
             <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin" Value="0,0,8,8"/>
             <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
@@ -43,10 +43,27 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
+                    <!-- Padding is 10,4 plus a 2 px ring slot, the same 12,6 footprint as before the
+                         ring existed. Hover and press tint the button through a translucent overlay rather than
+                         swapping Background, so the same template serves the accent and the
+                         Secondary (card-coloured) buttons; keyboard focus draws a ring. -->
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4" BorderThickness="2" BorderBrush="Transparent">
+                            <Border x:Name="Overlay" Background="Transparent" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Overlay" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Overlay" Property="Background" Value="{DynamicResource PressedOverlayBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -54,6 +71,7 @@
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter Property="Background" Value="{DynamicResource DisabledBrush}"/>
                     <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -73,12 +91,16 @@
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
+                    <!-- The frame lives here rather than inside the toggle's own template so the
+                         ComboBox's triggers can recolour it: hover and keyboard focus (which the
+                         ComboBox itself holds, the toggle is not focusable) both show on the border. -->
                     <ControlTemplate TargetType="ComboBox">
                         <Grid>
+                            <Border x:Name="Bd" Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"/>
                             <ToggleButton IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" Focusable="False" ClickMode="Press">
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
-                                        <Border Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+                                        <Border Background="Transparent">
                                             <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,9,0" Data="M0,0 L4,4 L8,0" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.5"/>
                                         </Border>
                                     </ControlTemplate>
@@ -96,6 +118,20 @@
                                 </Border>
                             </Popup>
                         </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource MutedBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DisabledBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -167,6 +203,14 @@
                             <ContentPresenter ContentSource="Header" TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                            </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
@@ -244,7 +288,7 @@
                             <TextBlock Text="{Binding FaultText}" Foreground="{DynamicResource DangerBrush}" FontWeight="SemiBold" TextWrapping="Wrap"
                                        Visibility="{Binding HasRealFault, Converter={StaticResource Show}}"/>
                             <Grid Margin="0,10,0,0">
-                                <ProgressBar Value="{Binding Battery, Mode=OneWay}" Maximum="100" Height="18" Foreground="{DynamicResource SuccessBrush}" Background="{DynamicResource CardBrush}" BorderThickness="0"/>
+                                <ProgressBar Value="{Binding Battery, Mode=OneWay}" AutomationProperties.Name="Batterie" Maximum="100" Height="18" Foreground="{DynamicResource SuccessBrush}" Background="{DynamicResource CardBrush}" BorderThickness="0"/>
                                 <TextBlock Text="{Binding Battery, StringFormat='{}{0} %'}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                             </Grid>
                             <WrapPanel Margin="0,12,0,-8">
@@ -304,17 +348,26 @@
                                                             <Run Text="{Binding Area, Mode=OneWay, StringFormat='({0:F1} m²)'}" Foreground="{DynamicResource MutedBrush}"/>
                                                         </TextBlock>
                                                     </CheckBox>
-                                                    <ToggleButton Grid.Column="2" IsChecked="{Binding IsExpanded}" Width="22" Height="20" Padding="0" Cursor="Hand">
+                                                    <ToggleButton Grid.Column="2" IsChecked="{Binding IsExpanded}" Width="22" Height="20" Padding="0" Cursor="Hand"
+                                                                  AutomationProperties.Name="{Binding DisplayName, StringFormat='Réglages de {0}'}">
                                                         <ToggleButton.Style>
                                                             <Style TargetType="ToggleButton">
                                                                 <Setter Property="Content" Value="▸"/>
                                                                 <Setter Property="Template">
                                                                     <Setter.Value>
                                                                         <ControlTemplate TargetType="ToggleButton">
-                                                                            <Border Background="Transparent">
+                                                                            <Border x:Name="Bd" Background="Transparent" CornerRadius="3" BorderThickness="1" BorderBrush="Transparent">
                                                                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                                   TextElement.Foreground="{DynamicResource MutedBrush}"/>
                                                                             </Border>
+                                                                            <ControlTemplate.Triggers>
+                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                                                                                </Trigger>
+                                                                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                                                </Trigger>
+                                                                            </ControlTemplate.Triggers>
                                                                         </ControlTemplate>
                                                                     </Setter.Value>
                                                                 </Setter>
@@ -388,7 +441,7 @@
                                                 <ColumnDefinition Width="70"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                                            <ProgressBar Grid.Column="1" Value="{Binding Remaining, Mode=OneWay}" Maximum="100" Height="8" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource CardBrush}" BorderThickness="0" VerticalAlignment="Center"/>
+                                            <ProgressBar Grid.Column="1" Value="{Binding Remaining, Mode=OneWay}" AutomationProperties.Name="{Binding Name}" Maximum="100" Height="8" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource CardBrush}" BorderThickness="0" VerticalAlignment="Center"/>
                                             <TextBlock Grid.Column="2" Text="{Binding Display}" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Muted}"/>
                                         </Grid>
                                     </DataTemplate>
@@ -412,7 +465,7 @@
                                 Clic/tape : sélectionne une pièce, efface la sélection en dehors. Double-clic/double-tape en dehors : réinitialise le zoom. Molette ou pincement pour zoomer, glisser pour déplacer.
                             </TextBlock>
                         </DockPanel>
-                        <controls:MapView x:Name="MapCanvas" Scene="{Binding Scene}"/>
+                        <controls:MapView x:Name="MapCanvas" Scene="{Binding Scene}" AutomationProperties.Name="Carte de la maison"/>
                     </DockPanel>
                 </TabItem>
 
@@ -458,7 +511,7 @@
                                     <Run Text="Résultat : "/><Run Text="{Binding HistoryResultText, Mode=OneWay}" FontWeight="SemiBold"/>
                                 </TextBlock>
                             </StackPanel>
-                            <controls:MapView x:Name="HistoryCanvas" Scene="{Binding HistoryScene}"/>
+                            <controls:MapView x:Name="HistoryCanvas" Scene="{Binding HistoryScene}" AutomationProperties.Name="Trajet du nettoyage sélectionné"/>
                         </DockPanel>
                     </Grid>
                 </TabItem>
@@ -509,7 +562,7 @@
                                     <CheckBox IsChecked="{Binding Alarm}" FontWeight="SemiBold" Content="Activer les commandes vocales du robot" Margin="0,0,0,10"/>
                                     <TextBlock Text="Volume" FontWeight="SemiBold"/>
                                     <StackPanel Orientation="Horizontal">
-                                        <Slider Value="{Binding Volume}" Minimum="0" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="True" Width="200" VerticalAlignment="Center"/>
+                                        <Slider Value="{Binding Volume}" AutomationProperties.Name="Volume" Minimum="0" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="True" Width="200" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding Volume}" Margin="10,0,10,0" VerticalAlignment="Center" Width="30"/>
                                         <Button Content="Appliquer" Command="{Binding ApplyVolumeCommand}" Margin="0"/>
                                     </StackPanel>
