@@ -409,7 +409,7 @@
                                 <Button Content="Exporter en PNG" Command="{Binding ExportMapCommand}" Style="{StaticResource Secondary}" Margin="0"/>
                             </StackPanel>
                             <TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap">
-                                Clic/tape : sélectionne une pièce, efface la sélection en dehors. Double-clic/double-tape : zoome sur une pièce, réinitialise le zoom en dehors. Molette ou pincement pour zoomer, glisser pour déplacer.
+                                Clic/tape : sélectionne une pièce, efface la sélection en dehors. Double-clic/double-tape en dehors : réinitialise le zoom. Molette ou pincement pour zoomer, glisser pour déplacer.
                             </TextBlock>
                         </DockPanel>
                         <controls:MapView x:Name="MapCanvas" Scene="{Binding Scene}"/>

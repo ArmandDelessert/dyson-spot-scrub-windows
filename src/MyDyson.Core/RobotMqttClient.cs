@@ -635,12 +635,25 @@ public sealed class RobotMqttClient : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        try
+        // Both a graceful MQTT DISCONNECT and the client's own Dispose() have been observed to hang
+        // against this broker for minutes, CPU idle throughout — clearly stuck waiting on the network
+        // rather than doing anything, and not something a CancellationToken passed to DisconnectAsync
+        // reliably cuts short. Never worth blocking app shutdown on: run the whole best-effort cleanup
+        // on its own thread and simply stop waiting on it after a few seconds. If it does eventually
+        // finish in the background that's fine; if it never does, it can't hold up the process, since
+        // thread-pool threads don't prevent exit the way a foreground Thread would.
+        var cleanup = Task.Run(() =>
         {
-            if (_client.IsConnected)
-                await _client.DisconnectAsync().ConfigureAwait(false);
-        }
-        catch { /* best effort */ }
-        _client.Dispose();
+            try
+            {
+                if (_client.IsConnected) _client.DisconnectAsync().GetAwaiter().GetResult();
+            }
+            catch { /* best effort */ }
+            finally
+            {
+                try { _client.Dispose(); } catch { /* best effort */ }
+            }
+        });
+        await Task.WhenAny(cleanup, Task.Delay(TimeSpan.FromSeconds(3))).ConfigureAwait(false);
     }
 }

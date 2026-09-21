@@ -89,18 +89,28 @@ public partial class App : Application
                 var tab = tabIdx >= 0 && tabIdx + 1 < args.Length && int.TryParse(args[tabIdx + 1], out var t) ? t : 0;
                 _ = Task.Run(async () =>
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(seconds));
-                    // --zones 11,10 simulates clicks on rooms, in that order.
-                    var zonesIdx = Array.IndexOf(args, "--zones");
-                    await Dispatcher.InvokeAsync(() =>
+                    try
                     {
-                        if (zonesIdx >= 0 && zonesIdx + 1 < args.Length)
-                            foreach (var z in args[zonesIdx + 1].Split(',')) main.ClickZone(z);
-                        main.SelectTab(tab);
-                    });
-                    await Task.Delay(500);
-                    await Dispatcher.InvokeAsync(() => main.SaveScreenshot(args[shot + 1]));
-                    Shutdown();
+                        await Task.Delay(TimeSpan.FromSeconds(seconds));
+                        // --zones 11,10 simulates clicks on rooms, in that order.
+                        var zonesIdx = Array.IndexOf(args, "--zones");
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            if (zonesIdx >= 0 && zonesIdx + 1 < args.Length)
+                                foreach (var z in args[zonesIdx + 1].Split(',')) main.ClickZone(z);
+                            main.SelectTab(tab);
+                        });
+                        await Task.Delay(500);
+                        await Dispatcher.InvokeAsync(() => main.SaveScreenshot(args[shot + 1]));
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"--screenshot failed: {ex}");
+                    }
+                    // A diagnostic one-shot process has no reason to wait for a graceful window
+                    // close or MQTT teardown (observed to sometimes hang for minutes against this
+                    // broker): the PNG is already on disk, so exit immediately regardless.
+                    Environment.Exit(0);
                 });
             }
 

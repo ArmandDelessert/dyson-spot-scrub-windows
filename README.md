@@ -87,8 +87,8 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   gris là où il ne fait que se déplacer et dans la couleur du type de nettoyage de la pièce là où il
   travaille réellement. Icônes pour les obstacles et les taches détectés. Clic ou tape pour
   sélectionner une pièce, ou pour effacer la sélection en dehors d'une pièce ; double-clic ou
-  double-tape pour zoomer sur une pièce, ou pour réinitialiser le zoom en dehors d'une pièce.
-  Molette ou pincement à deux doigts pour zoomer, glisser (souris ou un doigt) pour déplacer la vue.
+  double-tape en dehors d'une pièce pour réinitialiser le zoom. Molette ou pincement à deux doigts
+  pour zoomer, glisser (souris ou un doigt) pour déplacer la vue.
   Export en PNG. Les pièces d'un type reconnu (cuisine, chambre, salon…) portent le même nom que
   dans l'application mobile, même quand le nom enregistré sur le compte diffère.
 - **Historique** : date, durée, fin, carte, pièces réellement nettoyées, surface, batterie et
