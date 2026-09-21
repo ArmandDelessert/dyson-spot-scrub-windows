@@ -498,6 +498,12 @@ public partial class MainViewModel : ObservableObject
         if (z is not null) z.Selected = !z.Selected;
     }
 
+    /// <summary>Called by the map view when the user clicks/taps empty map space.</summary>
+    public void ClearSelection()
+    {
+        foreach (var z in Zones) z.Selected = false;
+    }
+
     private async Task LoadMapGeometryAsync(string mapId)
     {
         try

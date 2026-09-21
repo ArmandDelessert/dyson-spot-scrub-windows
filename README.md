@@ -85,10 +85,12 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 - **Carte** : grille d'occupation colorée par pièce, meubles, station, position du robot, tracé en
   temps réel du nettoyage en cours, construit au fil de l'eau depuis le flux `cur_path` du robot, en
   gris là où il ne fait que se déplacer et dans la couleur du type de nettoyage de la pièce là où il
-  travaille réellement. Icônes pour les obstacles détectés. Clic pour sélectionner une pièce, molette
-  pour zoomer, glisser pour déplacer. Export en PNG. Les pièces d'un type reconnu (cuisine, chambre,
-  salon…) portent le même nom que dans l'application mobile, même quand le nom enregistré sur le
-  compte diffère.
+  travaille réellement. Icônes pour les obstacles et les taches détectés. Clic ou tape pour
+  sélectionner une pièce, ou pour effacer la sélection en dehors d'une pièce ; double-clic ou
+  double-tape pour zoomer sur une pièce, ou pour réinitialiser le zoom en dehors d'une pièce.
+  Molette ou pincement à deux doigts pour zoomer, glisser (souris ou un doigt) pour déplacer la vue.
+  Export en PNG. Les pièces d'un type reconnu (cuisine, chambre, salon…) portent le même nom que
+  dans l'application mobile, même quand le nom enregistré sur le compte diffère.
 - **Historique** : date, durée, fin, carte, pièces réellement nettoyées, surface, batterie et
   fautes pour chaque nettoyage. Les pièces se remplissent en arrière-plan une par une après le
   chargement de la liste, chacune nécessitant le détail complet de son nettoyage (l'API ne dit pas,

@@ -6,8 +6,12 @@ using MyDyson.App.Rendering;
 namespace MyDyson.App.Controls;
 
 /// <summary>
-/// Draws a <see cref="MapScene"/>, with mouse-wheel zoom about the cursor, drag to pan, and a click
-/// that reports the zone under the cursor through <see cref="ZoneClicked"/>.
+/// Draws a <see cref="MapScene"/>. Mouse wheel or two-finger pinch zoom about the cursor/pinch
+/// centre; drag or single-finger swipe pans. A click or tap toggles the room underneath through
+/// <see cref="ZoneClicked"/>, or raises <see cref="EmptySpaceClicked"/> to clear the selection when
+/// there is no room there. A double click or double tap zooms in on a room instead, or resets the
+/// view when it lands on empty space — the same split, on purpose, so the gesture always means
+/// "act on this room" vs. "act on the whole map".
 /// </summary>
 public sealed class MapView : FrameworkElement
 {
@@ -21,8 +25,10 @@ public sealed class MapView : FrameworkElement
         set => SetValue(SceneProperty, value);
     }
 
-    /// <summary>Raised with the zone id when the user clicks a room without dragging.</summary>
+    /// <summary>Raised with the zone id on a single click/tap on a room (also fires for the first half of a double click/tap, which then also zooms — the same harmless order as double-clicking a file icon both selecting and opening it).</summary>
     public event Action<string>? ZoneClicked;
+    /// <summary>Raised on a single click/tap that lands on empty map space, to clear the current room selection.</summary>
+    public event Action? EmptySpaceClicked;
 
     public Matrix WorldToScreen { get; private set; } = Matrix.Identity;
     public double Zoom { get; private set; } = 1;
@@ -31,10 +37,17 @@ public sealed class MapView : FrameworkElement
     private Vector _panAtDragStart;
     private bool _dragged;
 
+    private const double DoubleTapZoomFactor = 1.8;
+    private static readonly TimeSpan DoubleTapWindow = TimeSpan.FromMilliseconds(450);
+    private const double DoubleTapMaxDistance = 24;
+    private DateTime _lastTapTimeUtc;
+    private Point _lastTapPosition;
+
     public MapView()
     {
         Focusable = true;
         ClipToBounds = true;
+        IsManipulationEnabled = true;
     }
 
     public void ResetView()
@@ -59,17 +72,7 @@ public sealed class MapView : FrameworkElement
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
-        var factor = e.Delta > 0 ? 1.2 : 1 / 1.2;
-        var newZoom = Math.Clamp(Zoom * factor, 0.5, 12);
-        factor = newZoom / Zoom;
-        // Keep the world point under the cursor fixed: the zoom is about the viewport centre, so
-        // move the pan by the cursor's offset from the centre, scaled.
-        var centre = new Point(ActualWidth / 2, ActualHeight / 2);
-        var cursor = e.GetPosition(this);
-        var offset = cursor - centre;
-        _pan = (_pan - offset) * factor + offset;
-        Zoom = newZoom;
-        InvalidateVisual();
+        ZoomAbout(e.GetPosition(this), e.Delta > 0 ? 1.2 : 1 / 1.2);
         e.Handled = true;
     }
 
@@ -98,9 +101,74 @@ public sealed class MapView : FrameworkElement
         ReleaseMouseCapture();
         var wasClick = _dragStart is not null && !_dragged;
         _dragStart = null;
-        if (wasClick && ToWorld(e.GetPosition(this)) is { } w && Scene?.ZoneAt(w.X, w.Y) is { } zone)
-            ZoneClicked?.Invoke(zone);
+        if (wasClick) HandleTap(e.GetPosition(this), e.ClickCount >= 2);
         e.Handled = true;
+    }
+
+    // ---- Touch: single finger pans, two fingers pinch-zoom, a still touch is a tap. WPF routes all
+    // touch through manipulation events rather than promoting it to mouse events once a control opts
+    // in via IsManipulationEnabled, so tap/double-tap have no separate routed event to lean on and
+    // are detected here from a manipulation whose net movement and scale stayed negligible. ----
+
+    protected override void OnManipulationStarting(ManipulationStartingEventArgs e)
+    {
+        base.OnManipulationStarting(e);
+        e.ManipulationContainer = this;
+    }
+
+    protected override void OnManipulationDelta(ManipulationDeltaEventArgs e)
+    {
+        base.OnManipulationDelta(e);
+        var scale = e.DeltaManipulation.Scale.X;
+        if (Math.Abs(scale - 1) > 0.0005) ZoomAbout(e.ManipulationOrigin, scale);
+        if (e.DeltaManipulation.Translation.Length > 0) _pan += e.DeltaManipulation.Translation;
+        InvalidateVisual();
+        e.Handled = true;
+    }
+
+    protected override void OnManipulationCompleted(ManipulationCompletedEventArgs e)
+    {
+        base.OnManipulationCompleted(e);
+        var total = e.TotalManipulation;
+        if (total.Translation.Length < 6 && Math.Abs(total.Scale.X - 1) < 0.03)
+        {
+            var pos = e.ManipulationOrigin;
+            var now = DateTime.UtcNow;
+            var isDoubleTap = now - _lastTapTimeUtc < DoubleTapWindow && (pos - _lastTapPosition).Length < DoubleTapMaxDistance;
+            // A used double-tap can't itself chain into a triple-tap being read as another double.
+            _lastTapTimeUtc = isDoubleTap ? DateTime.MinValue : now;
+            _lastTapPosition = pos;
+            HandleTap(pos, isDoubleTap);
+        }
+        e.Handled = true;
+    }
+
+    /// <summary>Single click/tap toggles a room or clears the selection; the double variant zooms instead.</summary>
+    private void HandleTap(Point pos, bool isDouble)
+    {
+        var zone = ToWorld(pos) is { } w ? Scene?.ZoneAt(w.X, w.Y) : null;
+        if (isDouble)
+        {
+            if (zone is not null) ZoomAbout(pos, DoubleTapZoomFactor);
+            else ResetView();
+        }
+        else
+        {
+            if (zone is not null) ZoneClicked?.Invoke(zone);
+            else EmptySpaceClicked?.Invoke();
+        }
+    }
+
+    /// <summary>Scales by <paramref name="factor"/> while keeping the world point under <paramref name="cursor"/> fixed.</summary>
+    private void ZoomAbout(Point cursor, double factor)
+    {
+        var newZoom = Math.Clamp(Zoom * factor, 0.5, 12);
+        factor = newZoom / Zoom;
+        var centre = new Point(ActualWidth / 2, ActualHeight / 2);
+        var offset = cursor - centre;
+        _pan = (_pan - offset) * factor + offset;
+        Zoom = newZoom;
+        InvalidateVisual();
     }
 
     /// <summary>Screen point to world metres, using the last render's transform.</summary>

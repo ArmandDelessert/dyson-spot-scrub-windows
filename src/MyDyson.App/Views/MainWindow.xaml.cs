@@ -18,6 +18,7 @@ public partial class MainWindow : Window
         _vm = new MainViewModel(ctx);
         DataContext = _vm;
         MapCanvas.ZoneClicked += _vm.ToggleZone;
+        MapCanvas.EmptySpaceClicked += _vm.ClearSelection;
         _vm.LoggedOut += () => { LoggedOut?.Invoke(); Close(); };
         _vm.NotifyRequested += (title, text) => _notifications.Show(title, text, onClick: () =>
         {

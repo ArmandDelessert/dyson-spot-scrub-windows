@@ -408,7 +408,9 @@
                                 <Button Content="Réinitialiser le zoom" Click="ResetZoom_Click" Style="{StaticResource Secondary}" Margin="0,0,8,0"/>
                                 <Button Content="Exporter en PNG" Command="{Binding ExportMapCommand}" Style="{StaticResource Secondary}" Margin="0"/>
                             </StackPanel>
-                            <TextBlock Text="Cliquez une pièce pour la sélectionner, molette pour zoomer, glissez pour déplacer." Style="{StaticResource Muted}" VerticalAlignment="Center"/>
+                            <TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap">
+                                Clic/tape : sélectionne une pièce, efface la sélection en dehors. Double-clic/double-tape : zoome sur une pièce, réinitialise le zoom en dehors. Molette ou pincement pour zoomer, glisser pour déplacer.
+                            </TextBlock>
                         </DockPanel>
                         <controls:MapView x:Name="MapCanvas" Scene="{Binding Scene}"/>
                     </DockPanel>
