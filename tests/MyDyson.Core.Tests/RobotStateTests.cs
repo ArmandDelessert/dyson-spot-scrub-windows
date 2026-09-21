@@ -157,6 +157,27 @@ public class RobotStateTests
     }
 
     [Fact]
+    public void MalformedCleanPathBatchesAreIgnoredWithoutLosingThePath()
+    {
+        var tracker = new RobotStateTracker();
+        var pushes = 0;
+        tracker.CleanPathChanged += _ => pushes++;
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"1","method":"prop.post","params":{"cur_path":[7,0.1,0.2,0,1,10]}}"""));
+
+        // A non-number, a length that is not 2 + 4n, and a batch too short to hold a point: none
+        // of them touches the accumulated path, but the rest of the push is still merged.
+        foreach (var bad in new[] { "[8,\"x\",0,0,1,11]", "[8,0,0,0,1,0,12]", "[8,13]", "[]", "{}", "5" })
+            tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+                $$$"""{"msgId":"2","method":"prop.post","params":{"cur_path":{{{bad}}},"cleaning_area":42}}"""));
+
+        Assert.Equal(1, pushes);
+        var only = Assert.Single(tracker.CleanPath);
+        Assert.Equal(7, only.Id);
+        Assert.Equal(42, tracker.Jdm.CleaningArea);
+    }
+
+    [Fact]
     public void VoiceDownloadStatusIsTracked()
     {
         var tracker = new RobotStateTracker();

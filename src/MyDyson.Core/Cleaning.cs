@@ -108,7 +108,7 @@ public static class CleaningSequence
     public const int IndexSelected = 8;
     public const int IndexOrder = 10;
 
-    public static async Task StartAsync(RobotMqttClient robot, long mapId, IReadOnlyList<RoomSelection> rooms, CancellationToken ct = default)
+    public static async Task StartAsync(IRobotCommands robot, long mapId, IReadOnlyList<RoomSelection> rooms, CancellationToken ct = default)
     {
         if (rooms.Count == 0) throw new ArgumentException("At least one room is required.", nameof(rooms));
 

@@ -5,6 +5,7 @@
     <Project Path="src/MyDyson.Core/MyDyson.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/MyDyson.App.Tests/MyDyson.App.Tests.csproj" />
     <Project Path="tests/MyDyson.Core.Tests/MyDyson.Core.Tests.csproj" />
   </Folder>
 </Solution>

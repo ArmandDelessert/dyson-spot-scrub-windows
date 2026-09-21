@@ -32,7 +32,7 @@ public sealed record RobotMessage(DateTimeOffset ReceivedUtc, string Topic, stri
 ///
 /// The client subscribes to +/{serial}/# and adopts whatever prefix the robot really publishes on.
 /// </summary>
-public sealed class RobotMqttClient : IAsyncDisposable
+public sealed class RobotMqttClient : IAsyncDisposable, IRobotCommands
 {
     private readonly IMqttClient _client;
     private readonly MqttEndpoint _endpoint;
@@ -309,33 +309,10 @@ public sealed class RobotMqttClient : IAsyncDisposable
     //
     // Payloads below were observed on 2026-09-19 while the official app drove this robot.
     // The section further down holds commands that only appear as APK strings and are unverified.
+    // The start sequence (set_preference, START, set_cur_map, set_room_clean) is in RobotCommands.
 
     public Task RequestCurrentStateAsync(CancellationToken ct = default) =>
         PublishCommandAsync(new JsonObject { ["msg"] = "REQUEST-CURRENT-STATE" }, ct);
-
-    /// <summary>
-    /// Starts a clean of the given zones of a map, which is what the app's start button does.
-    /// The app sends the room preferences first with <see cref="SetRoomPreferenceAsync"/>, then this
-    /// START, then confirms with <see cref="SetCurrentMapAsync"/> and <see cref="SetRoomCleanAsync"/>.
-    /// </summary>
-    public Task StartZoneCleanAsync(string persistentMapId, IEnumerable<string> zoneIds, CancellationToken ct = default)
-    {
-        var zones = new JsonArray();
-        foreach (var z in zoneIds) zones.Add(z);
-        return PublishCommandAsync(new JsonObject
-        {
-            ["msg"] = "START",
-            ["mode-reason"] = "RAPP",
-            ["cleaningMode"] = "zoneConfigured",
-            ["fullCleanType"] = "immediate",
-            ["cleaningProgramme"] = new JsonObject
-            {
-                ["persistentMapId"] = persistentMapId,
-                ["zonesDefinitionLastUpdatedDate"] = "",
-                ["unorderedZones"] = zones,
-            },
-        }, ct);
-    }
 
     /// <summary>
     /// Stops a dock action such as mop drying, which runs for hours after a clean. Observed with
@@ -369,34 +346,6 @@ public sealed class RobotMqttClient : IAsyncDisposable
 
     public Task GetRoomPreferenceAsync(long mapId, CancellationToken ct = default) =>
         PublishJdmAsync("service.get_preference", new JsonObject { ["map_id"] = mapId }, ct);
-
-    /// <summary>
-    /// Sets per-room settings. Rooms are positional arrays, not objects: index 0 is the zone id and
-    /// index 1 its name; the rest carry per-room settings and the cleaning order.
-    /// </summary>
-    public Task SetRoomPreferenceAsync(long mapId, JsonArray roomPreference, JsonArray? uvSwitch = null, CancellationToken ct = default) =>
-        PublishJdmAsync("service.set_preference", new JsonObject
-        {
-            ["map_id"] = mapId,
-            ["prefer_type"] = 1,
-            ["room_preference"] = roomPreference,
-            ["uv_switch"] = uvSwitch ?? new JsonArray(),
-        }, ct);
-
-    public Task SetCurrentMapAsync(long mapId, CancellationToken ct = default) =>
-        PublishJdmAsync("service.set_cur_map", new JsonObject { ["map_id"] = mapId }, ct);
-
-    public Task SetRoomCleanAsync(IEnumerable<int> roomIds, int cleanType = 0, int ctrlValue = 1, CancellationToken ct = default)
-    {
-        var ids = new JsonArray();
-        foreach (var id in roomIds) ids.Add(id);
-        return PublishJdmAsync("service.set_room_clean", new JsonObject
-        {
-            ["ctrl_value"] = ctrlValue,
-            ["clean_type"] = cleanType,
-            ["room_ids"] = ids,
-        }, ct);
-    }
 
     /// <summary>Reads robot properties. The app always passes an explicit list of names.</summary>
     public Task GetPropertiesAsync(IEnumerable<string>? propertyNames = null, CancellationToken ct = default)

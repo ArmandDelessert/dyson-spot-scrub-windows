@@ -21,7 +21,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Modèle d'état typé, corrélation requête-réponse | fonctionne |
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
-| Tests unitaires | 28 tests, exécutés en CI |
+| Tests unitaires | 42 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié le 19 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`.
@@ -122,7 +122,9 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
 - `MyDyson.Core`
   - `DysonCloudClient` : API REST `appapi.cp.dyson.com` : compte, appareils, credentials, cartes, historique.
   - `RobotMqttClient` : MQTT direct sur TLS comme l'application, commandes des deux dialectes,
-    corrélation requête-réponse (`RequestStateAsync`, `RequestJdmAsync`).
+    corrélation requête-réponse (`RequestStateAsync`, `RequestJdmAsync`). Implémente `IRobotCommands`,
+    la surface minimale (requête jdm, publication jdm ou classique) sur laquelle `CleaningSequence`
+    rejoue la séquence de démarrage de l'application, testable sans robot.
   - `RobotSession` : connexion longue durée, reconnexion avec credentials renouvelés, expose un `RobotStateTracker`.
   - `RobotState`, `RobotStateTracker`, `JdmProperties`, `RoomPreference` : modèle d'état typé des deux dialectes.
   - `MapModels`, `MapGrid` : cartes, zones, position en direct, historique, grille d'occupation décodée.
@@ -133,7 +135,8 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
 - `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `maps`, `map`, `live`, `history`,
   `clean`, `send`, `api`, `probe`, `wstest`.
 - `tests/MyDyson.Core.Tests` : casse des requêtes, signature SigV4, nom d'utilisateur MQTT, modèle
-  d'état, préférences de pièces.
+  d'état, préférences de pièces, grille d'occupation, messages exacts de la séquence de démarrage.
+- `tests/MyDyson.App.Tests` : géométrie de la scène (bornes, dock sentinelle, pièce sous un point).
 
 Le protocole retrouvé par décompilation et par captures est documenté dans [docs/protocole.md](docs/protocole.md).
 
@@ -142,7 +145,7 @@ Le protocole retrouvé par décompilation et par captures est documenté dans [d
 - `global.json` épingle le SDK ; `Directory.Build.props` active les analyseurs .NET (niveau
   `latest-recommended`) et traite tout avertissement comme une erreur ; `Directory.Packages.props`
   centralise les versions de paquets.
-- `.github/workflows/ci.yml` compile les quatre projets et lance les tests à chaque push.
+- `.github/workflows/ci.yml` compile les cinq projets et lance les tests à chaque push.
 - Les règles qui exigeraient de rendre une `Window` WPF `IDisposable` (CA1001) sont supprimées
   ponctuellement, avec justification, là où la durée de vie est déjà celle de l'événement `Closed`.
 
