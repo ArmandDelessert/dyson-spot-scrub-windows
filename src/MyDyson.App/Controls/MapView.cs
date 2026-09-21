@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using MyDyson.App.Rendering;
 
 namespace MyDyson.App.Controls;
@@ -11,7 +12,11 @@ namespace MyDyson.App.Controls;
 /// <see cref="ZoneClicked"/>, or raises <see cref="EmptySpaceClicked"/> to clear the selection when
 /// there is no room there. A double click or double tap zooms in on a room instead, or resets the
 /// view when it lands on empty space — the same split, on purpose, so the gesture always means
-/// "act on this room" vs. "act on the whole map".
+/// "act on this room" vs. "act on the whole map". The single-tap action is deferred a short moment
+/// so it can be cancelled if a second tap turns it into a double: a click/tap is otherwise
+/// indistinguishable from the first half of a double click/tap, and firing its action right away
+/// meant double-clicking a room briefly toggled it before zooming in, and double-clicking empty
+/// space cleared the whole selection before resetting the zoom — both surprising in practice.
 /// </summary>
 public sealed class MapView : FrameworkElement
 {
@@ -25,9 +30,9 @@ public sealed class MapView : FrameworkElement
         set => SetValue(SceneProperty, value);
     }
 
-    /// <summary>Raised with the zone id on a single click/tap on a room (also fires for the first half of a double click/tap, which then also zooms — the same harmless order as double-clicking a file icon both selecting and opening it).</summary>
+    /// <summary>Raised with the zone id when a single click/tap (confirmed not to be the first half of a double) lands on a room.</summary>
     public event Action<string>? ZoneClicked;
-    /// <summary>Raised on a single click/tap that lands on empty map space, to clear the current room selection.</summary>
+    /// <summary>Raised when a single click/tap (confirmed not to be the first half of a double) lands on empty map space, to clear the current room selection.</summary>
     public event Action? EmptySpaceClicked;
 
     public Matrix WorldToScreen { get; private set; } = Matrix.Identity;
@@ -38,10 +43,11 @@ public sealed class MapView : FrameworkElement
     private bool _dragged;
 
     private const double DoubleTapZoomFactor = 1.8;
-    private static readonly TimeSpan DoubleTapWindow = TimeSpan.FromMilliseconds(450);
+    private static readonly TimeSpan DoubleTapWindow = TimeSpan.FromMilliseconds(350);
     private const double DoubleTapMaxDistance = 24;
     private DateTime _lastTapTimeUtc;
     private Point _lastTapPosition;
+    private DispatcherTimer? _pendingSingleTap;
 
     public MapView()
     {
@@ -101,7 +107,12 @@ public sealed class MapView : FrameworkElement
         ReleaseMouseCapture();
         var wasClick = _dragStart is not null && !_dragged;
         _dragStart = null;
-        if (wasClick) HandleTap(e.GetPosition(this), e.ClickCount >= 2);
+        if (wasClick)
+        {
+            var pos = e.GetPosition(this);
+            if (e.ClickCount >= 2) { _pendingSingleTap?.Stop(); _pendingSingleTap = null; HandleTap(pos, isDouble: true); }
+            else DeferSingleTap(pos);
+        }
         e.Handled = true;
     }
 
@@ -135,12 +146,40 @@ public sealed class MapView : FrameworkElement
             var pos = e.ManipulationOrigin;
             var now = DateTime.UtcNow;
             var isDoubleTap = now - _lastTapTimeUtc < DoubleTapWindow && (pos - _lastTapPosition).Length < DoubleTapMaxDistance;
-            // A used double-tap can't itself chain into a triple-tap being read as another double.
-            _lastTapTimeUtc = isDoubleTap ? DateTime.MinValue : now;
-            _lastTapPosition = pos;
-            HandleTap(pos, isDoubleTap);
+            if (isDoubleTap)
+            {
+                // A used double-tap can't itself chain into a triple-tap being read as another double.
+                _lastTapTimeUtc = DateTime.MinValue;
+                _pendingSingleTap?.Stop();
+                _pendingSingleTap = null;
+                HandleTap(pos, isDouble: true);
+            }
+            else
+            {
+                _lastTapTimeUtc = now;
+                _lastTapPosition = pos;
+                DeferSingleTap(pos);
+            }
         }
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// Waits to see whether a second click/tap turns this into a double before acting, so a room
+    /// isn't toggled nor the selection cleared just because a double happened to land there.
+    /// </summary>
+    private void DeferSingleTap(Point pos)
+    {
+        _pendingSingleTap?.Stop();
+        var timer = new DispatcherTimer { Interval = DoubleTapWindow };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            _pendingSingleTap = null;
+            HandleTap(pos, isDouble: false);
+        };
+        _pendingSingleTap = timer;
+        timer.Start();
     }
 
     /// <summary>Single click/tap toggles a room or clears the selection; the double variant zooms instead.</summary>

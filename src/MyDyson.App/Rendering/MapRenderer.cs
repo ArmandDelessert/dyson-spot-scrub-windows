@@ -298,8 +298,20 @@ public static class MapRenderer
     private static void DrawDirtMarker(DrawingContext dc, Point p) =>
         dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(0x3c, 0xb4, 0x3c)), new Pen(Brushes.Black, 1), p, 5, 5);
 
-    private static void DrawGrid(DrawingContext dc, MapGrid grid, Matrix m, IReadOnlySet<string>? selected)
+    // Panning/zooming re-renders every frame but never changes the grid's own pixels, only where
+    // they're drawn: rebuilding an 84 000-cell bitmap on every single frame (as this used to do)
+    // made dragging noticeably less smooth, touch manipulation especially, which reports move deltas
+    // more eagerly than the mouse. Cached across calls since MapRenderer is already static/UI-thread-
+    // only; invalidated only when the grid instance or the selected set actually changes.
+    private static MapGrid? _cachedGrid;
+    private static IReadOnlySet<string>? _cachedSelected;
+    private static WriteableBitmap? _cachedGridBitmap;
+
+    private static WriteableBitmap BuildGridBitmap(MapGrid grid, IReadOnlySet<string>? selected)
     {
+        if (_cachedGridBitmap is not null && ReferenceEquals(_cachedGrid, grid) && SameSelection(_cachedSelected, selected))
+            return _cachedGridBitmap;
+
         var bmp = new WriteableBitmap(grid.Width, grid.Height, 96, 96, PixelFormats.Bgra32, null);
         var pixels = new int[grid.Width * grid.Height];
         for (var cy = 0; cy < grid.Height; cy++)
@@ -323,6 +335,25 @@ public static class MapRenderer
         bmp.WritePixels(new Int32Rect(0, 0, grid.Width, grid.Height), pixels, grid.Width * 4, 0);
         RenderOptions.SetBitmapScalingMode(bmp, BitmapScalingMode.NearestNeighbor); // before Freeze: a frozen bitmap is read-only
         bmp.Freeze();
+
+        _cachedGrid = grid;
+        _cachedSelected = selected;
+        _cachedGridBitmap = bmp;
+        return bmp;
+    }
+
+    /// <summary>An empty set and a null set both mean "nothing dimmed", so they compare equal.</summary>
+    private static bool SameSelection(IReadOnlySet<string>? a, IReadOnlySet<string>? b)
+    {
+        var aEmpty = a is not { Count: > 0 };
+        var bEmpty = b is not { Count: > 0 };
+        if (aEmpty || bEmpty) return aEmpty == bEmpty;
+        return a!.SetEquals(b!);
+    }
+
+    private static void DrawGrid(DrawingContext dc, MapGrid grid, Matrix m, IReadOnlySet<string>? selected)
+    {
+        var bmp = BuildGridBitmap(grid, selected);
 
         var worldRect = new Rect(new Point(grid.OffsetX, grid.OffsetY),
                                  new Point(grid.OffsetX + grid.Width * grid.Resolution, grid.OffsetY + grid.Height * grid.Resolution));
