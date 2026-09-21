@@ -11,6 +11,15 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // Last resort for anything a command or dispatcher callback lets escape: tell the user and
+        // keep the window open rather than vanishing without a word. Real bugs still surface — as a
+        // message box instead of a crash — so this hides nothing, it just doesn't lose the session.
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Console.Error.WriteLine(args.Exception);
+            MessageBox.Show(args.Exception.Message, "Erreur inattendue", MessageBoxButton.OK, MessageBoxImage.Error);
+            args.Handled = true;
+        };
         ThemeService.Start();
         // --theme light|dark forces a theme, mainly for screenshots.
         var themeIdx = Array.IndexOf(e.Args, "--theme");

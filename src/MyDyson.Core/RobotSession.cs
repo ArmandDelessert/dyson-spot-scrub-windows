@@ -29,6 +29,11 @@ public sealed class RobotSession : IAsyncDisposable
 
     public event Action<RobotConnectionStatus, string?>? ConnectionChanged;
     public event Action<RobotMessage>? MessageReceived;
+    /// <summary>
+    /// The bearer token stopped being accepted while reconnecting: no amount of retrying will get
+    /// the robot back, only a fresh login. Retrying would otherwise show "Reconnexion…" forever.
+    /// </summary>
+    public event Action<string>? AuthenticationLost;
 
     public RobotSession(DysonCloudClient api, Device device, Action<string>? log = null)
     {
@@ -104,6 +109,13 @@ public sealed class RobotSession : IAsyncDisposable
             }
             catch (OperationCanceledException)
             {
+                return;
+            }
+            catch (DysonAuthException ex)
+            {
+                _log?.Invoke($"reconnect refused, token no longer valid: {ex.Message}");
+                SetStatus(RobotConnectionStatus.Disconnected, "session expirée");
+                AuthenticationLost?.Invoke(ex.Message);
                 return;
             }
             catch (Exception ex)

@@ -317,6 +317,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     _ => "Déconnecté",
                 };
             });
+            _session.AuthenticationLost += reason => Post(() => _ = SessionExpiredAsync(reason));
             _session.Tracker.StateChanged += st => Post(() => ApplyState(st));
             _session.Tracker.CleanPathChanged += path => Post(() =>
             {
@@ -680,8 +681,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task RefreshStateAsync()
     {
         if (_session is null || _session.Status != RobotConnectionStatus.Connected) return;
+        // Runs from an async-void timer tick: anything escaping here is an unhandled exception that
+        // ends the process, and a periodic refresh is never worth that, whatever went wrong.
         try { await _session.RefreshStateAsync(); }
-        catch (Exception ex) when (ex is TimeoutException or InvalidOperationException) { AddLog($"état: {ex.Message}"); }
+        catch (Exception ex) { AddLog($"état: {ex.Message}"); }
     }
 
     private async Task RunAsync(string label, Func<RobotMqttClient, Task> action)
@@ -908,6 +911,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (result != MessageBoxResult.Yes) return;
 
+        await ShutdownAsync();
+        SessionStore.Delete();
+        LoggedOut?.Invoke();
+    }
+
+    /// <summary>The token died mid-session: same exit as a logout, but told rather than asked.</summary>
+    private async Task SessionExpiredAsync(string reason)
+    {
+        AddLog($"session expirée: {reason}");
+        MessageBox.Show(
+            "La session MyDyson n'est plus acceptée par le cloud Dyson. Vous devez vous reconnecter.",
+            "Session expirée", MessageBoxButton.OK, MessageBoxImage.Warning);
         await ShutdownAsync();
         SessionStore.Delete();
         LoggedOut?.Invoke();
