@@ -39,13 +39,13 @@ public sealed class MapView : FrameworkElement
     private Vector _panAtDragStart;
     private bool _dragged;
 
-    // Matches the user's own configured double-click speed rather than a guessed constant: the
-    // deferral must wait at least that long, or a slower double-clicker's second click could arrive
-    // after we already committed to the single-click action.
-    private static readonly TimeSpan DoubleTapWindow = TimeSpan.FromMilliseconds(System.Windows.Forms.SystemInformation.DoubleClickTime);
-    private const double DoubleTapMaxDistance = 24;
-    private DateTime _lastEmptyTapTimeUtc;
-    private Point _lastEmptyTapPosition;
+    // Capped at 250 ms for responsiveness, but never longer than the user's own configured
+    // double-click speed (Windows' default is 500 ms) — waiting longer than that would just be a
+    // needless delay, since anything slower already fails Windows' own double-click recognition.
+    private static readonly TimeSpan DoubleClickWindow = TimeSpan.FromMilliseconds(Math.Min(250, System.Windows.Forms.SystemInformation.DoubleClickTime));
+    private const double DoubleClickMaxDistance = 24;
+    private DateTime _lastClickTimeUtc;
+    private Point _lastClickPosition;
     private DispatcherTimer? _pendingEmptySpaceClear;
 
     public MapView()
@@ -106,7 +106,15 @@ public sealed class MapView : FrameworkElement
         ReleaseMouseCapture();
         var wasClick = _dragStart is not null && !_dragged;
         _dragStart = null;
-        if (wasClick) HandleClick(e.GetPosition(this), e.ClickCount >= 2);
+        if (wasClick)
+        {
+            var pos = e.GetPosition(this);
+            // ClickCount alone isn't trusted here: a Surface trackpad's double-click/double-tap-to-
+            // click was observed to never report ClickCount 2 (each click reads as a fresh single),
+            // so a click-count-only check would silently never recognise a double on that hardware —
+            // hence also checking the same manual timing/distance test used for touch.
+            HandleClick(pos, e.ClickCount >= 2 || IsDoubleClick(pos));
+        }
         e.Handled = true;
     }
 
@@ -138,13 +146,19 @@ public sealed class MapView : FrameworkElement
         if (total.Translation.Length < 6 && Math.Abs(total.Scale.X - 1) < 0.03)
         {
             var pos = e.ManipulationOrigin;
-            var now = DateTime.UtcNow;
-            var isDoubleTap = now - _lastEmptyTapTimeUtc < DoubleTapWindow && (pos - _lastEmptyTapPosition).Length < DoubleTapMaxDistance;
-            _lastEmptyTapTimeUtc = isDoubleTap ? DateTime.MinValue : now; // a used double-tap can't chain into a triple
-            _lastEmptyTapPosition = pos;
-            HandleClick(pos, isDoubleTap);
+            HandleClick(pos, IsDoubleClick(pos));
         }
         e.Handled = true;
+    }
+
+    /// <summary>True when this click/tap lands within the double-click time and distance of the previous one. Always records this one as "the last click" regardless, so a used double can't chain into a triple being read as another double.</summary>
+    private bool IsDoubleClick(Point pos)
+    {
+        var now = DateTime.UtcNow;
+        var isDouble = now - _lastClickTimeUtc < DoubleClickWindow && (pos - _lastClickPosition).Length < DoubleClickMaxDistance;
+        _lastClickTimeUtc = isDouble ? DateTime.MinValue : now;
+        _lastClickPosition = pos;
+        return isDouble;
     }
 
     /// <summary>A room always reacts right away; only empty space needs to wait and see whether a second click/tap turns this into a double, since that's the only place the two mean different things.</summary>
@@ -166,7 +180,7 @@ public sealed class MapView : FrameworkElement
         else
         {
             _pendingEmptySpaceClear?.Stop();
-            var timer = new DispatcherTimer { Interval = DoubleTapWindow };
+            var timer = new DispatcherTimer { Interval = DoubleClickWindow };
             timer.Tick += (_, _) =>
             {
                 timer.Stop();
