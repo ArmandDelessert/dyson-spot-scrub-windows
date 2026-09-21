@@ -44,5 +44,5 @@ public class AwsSigV4Tests
     private const string KnownSignature = "ed3c69b21fadcd1c96bcd1029f2638caf1f48ac9ee467da17ecbf5f512fac67e";
 
     private static string Signature(string url) =>
-        new Uri(url).Query.Split('&').First(p => p.StartsWith("X-Amz-Signature=")).Split('=')[1];
+        new Uri(url).Query.Split('&').First(p => p.StartsWith("X-Amz-Signature=", StringComparison.Ordinal)).Split('=')[1];
 }

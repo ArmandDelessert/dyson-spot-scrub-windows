@@ -6,7 +6,7 @@ using MyDyson.Core;
 namespace MyDyson.App.ViewModels;
 
 /// <summary>Two-step login: request the one-time code, then verify it with the password.</summary>
-public partial class LoginViewModel : ObservableObject
+public sealed partial class LoginViewModel : ObservableObject, IDisposable
 {
     [ObservableProperty] private string _email = "";
     [ObservableProperty] private string _country = "CH";
@@ -21,6 +21,13 @@ public partial class LoginViewModel : ObservableObject
 
     /// <summary>Set by the window on success; the window then closes.</summary>
     public RobotContext? Result { get; private set; }
+
+    /// <summary>On success the REST client is handed over to <see cref="Result"/>, which then owns it; only an abandoned login has one left to dispose.</summary>
+    public void Dispose()
+    {
+        if (Result is null) _api?.Dispose();
+        _api = null;
+    }
 
     [RelayCommand]
     private async Task SendCodeAsync()

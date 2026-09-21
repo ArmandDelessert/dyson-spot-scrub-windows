@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Threading;
@@ -149,8 +150,8 @@ public sealed partial class CleanItem(CleanSummary Summary) : ObservableObject
 {
     public CleanSummary Summary { get; } = Summary;
 
-    public string When => Summary.Start?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "?";
-    public string End => Summary.End?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "";
+    public string When => Summary.Start?.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.CurrentCulture) ?? "?";
+    public string End => Summary.End?.ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.CurrentCulture) ?? "";
     public string Duration => Summary.CleanDurationMinutes is { } m ? $"{m} min" : "";
     public string Area => Summary.AreaCleanedSquareMetres is { } a ? $"{a:F1} m²" : "";
     public string Battery => Summary.StartBattery is { } s && Summary.EndBattery is { } e ? $"{s:F0} → {e:F0} %" : "";
@@ -179,7 +180,7 @@ public sealed record BackWashOption(string Key, string Label, string? Descriptio
 public sealed record DryOption(int Hours, string Label, string Description);
 
 /// <summary>State of the dashboard. Everything the robot pushes arrives on the MQTT thread and is marshalled here.</summary>
-public partial class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly RobotContext _ctx;
     private readonly Dispatcher _ui;
@@ -379,7 +380,7 @@ public partial class MainViewModel : ObservableObject
                 _ => "Laver et sécher",
             };
             if (s.BatteryChargeLevel is { } b) Battery = b;
-            LastUpdate = DateTime.Now.ToString("HH:mm:ss");
+            LastUpdate = DateTime.Now.ToString("HH:mm:ss", CultureInfo.CurrentCulture);
 
             var real = s.RealFaults.ToList();
             HasRealFault = real.Count > 0;
@@ -709,7 +710,13 @@ public partial class MainViewModel : ObservableObject
         var rooms = Zones.Where(z => z.Selected).OrderBy(z => z.Order)
             .Select(z => new RoomSelection(z.Id, z.SelectedCleanType.Value, z.Order)).ToList();
         if (rooms.Count == 0 || SelectedMap is null) { Message = "Sélectionnez au moins une pièce."; return Task.CompletedTask; }
-        var mapId = long.Parse(SelectedMap.Id);
+        // Outside RunAsync's try, so a non-numeric id must not throw: that would surface as an
+        // unhandled exception in the command dispatch rather than a message.
+        if (!long.TryParse(SelectedMap.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapId))
+        {
+            Message = $"Identifiant de carte inattendu : {SelectedMap.Id}";
+            return Task.CompletedTask;
+        }
         return RunAsync($"démarrage de {rooms.Count} pièce(s)", c => CleaningSequence.StartAsync(c, mapId, rooms));
     }
 
@@ -743,7 +750,7 @@ public partial class MainViewModel : ObservableObject
     private async Task SetActiveMapAsync()
     {
         if (SelectedMap is not { } map || map.Metadata.IsCurrentMap) return;
-        await RunAsync($"carte active : {map.Metadata.Name}", c => c.SetCurrentMapAsync(long.Parse(map.Id)));
+        await RunAsync($"carte active : {map.Metadata.Name}", c => c.SetCurrentMapAsync(long.Parse(map.Id, CultureInfo.InvariantCulture)));
         await LoadMapsAsync();
     }
 
@@ -916,5 +923,12 @@ public partial class MainViewModel : ObservableObject
     private void StopCaptureIfAny()
     {
         if (IsCapturing) StopCapture();
+    }
+
+    /// <summary>The only disposable this owns outright is the capture file; the robot context is released by <see cref="ShutdownAsync"/>.</summary>
+    public void Dispose()
+    {
+        _refresh.Stop();
+        StopCaptureIfAny();
     }
 }

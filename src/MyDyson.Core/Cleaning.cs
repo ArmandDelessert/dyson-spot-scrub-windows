@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace MyDyson.Core;
@@ -126,7 +127,7 @@ public static class CleaningSequence
             for (var i = 0; i < Math.Min(11, entry.Count); i++) arr.Add(entry[i]?.DeepClone());
             while (arr.Count < 11) arr.Add(0);
 
-            var id = arr[0]?.GetValue<int>().ToString() ?? "";
+            var id = arr[0]?.GetValue<int>().ToString(CultureInfo.InvariantCulture) ?? "";
             if (bySelection.TryGetValue(id, out var sel))
             {
                 arr[IndexCleanType] = sel.CleanType.ToJdm();
@@ -141,8 +142,8 @@ public static class CleaningSequence
         }
 
         await robot.SetRoomPreferenceAsync(mapId, rewritten, uvSwitch, ct).ConfigureAwait(false);
-        await robot.StartZoneCleanAsync(mapId.ToString(), rooms.OrderBy(r => r.Order).Select(r => r.ZoneId), ct).ConfigureAwait(false);
+        await robot.StartZoneCleanAsync(mapId.ToString(CultureInfo.InvariantCulture), rooms.OrderBy(r => r.Order).Select(r => r.ZoneId), ct).ConfigureAwait(false);
         await robot.SetCurrentMapAsync(mapId, ct).ConfigureAwait(false);
-        await robot.SetRoomCleanAsync(rooms.OrderBy(r => r.Order).Select(r => int.Parse(r.ZoneId)), ct: ct).ConfigureAwait(false);
+        await robot.SetRoomCleanAsync(rooms.OrderBy(r => r.Order).Select(r => int.Parse(r.ZoneId, CultureInfo.InvariantCulture)), ct: ct).ConfigureAwait(false);
     }
 }

@@ -62,10 +62,10 @@ public sealed class MapView : FrameworkElement
         InvalidateVisual();
     }
 
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext drawingContext)
     {
         var size = new Size(Math.Max(1, ActualWidth), Math.Max(1, ActualHeight));
-        MapRenderer.Render(dc, Scene ?? new MapScene(), size, out var m, Zoom, _pan);
+        MapRenderer.Render(drawingContext, Scene ?? new MapScene(), size, out var m, Zoom, _pan);
         WorldToScreen = m;
     }
 

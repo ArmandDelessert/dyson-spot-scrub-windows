@@ -21,7 +21,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Modèle d'état typé, corrélation requête-réponse | fonctionne |
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
-| Tests unitaires | 20 tests |
+| Tests unitaires | 28 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié le 19 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`.
@@ -136,6 +136,15 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
   d'état, préférences de pièces.
 
 Le protocole retrouvé par décompilation et par captures est documenté dans [docs/protocole.md](docs/protocole.md).
+
+### Outillage
+
+- `global.json` épingle le SDK ; `Directory.Build.props` active les analyseurs .NET (niveau
+  `latest-recommended`) et traite tout avertissement comme une erreur ; `Directory.Packages.props`
+  centralise les versions de paquets.
+- `.github/workflows/ci.yml` compile les quatre projets et lance les tests à chaque push.
+- Les règles qui exigeraient de rendre une `Window` WPF `IDisposable` (CA1001) sont supprimées
+  ponctuellement, avec justification, là où la durée de vie est déjà celle de l'événement `Closed`.
 
 ## Prérequis
 

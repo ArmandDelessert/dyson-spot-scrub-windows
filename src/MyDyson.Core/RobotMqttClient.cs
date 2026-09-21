@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Net.Security;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -94,14 +95,14 @@ public sealed class RobotMqttClient : IAsyncDisposable
     /// AWS IoT closes the connection on any filter the policy does not cover.
     /// </summary>
     public IReadOnlyList<string> DefaultTopicFilters =>
-        _endpoint.AuthMode.StartsWith("custom-authorizer")
+        _endpoint.AuthMode.StartsWith("custom-authorizer", StringComparison.Ordinal)
             ? new[] { $"+/{Serial}/#" }
             : new[] { $"{_prefix}/{Serial}/status", $"{_prefix}/{Serial}/status/jdm" };
 
     public async Task ConnectAsync(CancellationToken ct = default) =>
-        await ConnectAsync(ct, DefaultTopicFilters).ConfigureAwait(false);
+        await ConnectAsync(DefaultTopicFilters, ct).ConfigureAwait(false);
 
-    public async Task ConnectAsync(CancellationToken ct, IEnumerable<string> topicFilters)
+    public async Task ConnectAsync(IEnumerable<string> topicFilters, CancellationToken ct = default)
     {
         var builder = new MqttClientOptionsBuilder()
             .WithClientId(_endpoint.ClientId)
@@ -277,7 +278,7 @@ public sealed class RobotMqttClient : IAsyncDisposable
         }
     }
 
-    private static string NowIso() => DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+    private static string NowIso() => DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
     /// <summary>Publishes a raw JSON string on an arbitrary topic.</summary>
     public Task PublishRawAsync(string topic, string json, CancellationToken ct = default) =>
@@ -297,7 +298,7 @@ public sealed class RobotMqttClient : IAsyncDisposable
     private static JsonObject BuildJdmPayload(string method, JsonObject? parameters) => new()
     {
         // The app uses values in the unsigned 32-bit range.
-        ["msgId"] = Random.Shared.NextInt64(1, uint.MaxValue).ToString(),
+        ["msgId"] = Random.Shared.NextInt64(1, uint.MaxValue).ToString(CultureInfo.InvariantCulture),
         ["version"] = "1.0.1",
         ["method"] = method,
         ["params"] = parameters ?? new JsonObject(),

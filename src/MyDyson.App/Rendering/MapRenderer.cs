@@ -401,7 +401,7 @@ public static class MapRenderer
     private static Color Dim(Color c) =>
         Color.FromArgb(0xff, (byte)((c.R + Palette.Background.R * 2) / 3), (byte)((c.G + Palette.Background.G * 2) / 3), (byte)((c.B + Palette.Background.B * 2) / 3));
 
-    private static void DrawPolygon(DrawingContext dc, IReadOnlyList<CorePoint>? points, Matrix m, Pen pen, Brush fill)
+    private static void DrawPolygon(DrawingContext dc, List<CorePoint>? points, Matrix m, Pen pen, Brush fill)
     {
         if (points is not { Count: > 2 }) return;
         var geo = new StreamGeometry();

@@ -4,6 +4,8 @@ using MyDyson.App.ViewModels;
 
 namespace MyDyson.App.Views;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
+    Justification = "A Window's lifetime is its own Closed event, which is where both fields are disposed; making the window IDisposable would suggest a second, competing lifetime.")]
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
@@ -29,7 +31,7 @@ public partial class MainWindow : Window
         });
         Loaded += async (_, _) => await _vm.StartAsync();
         Closing += async (_, _) => await _vm.ShutdownAsync();
-        Closed += (_, _) => _notifications.Dispose();
+        Closed += (_, _) => { _notifications.Dispose(); _vm.Dispose(); };
     }
 
     private void ResetZoom_Click(object sender, RoutedEventArgs e) => MapCanvas.ResetView();

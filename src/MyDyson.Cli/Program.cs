@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -7,6 +8,13 @@ namespace MyDyson.Cli;
 
 internal static class Program
 {
+    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions IndentedNoNulls = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private const string Usage = """
         MyDyson CLI - prototype de contrôle du robot Dyson Spot+Scrub AI via le cloud Dyson.
 
@@ -137,7 +145,7 @@ internal static class Program
         using var api = OpenSession();
         var devices = await api.GetManifestAsync(ct);
         if (o.Has("json"))
-            Console.WriteLine(JsonSerializer.Serialize(devices, new JsonSerializerOptions { WriteIndented = true }));
+            Console.WriteLine(JsonSerializer.Serialize(devices, Indented));
         else
             PrintDevices(devices);
         return 0;
@@ -175,7 +183,7 @@ internal static class Program
         {
             var state = await robot.RequestStateAsync(timeout, ct);
             if (o.Has("json"))
-                Console.WriteLine(JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
+                Console.WriteLine(JsonSerializer.Serialize(state, IndentedNoNulls));
             else
                 PrintState(state);
             return 0;
@@ -294,14 +302,14 @@ internal static class Program
                     break;
                 case "mapping": await robot.StartMappingAsync(o.Get("lang") ?? "fr-CH", ct); break;
                 case "merge":
-                    await robot.MergeRoomsAsync(long.Parse(o.Get("map") ?? RequireOption("--map")),
+                    await robot.MergeRoomsAsync(long.Parse(o.Get("map") ?? RequireOption("--map"), CultureInfo.InvariantCulture),
                         (o.Get("rooms") ?? RequireOption("--rooms")).Split(',').Select(int.Parse), ct: ct);
                     break;
                 case "zone":
                     var map = o.Get("map") ?? RequireOption("--map");
                     var zones = (o.Get("zones") ?? RequireOption("--zones"))
                         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    await robot.SetCurrentMapAsync(long.Parse(map), ct);
+                    await robot.SetCurrentMapAsync(long.Parse(map, CultureInfo.InvariantCulture), ct);
                     await robot.StartZoneCleanAsync(map, zones, ct);
                     await robot.SetRoomCleanAsync(zones.Select(int.Parse), ct: ct);
                     break;
@@ -449,7 +457,7 @@ internal static class Program
 
             try
             {
-                await robot.ConnectAsync(ct, subscribeTo is null ? Array.Empty<string>() : new[] { subscribeTo });
+                await robot.ConnectAsync(subscribeTo is null ? Array.Empty<string>() : new[] { subscribeTo }, ct);
             }
             catch (Exception ex)
             {
@@ -591,7 +599,7 @@ internal static class Program
         try
         {
             using var doc = JsonDocument.Parse(json);
-            return JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions { WriteIndented = true });
+            return JsonSerializer.Serialize(doc.RootElement, Indented);
         }
         catch (JsonException) { return json; }
     }
@@ -650,12 +658,12 @@ internal static class Program
         for (var i = 0; i < list.Count; i++)
         {
             var a = list[i];
-            if (a.StartsWith("--"))
+            if (a.StartsWith("--", StringComparison.Ordinal))
             {
                 var name = a[2..];
                 var eq = name.IndexOf('=');
                 if (eq >= 0) { o.Named[name[..eq]] = name[(eq + 1)..]; continue; }
-                if (i + 1 < list.Count && !list[i + 1].StartsWith("--")) { o.Named[name] = list[++i]; }
+                if (i + 1 < list.Count && !list[i + 1].StartsWith("--", StringComparison.Ordinal)) { o.Named[name] = list[++i]; }
                 else o.Named[name] = null;
             }
             else o.Positionals.Add(a);

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -26,8 +27,8 @@ public static class AwsSigV4
         DateTimeOffset? now = null)
     {
         var stamp = (now ?? DateTimeOffset.UtcNow).UtcDateTime;
-        var amzDate = stamp.ToString("yyyyMMdd'T'HHmmss'Z'");
-        var dateStamp = stamp.ToString("yyyyMMdd");
+        var amzDate = stamp.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
+        var dateStamp = stamp.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         var credentialScope = $"{dateStamp}/{region}/{Service}/aws4_request";
 
         // Query parameters must be sorted by name; these already are.

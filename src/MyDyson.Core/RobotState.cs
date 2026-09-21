@@ -88,10 +88,10 @@ public sealed record RobotState
     public bool IsPositionOnly => State is null && GlobalPosition is { Count: > 0 };
 
     public bool IsDocked => State is "INACTIVE_CHARGING" or "INACTIVE_CHARGED" or "FULL_CLEAN_CHARGING";
-    public bool IsCleaning => State is not null && State.StartsWith("FULL_CLEAN_") && State is not ("FULL_CLEAN_FINISHED" or "FULL_CLEAN_ABORTED" or "FULL_CLEAN_ABANDONED");
+    public bool IsCleaning => State is not null && State.StartsWith("FULL_CLEAN_", StringComparison.Ordinal) && State is not ("FULL_CLEAN_FINISHED" or "FULL_CLEAN_ABORTED" or "FULL_CLEAN_ABANDONED");
     public bool IsPaused => State == "FULL_CLEAN_PAUSED";
     /// <summary>Building a map: MAPPING_RUNNING, then MAPPING_FINISHED.</summary>
-    public bool IsMapping => State is not null && State.StartsWith("MAPPING_") && State != "MAPPING_FINISHED";
+    public bool IsMapping => State is not null && State.StartsWith("MAPPING_", StringComparison.Ordinal) && State != "MAPPING_FINISHED";
     /// <summary>Observed as plain ABORTED (not FULL_CLEAN_ABORTED) right after an ABORT, with fault 2104.</summary>
     public bool IsAborted => State is "ABORTED" or "FULL_CLEAN_ABORTED" or "MAPPING_ABORTED";
     public bool IsDockBusy => DockState is not null and not "IDLE";
