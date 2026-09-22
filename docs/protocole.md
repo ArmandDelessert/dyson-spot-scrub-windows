@@ -114,7 +114,10 @@ Correspondance établie entre les deux dialectes :
 | `cleaning_time` | `cleanDuration` | minutes contre secondes, 8 contre 480 |
 | `sweep_type` | mode de nettoyage | 0 aspiration seule, 7 aspiration puis serpillière |
 | `work_mode` | `currentCleaningMode` | |
-| `station_act` | `dockState` | 0 correspond à `IDLE` |
+| `station_act` | `dockState` | 0 `IDLE`, 1 `WASHING_MOP`, 2 `DRYING_MOP`, 5 vidage du collecteur (avec `dust_action: 1`) |
+| `charge_state` | `state` | 1 pendant `INACTIVE_CHARGING`, 0 sinon |
+| `back_to_wash` | aucun | 1 dès que le robot quitte le nettoyage pour aller laver son rouleau, 0 une fois à quai (`station_act: 1`, `status: 9`) ; le dialecte classique ne signale que le lavage lui-même |
+| `work_time` | aucun | `{type, total, surplus}` en secondes : compte à rebours de l'action de la station, poussé toutes les minutes ; vu seulement pour le séchage (`type: 3`, `total: 10800` pour le réglage 3 h), `surplus` reste à 0 une fois terminé |
 | `oob_state` | `outOfBoxState` | 1 correspond à `OUT_OF_BOX_COMPLETE` |
 | `quiet_begin_time`, `quiet_end_time`, `quiet_is_open` | `doNotDisturbMode` | minutes depuis minuit, 1320 pour 22:00 |
 | `voice_type` | `voiceLanguage` | 5 correspond à `fr-FR` |
@@ -127,6 +130,11 @@ Correspondance établie entre les deux dialectes :
 Champs jdm présents mais toujours nuls au repos : `auto_water_complete_flag`,
 `auto_water_self_check`, `clean_wash_attachment`, `empty_bin_time`, `empty_bin_type`,
 `global_clean_status`, `mop_pad_life`, `robot_auto_updown_type`, `store_demo_mode`, `taskBeginTs`.
+
+`work_time` et `back_to_wash` ne figurent pas dans la liste de propriétés que l'application demande
+par `prop.get` : le robot les pousse de lui-même. Il y répond pourtant si on les demande (vérifié le
+2026-09-22), ce que fait `RobotSession.RefreshPropertiesAsync` au démarrage pour connaître l'état
+du séchage sans attendre la prochaine poussée.
 
 ### cur_path : le tracé en temps réel
 

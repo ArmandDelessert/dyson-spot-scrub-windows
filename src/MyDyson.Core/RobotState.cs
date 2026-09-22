@@ -145,4 +145,35 @@ public sealed class JdmProperties
     /// <summary>Square decimetres cleaned so far in the current task, as pushed by prop.post.</summary>
     public int? CleaningArea => GetInt("cleaning_area");
     public int? CleaningTimeMinutes => GetInt("cleaning_time");
+
+    /// <summary>What the dock is doing: 0 idle, 1 washing the roller, 2 drying it, 5 emptying the bin (observed values).</summary>
+    public int? StationAct => GetInt("station_act");
+    /// <summary>Charging on the dock; the jdm side of INACTIVE_CHARGING.</summary>
+    public bool? ChargeState => GetBool("charge_state");
+    /// <summary>
+    /// Set from the moment the robot interrupts a clean to go and wash its roller until it is back
+    /// on the dock, when station_act 1 takes over. The classic dialect only reports the washing
+    /// itself (dockState WASHING_MOP), not the trip back.
+    /// </summary>
+    public bool? BackToWash => GetBool("back_to_wash");
+    /// <summary>Countdown of the dock's current timed action, see <see cref="DockTimer"/>.</summary>
+    public DockTimer? WorkTime =>
+        _values.TryGetValue("work_time", out var n) && n is JsonObject o
+        && IntOf(o["type"]) is { } type && IntOf(o["total"]) is { } total && IntOf(o["surplus"]) is { } surplus
+            ? new DockTimer(type, total, surplus)
+            : null;
+
+    private bool? GetBool(string name) => GetInt(name) is { } i ? i != 0 : null;
+
+    private static int? IntOf(JsonNode? n) => n is JsonValue v && v.TryGetValue<int>(out var i) ? i : null;
+}
+
+/// <summary>
+/// jdm "work_time": the dock's timed action, pushed once a minute while it runs and answered by
+/// prop.get at any time. Only observed for mop drying: type 3, total 10 800 s for the 3 h setting,
+/// surplus counting down in 60 s steps and left at 0 once done.
+/// </summary>
+public sealed record DockTimer(int Type, int TotalSeconds, int RemainingSeconds)
+{
+    public TimeSpan Remaining => TimeSpan.FromSeconds(Math.Max(0, RemainingSeconds));
 }

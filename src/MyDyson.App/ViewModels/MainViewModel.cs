@@ -208,6 +208,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _stateText = "";
     [ObservableProperty] private string _actionText = "";
     [ObservableProperty] private string _dockText = "";
+    /// <summary>jdm back_to_wash: the robot has left the clean to go and wash its roller (the classic dialect only reports the washing once docked).</summary>
+    [ObservableProperty] private bool _returningToWash;
+    private TimeSpan? _dryingRemaining;
     [ObservableProperty] private int _battery;
     [ObservableProperty] private string _faultText = "";
     [ObservableProperty] private bool _hasRealFault;
@@ -321,6 +324,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             });
             _session.AuthenticationLost += reason => Post(() => _ = SessionExpiredAsync(reason));
             _session.Tracker.StateChanged += st => Post(() => ApplyState(st));
+            _session.Tracker.JdmChanged += jdm => Post(() => ApplyJdm(jdm));
             _session.Tracker.CleanPathChanged += path => Post(() =>
             {
                 _liveTrail = path.Select(p => new MyDyson.Core.Point(p.X, p.Y, p.Update)).ToList();
@@ -345,7 +349,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Connected = true;
             Connection = "Connecté";
 
-            await Task.WhenAll(RefreshStateAsync(), LoadMapsAsync(), LoadHistoryAsync());
+            await Task.WhenAll(RefreshStateAsync(), RefreshPropertiesAsync(), LoadMapsAsync(), LoadHistoryAsync());
             _refresh.Start();
             _ = FillHistoryDetailsAsync();
         }
@@ -374,7 +378,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 var a => a,
             };
             _dockState = s.DockState;
-            DockText = DescribeDock(s.DockState);
+            UpdateDockText();
             DockBusy = s.IsDockBusy;
             WashDryLabel = s.DockState switch
             {
@@ -741,6 +745,36 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception ex) { AddLog($"état: {ex.Message}"); }
     }
+
+    /// <summary>One prop.get at start-up, so jdm-only facts (drying countdown, trip back to wash) show at once instead of at their next push.</summary>
+    private async Task RefreshPropertiesAsync()
+    {
+        if (_session is null || _session.Status != RobotConnectionStatus.Connected) return;
+        try { await _session.RefreshPropertiesAsync(Ct); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception ex) { AddLog($"propriétés: {ex.Message}"); }
+    }
+
+    private void ApplyJdm(JdmProperties jdm)
+    {
+        ReturningToWash = jdm.BackToWash == true;
+        // work_time lingers at its last value once drying is over (surplus 0, or stale if aborted),
+        // so it only counts while the dock says it is drying.
+        _dryingRemaining = jdm.StationAct == 2 && jdm.WorkTime is { RemainingSeconds: > 0 } t ? t.Remaining : null;
+        UpdateDockText();
+    }
+
+    /// <summary>Classic dockState names the action; the jdm countdown, when there is one, says how long is left.</summary>
+    private void UpdateDockText()
+    {
+        var text = DescribeDock(_dockState);
+        if (_dockState == "DRYING_MOP" && _dryingRemaining is { } r)
+            text += $", {FormatRemaining(r)} restantes";
+        DockText = text;
+    }
+
+    private static string FormatRemaining(TimeSpan t) =>
+        t.TotalHours >= 1 ? $"{(int)t.TotalHours} h {t.Minutes:D2} min" : $"{Math.Max(1, (int)Math.Ceiling(t.TotalMinutes))} min";
 
     private async Task RunAsync(string label, Func<RobotMqttClient, Task> action)
     {

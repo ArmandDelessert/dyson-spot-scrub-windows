@@ -107,6 +107,38 @@ public class RobotStateTests
     }
 
     [Fact]
+    public void DockTimerWashReturnAndChargeStateAreExposed()
+    {
+        // Shapes as pushed by prop.post on 2026-09-20 (drying after a clean) and answered by
+        // prop.get on 2026-09-22 (at rest: countdown left at 0).
+        var tracker = new RobotStateTracker();
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"1","method":"prop.post","params":{"back_to_wash":1,"cleaning_area":1508}}"""));
+        Assert.True(tracker.Jdm.BackToWash);
+        Assert.Null(tracker.Jdm.WorkTime);
+        Assert.Null(tracker.Jdm.ChargeState);
+
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"2","method":"prop.post","params":{"station_act":2,"work_mode":0,"status":10,"sweep_type":0,"work_time":{"type":3,"total":10800,"surplus":10740}}}"""));
+        Assert.Equal(2, tracker.Jdm.StationAct);
+        var timer = tracker.Jdm.WorkTime!;
+        Assert.Equal((3, 10800, 10740), (timer.Type, timer.TotalSeconds, timer.RemainingSeconds));
+        Assert.Equal(TimeSpan.FromMinutes(179), timer.Remaining);
+
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"3","code":0,"method":"prop.get","data":{"work_time":{"type":3,"total":10800,"surplus":0},"back_to_wash":0,"charge_state":1,"station_act":0,"status":4}}"""));
+        Assert.False(tracker.Jdm.BackToWash);
+        Assert.True(tracker.Jdm.ChargeState);
+        Assert.Equal(0, tracker.Jdm.StationAct);
+        Assert.Equal(TimeSpan.Zero, tracker.Jdm.WorkTime!.Remaining);
+
+        // A malformed timer (missing member) reads as absent rather than throwing.
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"4","method":"prop.post","params":{"work_time":{"type":3,"total":"soon"}}}"""));
+        Assert.Null(tracker.Jdm.WorkTime);
+    }
+
+    [Fact]
     public void CleanPathAccumulatesAcrossPushesAndResetsOnANewTask()
     {
         var tracker = new RobotStateTracker();

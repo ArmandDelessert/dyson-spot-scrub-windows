@@ -143,13 +143,22 @@ public sealed class RobotSession : IAsyncDisposable
     public Task<JsonObject> RequestJdmAsync(string method, JsonObject? parameters = null, CancellationToken ct = default) =>
         Connected.RequestJdmAsync(method, parameters, ct: ct);
 
-    /// <summary>Requests the full jdm property set, which the tracker merges when the reply arrives.</summary>
+    /// <summary>
+    /// Requests the full jdm property set, which the tracker merges when the reply arrives. On top
+    /// of the official app's list it asks for the two properties the robot only ever pushes to the
+    /// app (verified answered by prop.get on 2026-09-22), so their state is known at start-up
+    /// rather than at their next push.
+    /// </summary>
     public Task<JsonObject> RefreshPropertiesAsync(CancellationToken ct = default)
     {
         var names = new JsonArray();
         foreach (var n in RobotMqttClient.AppPropertyNames) names.Add(n);
+        foreach (var n in PushOnlyPropertyNames) names.Add(n);
         return Connected.RequestJdmAsync("prop.get", new JsonObject { ["property"] = names }, ct: ct);
     }
+
+    /// <summary>Properties the app never requests but the robot pushes and answers for: see <see cref="JdmProperties.WorkTime"/> and <see cref="JdmProperties.BackToWash"/>.</summary>
+    public static readonly string[] PushOnlyPropertyNames = ["work_time", "back_to_wash"];
 
     public async ValueTask DisposeAsync()
     {

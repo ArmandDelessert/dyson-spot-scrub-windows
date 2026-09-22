@@ -21,7 +21,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Modèle d'état typé, corrélation requête-réponse | fonctionne |
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
-| Tests unitaires | 43 tests, exécutés en CI |
+| Tests unitaires | 44 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié le 19 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`.
@@ -63,7 +63,9 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 
 - **Thème** : suit le mode clair ou sombre de Windows, y compris en cours d'exécution.
 - **État** : état du robot en clair, batterie, fautes réelles en rouge, retour à la station. Le
-  bouton de pause devient « Reprendre » une fois le nettoyage effectivement en pause.
+  bouton de pause devient « Reprendre » une fois le nettoyage effectivement en pause. Pendant un
+  nettoyage, signale le retour à la station pour laver le rouleau (`back_to_wash`, que l'application
+  officielle n'affiche pas) ; pendant le séchage, le temps restant (`work_time`).
 - **Nettoyage** : choix de la carte, avec un bouton pour en faire la carte active du compte (comme
   le sélecteur de carte de l'application mobile), pièces triées par nom (l'ordre renvoyé par le
   cloud n'est ni alphabétique ni par identifiant), cochées ici ou cliquées sur la carte, ordre de

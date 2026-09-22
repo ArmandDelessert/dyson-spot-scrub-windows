@@ -283,6 +283,8 @@
                         <StackPanel>
                             <TextBlock Text="{Binding StateText}" FontSize="19" FontWeight="SemiBold"/>
                             <TextBlock Text="{Binding ActionText}" Style="{StaticResource Muted}"/>
+                            <TextBlock Text="Retour à la station pour laver le rouleau humide" Style="{StaticResource Muted}"
+                                       Visibility="{Binding ReturningToWash, Converter={StaticResource Show}}"/>
                             <TextBlock Text="{Binding DockText}" Style="{StaticResource Muted}"
                                        Visibility="{Binding DockBusy, Converter={StaticResource Show}}"/>
                             <TextBlock Text="{Binding FaultText}" Foreground="{DynamicResource DangerBrush}" FontWeight="SemiBold" TextWrapping="Wrap"

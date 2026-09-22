@@ -42,7 +42,7 @@ public sealed class MapView : FrameworkElement
     // Capped at 250 ms for responsiveness, but never longer than the user's own configured
     // double-click speed (Windows' default is 500 ms) — waiting longer than that would just be a
     // needless delay, since anything slower already fails Windows' own double-click recognition.
-    private static readonly TimeSpan DoubleClickWindow = TimeSpan.FromMilliseconds(Math.Min(250, System.Windows.Forms.SystemInformation.DoubleClickTime));
+    private static readonly TimeSpan DoubleClickWindow = TimeSpan.FromMilliseconds(System.Windows.Forms.SystemInformation.DoubleClickTime);
     private const double DoubleClickMaxDistance = 24;
     private DateTime _lastClickTimeUtc;
     private Point _lastClickPosition;
