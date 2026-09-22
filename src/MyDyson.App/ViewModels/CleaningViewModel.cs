@@ -45,13 +45,20 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps) : O
 
     // ---- Maps and zones -------------------------------------------------------
 
-    /// <summary>Reloads the map list and selects the account's active map.</summary>
+    /// <summary>
+    /// Reloads the map list. The map the user was looking at is kept when it is still there, so a
+    /// refresh — asked for, or automatic after a reconnection — does not yank them back to the
+    /// active map; the rooms they had ticked survive it too (see <see cref="LoadZonesAsync"/>).
+    /// </summary>
     public async Task LoadMapsAsync()
     {
         try
         {
+            var wanted = SelectedMap?.Id;
             await maps.LoadAsync();
-            SelectedMap = Maps.FirstOrDefault(m => m.Metadata.IsCurrentMap) ?? Maps.FirstOrDefault();
+            SelectedMap = (wanted is null ? null : maps.Find(wanted))
+                ?? Maps.FirstOrDefault(m => m.Metadata.IsCurrentMap)
+                ?? Maps.FirstOrDefault();
         }
         catch (OperationCanceledException) when (hub.IsShuttingDown) { }
         catch (Exception ex) { hub.AddLog($"cartes: {ex.Message}"); }
@@ -65,6 +72,10 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps) : O
 
     private async Task LoadZonesAsync(MapItem map)
     {
+        // A reload rebuilds every row from fresh metadata, so what the user had ticked has to be
+        // carried over by id: otherwise a refresh — or a wifi blip, now that a reconnection
+        // reloads — would silently clear a selection they were about to start a clean with.
+        var wasSelected = Zones.Where(z => z.Selected).ToDictionary(z => z.Id, z => z.Order, StringComparer.Ordinal);
         Zones.Clear();
         _nextOrder = 1;
         // The cloud API returns zones in an unexplained order (probably the order the robot
@@ -74,9 +85,17 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps) : O
         var ordered = (map.Metadata.Zones ?? []).OrderBy(z => z.Name, StringComparer.Create(new CultureInfo("fr-FR"), ignoreCase: true));
         foreach (var z in ordered)
         {
+            var item = new ZoneItem(z);
+            // Restored before subscribing, so restoring is not mistaken for a click: the handler
+            // below would renumber the room instead of putting it back where it was.
+            if (wasSelected.TryGetValue(item.Id, out var order))
+            {
+                item.Selected = true;
+                item.Order = order;
+                _nextOrder = Math.Max(_nextOrder, order + 1);
+            }
             // Subscribed after construction, so only the user's edits land here — including any
             // made while the geometry below is still downloading, which must not be lost.
-            var item = new ZoneItem(z);
             item.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(ZoneItem.Selected)) OnZoneSelectionChanged(item);

@@ -19,6 +19,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly RobotContext _ctx;
     private readonly DispatcherTimer _refresh;
     private readonly Action _onThemeChanged;
+    private bool _initialLoadDone;
+    private bool _reloading;
+    private RobotConnectionStatus _lastStatus = RobotConnectionStatus.Disconnected;
 
     public RobotHub Hub { get; }
     public StatusViewModel Status { get; }
@@ -62,8 +65,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             var session = await _ctx.ConnectAsync(Hub.Ct);
             Hub.Session = session;
+            _lastStatus = session.Status;
             session.ConnectionChanged += (s, d) => Hub.Post(() =>
             {
+                // The MQTT session comes back on its own after a drop — a wifi blip, or the machine
+                // waking from sleep — but the REST side (maps, rooms, history) is only ever fetched
+                // on demand, so it would stay as stale as the moment the link died.
+                var cameBack = s == RobotConnectionStatus.Connected && _lastStatus != RobotConnectionStatus.Connected && _initialLoadDone;
+                _lastStatus = s;
                 Hub.Connected = s == RobotConnectionStatus.Connected;
                 Hub.Connection = s switch
                 {
@@ -72,6 +81,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     RobotConnectionStatus.Reconnecting => "Reconnexion…" + (d is null ? "" : $" ({d})"),
                     _ => "Déconnecté",
                 };
+                if (cameBack) _ = ReloadAsync("connexion rétablie");
             });
             session.AuthenticationLost += reason => Hub.Post(() => _ = SessionExpiredAsync(reason));
             session.Tracker.StateChanged += st => Hub.Post(() =>
@@ -102,6 +112,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Hub.Connection = "Connecté";
 
             await Task.WhenAll(Hub.RefreshStateAsync(), Hub.RefreshPropertiesAsync(), Cleaning.LoadMapsAsync(), History.LoadAsync());
+            _initialLoadDone = true;
             _refresh.Start();
             _ = History.FillDetailsAsync();
         }
@@ -114,10 +125,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task RefreshAsync()
+    private Task RefreshAsync() => ReloadAsync(null);
+
+    /// <summary>
+    /// Fetches everything the robot does not push: state, jdm properties, maps, history. Reached
+    /// from the Actualiser button and from a reconnection, which names itself in
+    /// <paramref name="reason"/> so the journal says why it happened. Reloads never overlap: a
+    /// flapping link would otherwise queue one per transition, and the history detail fill is
+    /// several hundred KB per unseen clean.
+    /// </summary>
+    private async Task ReloadAsync(string? reason)
     {
-        await Task.WhenAll(Hub.RefreshStateAsync(), Cleaning.LoadMapsAsync(), History.LoadAsync());
-        _ = History.FillDetailsAsync();
+        if (_reloading) return;
+        _reloading = true;
+        try
+        {
+            if (reason is not null) Hub.AddLog($"{reason}, rechargement des données");
+            await Task.WhenAll(Hub.RefreshStateAsync(), Hub.RefreshPropertiesAsync(), Cleaning.LoadMapsAsync(), History.LoadAsync());
+            await History.FillDetailsAsync();
+        }
+        finally { _reloading = false; }
     }
 
     private static string Truncate(string s, int n) => s.Length <= n ? s : s[..n] + "…";
