@@ -24,7 +24,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Modèle d'état typé, corrélation requête-réponse | fonctionne |
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
-| Tests unitaires | 44 tests, exécutés en CI |
+| Tests unitaires | 112 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -114,9 +114,10 @@ L'en-tête rappelle le numéro de série, le firmware et le compte connecté.
 
 La connexion se rétablit seule après une coupure, avec des credentials renouvelés. L'état du robot
 est réinterrogé toutes les 30 secondes, en plus de ce que le robot pousse spontanément (d'où
-l'heure « mis à jour » de l'en-tête). Les données REST — cartes, pièces, historique — ne sont
-chargées qu'au démarrage et sur le bouton « Actualiser » ; après une longue veille de la machine,
-c'est ce bouton qui les remet à jour.
+l'heure « mis à jour » de l'en-tête). Les données REST — cartes, pièces, historique — ne sont pas
+poussées : elles sont chargées au démarrage, sur le bouton « Actualiser », et à chaque fois que la
+connexion revient après une coupure, ce qui couvre le retour de veille de la machine. La carte
+consultée et les pièces cochées survivent à un rechargement.
 
 Deux options de ligne de commande servent à la vérification sans écran et à la documentation :
 
@@ -149,15 +150,20 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
 - `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `maps`, `map`, `live`, `history`,
   `clean`, `send`, `api`, `probe`, `wstest`.
 - `tests/MyDyson.Core.Tests` : casse des requêtes, signature SigV4, nom d'utilisateur MQTT, modèle
-  d'état des deux dialectes (dont le tracé `cur_path` et les propriétés jdm de la station),
-  préférences de pièces, grille d'occupation, messages exacts de la séquence de démarrage.
+  d'état des deux dialectes (dont le tracé `cur_path` et les propriétés jdm de la station), formes
+  JSON des réponses REST, préférences de pièces, libellés de pièces et de résultats, grille
+  d'occupation, messages exacts de la séquence de démarrage, attente entre deux reconnexions.
 - `tests/MyDyson.App.Tests` : géométrie de la scène (bornes, dock sentinelle, pièce sous un point,
-  découpage du trajet par action).
+  découpage du trajet par action) et les modèles de vue, branchés sur des réponses HTTP simulées :
+  texte d'état et compte à rebours de séchage, numérotation des pièces choisies et sa conservation
+  au rechargement, pièces d'un nettoyage passé, partage du téléchargement de détail, réglages qui
+  ne renvoient pas au robot ce qu'il vient d'annoncer.
 
-L'effort de test porte sur ce qui a été retrouvé par rétro-ingénierie et qu'aucune documentation ne
-permettrait de retrouver : formes exactes des messages, correspondances entre dialectes, décodage
-de la grille. Le cycle de vie de la session et le routage MQTT sont, eux, couverts par l'usage
-plutôt que par des tests, faute de coutures pour les isoler.
+L'effort de test porte d'abord sur ce qui a été retrouvé par rétro-ingénierie et qu'aucune
+documentation ne permettrait de retrouver : formes exactes des messages, correspondances entre
+dialectes, décodage de la grille. Le cycle de vie de la session MQTT et le routage des messages
+entrants restent couverts par l'usage plutôt que par des tests, faute de coutures pour les isoler
+du broker.
 
 Le protocole retrouvé par décompilation et par captures est documenté dans [docs/protocole.md](docs/protocole.md).
 

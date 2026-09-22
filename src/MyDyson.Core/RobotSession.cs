@@ -91,7 +91,7 @@ public sealed class RobotSession : IAsyncDisposable
         while (!_lifetime.IsCancellationRequested)
         {
             _attempt++;
-            var delay = TimeSpan.FromSeconds(Math.Min(120, 5 * Math.Pow(2, _attempt - 1)));
+            var delay = BackoffFor(_attempt);
             _log?.Invoke($"MQTT dropped ({reason}); reconnecting in {delay.TotalSeconds:F0} s (attempt {_attempt})");
             try
             {
@@ -125,6 +125,14 @@ public sealed class RobotSession : IAsyncDisposable
             }
         }
     }
+
+    /// <summary>
+    /// How long to wait before reconnection attempt <paramref name="attempt"/> (1-based): 5 s
+    /// doubling each time, capped at 2 minutes. The cap matters more than the growth — a robot can
+    /// be off the network for hours, and an uncapped backoff would leave the app hours behind it.
+    /// </summary>
+    public static TimeSpan BackoffFor(int attempt) =>
+        TimeSpan.FromSeconds(Math.Min(120, 5 * Math.Pow(2, Math.Max(1, attempt) - 1)));
 
     private void SetStatus(RobotConnectionStatus status, string? detail)
     {

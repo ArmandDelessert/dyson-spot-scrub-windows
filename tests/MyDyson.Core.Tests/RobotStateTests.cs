@@ -210,6 +210,50 @@ public class RobotStateTests
     }
 
     [Fact]
+    public void UnknownMessagesAreSurfacedAsEventsRatherThanSwallowed()
+    {
+        // The Journal tab lives off this: anything the tracker does not model still gets named, so
+        // a message type nobody has identified yet is visible instead of silently dropped.
+        var tracker = new RobotStateTracker();
+        var events = new List<string>();
+        tracker.EventReceived += (name, _) => events.Add(name);
+
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status",
+            """{"msg":"MAP-UPLOAD-STATUS","status":"COMPLETE","cleanId":"abc"}"""));
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm",
+            """{"msgId":"1","method":"event.clean_finish.post","params":{"clean_finish":1789916722}}"""));
+
+        Assert.Equal(["MAP-UPLOAD-STATUS", "event.clean_finish.post"], events);
+    }
+
+    [Fact]
+    public void StateChangeIsFoldedInLikeCurrentState()
+    {
+        var tracker = new RobotStateTracker();
+        tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status",
+            """{"msg":"CURRENT-STATE","state":"INACTIVE_CHARGING","batteryChargeLevel":100,"dockState":"IDLE"}"""));
+
+        var changed = tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status",
+            """{"msg":"STATE-CHANGE","state":"FULL_CLEAN_RUNNING","batteryChargeLevel":99}"""));
+
+        Assert.True(changed);
+        Assert.Equal("FULL_CLEAN_RUNNING", tracker.State!.State);
+        Assert.Equal(99, tracker.State.BatteryChargeLevel);
+    }
+
+    [Fact]
+    public void MessagesOnOtherTopicsAndUnparseablePayloadsAreIgnored()
+    {
+        var tracker = new RobotStateTracker();
+
+        // Our own publishes come back on the command topics; folding them in would be nonsense.
+        Assert.False(tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/command",
+            """{"msg":"REQUEST-CURRENT-STATE"}""")));
+        Assert.False(tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status", "not json at all")));
+        Assert.Null(tracker.State);
+    }
+
+    [Fact]
     public void VoiceDownloadStatusIsTracked()
     {
         var tracker = new RobotStateTracker();

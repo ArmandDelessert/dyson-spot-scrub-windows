@@ -145,7 +145,10 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps) : Ob
                 try { _map = await maps.GetMapAsync(mapId); }
                 catch (Exception ex) when (!hub.IsShuttingDown) { hub.AddLog($"carte {mapId} du nettoyage: {ex.Message}"); }
             }
-            MapName = maps.NameOf(mapId) ?? mapId ?? "carte supprimée";
+            // Reads inside "Trajet du nettoyage sélectionné sur la carte …". A clean can name a map
+            // the account no longer has, deleted or replaced since; saying so beats printing a raw
+            // id at the user, which is what the missing-map case used to do.
+            MapName = maps.NameOf(mapId) ?? (mapId is null ? "inconnue" : "supprimée");
             RebuildScene();
         }
         catch (OperationCanceledException) when (hub.IsShuttingDown) { }
