@@ -238,15 +238,15 @@
                             <Style TargetType="Ellipse">
                                 <Setter Property="Fill" Value="{DynamicResource DangerBrush}"/>
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Connected}" Value="True">
+                                    <DataTrigger Binding="{Binding Hub.Connected}" Value="True">
                                         <Setter Property="Fill" Value="{DynamicResource SuccessBrush}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Ellipse.Style>
                     </Ellipse>
-                    <TextBlock Text="{Binding Connection}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                    <TextBlock Text="{Binding LastUpdate, StringFormat='mis à jour {0}'}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock Text="{Binding Hub.Connection}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock Text="{Binding Status.LastUpdate, StringFormat='mis à jour {0}'}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0"/>
                     <Button Content="↻ Actualiser" Command="{Binding RefreshCommand}" Style="{StaticResource Secondary}" Margin="0,0,8,0"/>
                     <Button Content="Se déconnecter" Command="{Binding LogoutCommand}" Style="{StaticResource Secondary}" Margin="0"/>
                 </StackPanel>
@@ -262,8 +262,8 @@
         <!-- Status bar -->
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBrush}" Padding="16,6">
             <DockPanel>
-                <ProgressBar DockPanel.Dock="Right" Width="120" Height="4" IsIndeterminate="True" Visibility="{Binding Busy, Converter={StaticResource Show}}"/>
-                <TextBlock Text="{Binding Message}" Foreground="{DynamicResource DangerBrush}"/>
+                <ProgressBar DockPanel.Dock="Right" Width="120" Height="4" IsIndeterminate="True" Visibility="{Binding Hub.Busy, Converter={StaticResource Show}}"/>
+                <TextBlock Text="{Binding Hub.Message}" Foreground="{DynamicResource DangerBrush}"/>
             </DockPanel>
         </Border>
 
@@ -279,7 +279,7 @@
                 <StackPanel Margin="0,0,8,0">
 
                     <!-- State -->
-                    <Border Style="{StaticResource Card}">
+                    <Border Style="{StaticResource Card}" DataContext="{Binding Status}">
                         <StackPanel>
                             <TextBlock Text="{Binding StateText}" FontSize="19" FontWeight="SemiBold"/>
                             <TextBlock Text="{Binding ActionText}" Style="{StaticResource Muted}"/>
@@ -301,7 +301,7 @@
                     </Border>
 
                     <!-- Clean -->
-                    <Border Style="{StaticResource Card}">
+                    <Border Style="{StaticResource Card}" DataContext="{Binding Cleaning}">
                         <StackPanel>
                             <TextBlock Text="Nettoyage" Style="{StaticResource Section}"/>
                             <TextBlock Text="Carte" Style="{StaticResource Label}" Margin="0,0,0,4"/>
@@ -418,7 +418,7 @@
                     </Border>
 
                     <!-- Dock -->
-                    <Border Style="{StaticResource Card}">
+                    <Border Style="{StaticResource Card}" DataContext="{Binding Status}">
                         <StackPanel>
                             <TextBlock Text="Station" Style="{StaticResource Section}"/>
                             <WrapPanel Margin="0,0,0,-8">
@@ -429,7 +429,7 @@
                     </Border>
 
                     <!-- Consumables -->
-                    <Border Style="{StaticResource Card}">
+                    <Border Style="{StaticResource Card}" DataContext="{Binding Status}">
                         <StackPanel>
                             <TextBlock Text="Consommables" Style="{StaticResource Section}"/>
                             <TextBlock Text="Durée de vie restante. À remplacer à 0 %." Style="{StaticResource Muted}" FontSize="11" Margin="0,-4,0,8"/>
@@ -456,7 +456,7 @@
 
             <!-- Right column: tabs -->
             <TabControl x:Name="Tabs" Grid.Column="2" Foreground="{DynamicResource TextBrush}">
-                <TabItem Header="Carte">
+                <TabItem Header="Carte" DataContext="{Binding Cleaning}">
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="0,8,0,8">
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
@@ -471,7 +471,7 @@
                     </DockPanel>
                 </TabItem>
 
-                <TabItem Header="Historique">
+                <TabItem Header="Historique" DataContext="{Binding History}">
                     <Grid Margin="0,8,0,0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="220"/>
@@ -506,19 +506,19 @@
                                 <DockPanel>
                                     <Button DockPanel.Dock="Right" Content="Réinitialiser le zoom" Click="ResetHistoryZoom_Click" Style="{StaticResource Secondary}" Margin="0"/>
                                     <TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center">
-                                        <Run Text="Trajet du nettoyage sélectionné sur la carte "/><Run Text="{Binding HistoryMapName, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="."/>
+                                        <Run Text="Trajet du nettoyage sélectionné sur la carte "/><Run Text="{Binding MapName, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="."/>
                                     </TextBlock>
                                 </DockPanel>
                                 <TextBlock Style="{StaticResource Muted}" Margin="0,2,0,0" TextWrapping="Wrap">
-                                    <Run Text="Résultat : "/><Run Text="{Binding HistoryResultText, Mode=OneWay}" FontWeight="SemiBold"/>
+                                    <Run Text="Résultat : "/><Run Text="{Binding ResultText, Mode=OneWay}" FontWeight="SemiBold"/>
                                 </TextBlock>
                             </StackPanel>
-                            <controls:MapView x:Name="HistoryCanvas" Scene="{Binding HistoryScene}" AutomationProperties.Name="Trajet du nettoyage sélectionné"/>
+                            <controls:MapView x:Name="HistoryCanvas" Scene="{Binding Scene}" AutomationProperties.Name="Trajet du nettoyage sélectionné"/>
                         </DockPanel>
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Réglages">
+                <TabItem Header="Réglages" DataContext="{Binding Settings}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
                         <StackPanel MaxWidth="560" HorizontalAlignment="Left">
                             <TextBlock Text="Réglages de lavage" Style="{StaticResource Section}"/>
@@ -575,7 +575,7 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="Journal">
+                <TabItem Header="Journal" DataContext="{Binding Journal}">
                     <DockPanel Margin="0,8,0,0">
                         <TextBlock DockPanel.Dock="Top" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10">
                             Le journal affiche les événements notables signalés par le robot (fautes, fin de nettoyage, changement de carte…) et le résultat des commandes envoyées depuis cette fenêtre. Il n'enregistre pas chaque message échangé avec le robot : activez la capture ci-dessous pour tout enregistrer dans un fichier, ce qui peut aider à repérer des messages encore non identifiés.

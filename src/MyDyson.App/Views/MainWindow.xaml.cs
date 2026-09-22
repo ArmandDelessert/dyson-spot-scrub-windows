@@ -19,8 +19,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         _vm = new MainViewModel(ctx);
         DataContext = _vm;
-        MapCanvas.ZoneClicked += _vm.ToggleZone;
-        MapCanvas.EmptySpaceClicked += _vm.ClearSelection;
+        MapCanvas.ZoneClicked += _vm.Cleaning.ToggleZone;
+        MapCanvas.EmptySpaceClicked += _vm.Cleaning.ClearSelection;
         _vm.LoggedOut += () => { LoggedOut?.Invoke(); Close(); };
         _vm.NotifyRequested += (title, text) => _notifications.Show(title, text, onClick: () =>
         {
@@ -37,12 +37,12 @@ public partial class MainWindow : Window
     private void ResetZoom_Click(object sender, RoutedEventArgs e) => MapCanvas.ResetView();
     private void ResetHistoryZoom_Click(object sender, RoutedEventArgs e) => HistoryCanvas.ResetView();
 
-    public void ClickZone(string zoneId) => _vm.ToggleZone(zoneId);
+    public void ClickZone(string zoneId) => _vm.Cleaning.ToggleZone(zoneId);
 
     public void SelectTab(int index)
     {
         if (index >= 0 && index < Tabs.Items.Count) Tabs.SelectedIndex = index;
-        if (index == 1) _vm.SelectFirstClean();
+        if (index == 1) _vm.History.SelectFirstClean();
     }
 
     /// <summary>Renders the window content to a PNG, for documentation and for checking the layout without a screen.</summary>

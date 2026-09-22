@@ -133,7 +133,10 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
   - `AwsSigV4`, `RawMqttProbe` : diagnostics des autres transports.
   - `SessionStore` : bearer token chiffré avec DPAPI dans `%APPDATA%\MyDyson\session.bin`.
 - `MyDyson.App` : application WPF. `MapRenderer` dessine la scène pour l'écran et l'export PNG,
-  `RobotContext` porte la session, `MainViewModel` le tableau de bord.
+  `RobotContext` porte la session. `MainViewModel` connecte le robot et distribue ce qu'il pousse aux
+  modèles de vue d'onglet (`StatusViewModel`, `CleaningViewModel`, `HistoryViewModel`,
+  `SettingsViewModel`, `JournalViewModel`), qui partagent un `RobotHub` (session, journal,
+  envoi de commandes, annulation à la fermeture) et un `MapCatalog` (cartes, géométrie, grille).
 - `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `maps`, `map`, `live`, `history`,
   `clean`, `send`, `api`, `probe`, `wstest`.
 - `tests/MyDyson.Core.Tests` : casse des requêtes, signature SigV4, nom d'utilisateur MQTT, modèle
