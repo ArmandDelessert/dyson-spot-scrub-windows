@@ -1,9 +1,12 @@
 # Dyson Spot+Scrub AI pour Windows
 
+> Ce README, comme l'essentiel du code de ce dépôt, a été rédigé par Claude (Claude Code, Anthropic),
+> sur la direction d'Armand Delessert, qui a fourni les captures et vérifié chaque étape sur son robot.
+
 Application Windows non officielle pour contrôler le robot aspirateur **Dyson Spot+Scrub AI** ([en](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai), [fr-CH](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai)) (nom interne RB05).
 
 Le robot n'expose aucun service sur le réseau local : il n'est joignable que via le cloud Dyson
-(MQTT sur WebSocket vers AWS IoT). Ce dépôt reproduit donc le protocole de [l'application mobile MyDyson](https://play.google.com/store/apps/details?id=com.dyson.mobile.android).
+(MQTT sur WebSocket vers AWS IoT). Ce dépôt reproduit donc le protocole de [l'application Android MyDyson](https://play.google.com/store/apps/details?id=com.dyson.mobile.android).
 
 ## État du projet
 
@@ -24,7 +27,8 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Tests unitaires | 44 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
-Vérifié le 19 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`.
+Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
+sur des nettoyages réels de plusieurs heures.
 
 ### Le transport compte autant que les credentials
 
@@ -77,9 +81,6 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   l'application mobile le voie aussi.
 - **Station** : « Vider le collecteur » et « Laver et sécher », qui devient l'arrêt de l'action en cours.
 - **Consommables** : durée de vie restante, à remplacer à zéro, comme dans l'application.
-- **Journal** : les événements notables du robot et le résultat des commandes envoyées depuis la
-  fenêtre, pas chaque message MQTT. Un bouton lance une capture complète dans un fichier JSON Lines,
-  pour repérer des messages non encore identifiés.
 - **Notifications** : une notification Windows à la fin d'un nettoyage, ou si une pièce sélectionnée
   n'a pas pu être atteinte. Cliquer dessus ramène la fenêtre au premier plan sur l'historique.
 - **Compte** : bouton « Se déconnecter » dans l'en-tête, avec confirmation ; ramène à l'écran de
@@ -105,9 +106,17 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   pas celle du moment.
 - **Réglages** : les mêmes libellés que l'application Android, en trois groupes : lavage, station,
   vocaux. Chaque réglage part au robot dans les deux dialectes.
-- **Journal** : événements du robot et résultats des commandes.
+- **Journal** : les événements notables du robot et le résultat des commandes envoyées depuis la
+  fenêtre, pas chaque message MQTT. Un bouton lance une capture complète dans un fichier JSON Lines,
+  pour repérer des messages non encore identifiés.
 
-La connexion se rétablit seule après une coupure, avec des credentials renouvelés.
+L'en-tête rappelle le numéro de série, le firmware et le compte connecté.
+
+La connexion se rétablit seule après une coupure, avec des credentials renouvelés. L'état du robot
+est réinterrogé toutes les 30 secondes, en plus de ce que le robot pousse spontanément (d'où
+l'heure « mis à jour » de l'en-tête). Les données REST — cartes, pièces, historique — ne sont
+chargées qu'au démarrage et sur le bouton « Actualiser » ; après une longue veille de la machine,
+c'est ce bouton qui les remet à jour.
 
 Deux options de ligne de commande servent à la vérification sans écran et à la documentation :
 
@@ -140,8 +149,15 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
 - `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `maps`, `map`, `live`, `history`,
   `clean`, `send`, `api`, `probe`, `wstest`.
 - `tests/MyDyson.Core.Tests` : casse des requêtes, signature SigV4, nom d'utilisateur MQTT, modèle
-  d'état, préférences de pièces, grille d'occupation, messages exacts de la séquence de démarrage.
-- `tests/MyDyson.App.Tests` : géométrie de la scène (bornes, dock sentinelle, pièce sous un point).
+  d'état des deux dialectes (dont le tracé `cur_path` et les propriétés jdm de la station),
+  préférences de pièces, grille d'occupation, messages exacts de la séquence de démarrage.
+- `tests/MyDyson.App.Tests` : géométrie de la scène (bornes, dock sentinelle, pièce sous un point,
+  découpage du trajet par action).
+
+L'effort de test porte sur ce qui a été retrouvé par rétro-ingénierie et qu'aucune documentation ne
+permettrait de retrouver : formes exactes des messages, correspondances entre dialectes, décodage
+de la grille. Le cycle de vie de la session et le routage MQTT sont, eux, couverts par l'usage
+plutôt que par des tests, faute de coutures pour les isoler.
 
 Le protocole retrouvé par décompilation et par captures est documenté dans [docs/protocole.md](docs/protocole.md).
 
@@ -206,6 +222,19 @@ Deux dialectes coexistent sur ces topics : le format Dyson classique
 **Piège** : l'API Dyson est sensible à la casse des propriétés des corps de requête. `{"Serial": ...}`
 est accepté, `{"serial": ...}` renvoie HTTP 400. Le sérialiseur JSON ne doit donc appliquer aucune
 politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClient`.
+
+## Limites connues
+
+- Pas de nettoyage de toute la maison depuis l'application : seulement par pièces. La commande
+  existe dans la bibliothèque (`StartGlobalCleanAsync`) et dans la ligne de commande.
+- Pas de cartographie ni de modification de carte depuis l'application : renommer, fusionner ou
+  diviser des pièces, poser un mur virtuel, ajuster un meuble. Les messages correspondants sont
+  documentés dans [docs/protocole.md](docs/protocole.md) et seuls `service.arrange_room` et
+  `START-MAPPING` sont implémentés, sans interface.
+- Le débordement de la carte à travers les fenêtres vient du lidar du robot, pas du rendu ; seule
+  l'application mobile sait le retoucher.
+- Le réglage utilisé par pièce lors d'un nettoyage passé n'est pas récupérable (voir Historique).
+- Les types de taches autres que `liquid` n'ont jamais été observés : toutes sont dessinées pareil.
 
 ## Avertissements
 
