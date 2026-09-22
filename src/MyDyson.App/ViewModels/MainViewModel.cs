@@ -18,7 +18,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly RobotContext _ctx;
     private readonly DispatcherTimer _refresh;
-    private readonly Action _onThemeChanged;
+    private readonly Action _redrawMaps;
     private bool _initialLoadDone;
     private bool _reloading;
     private RobotConnectionStatus _lastStatus = RobotConnectionStatus.Disconnected;
@@ -29,6 +29,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public HistoryViewModel History { get; }
     public SettingsViewModel Settings { get; }
     public JournalViewModel Journal { get; }
+    /// <summary>What this window draws; unlike the Réglages tab, none of it is sent to the robot.</summary>
+    public DisplaySettings Display { get; }
 
     public string RobotName => _ctx.Robot?.Name ?? "Robot";
     public string Serial => _ctx.Robot?.SerialNumber ?? "";
@@ -44,19 +46,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _ctx = ctx;
         Hub = new RobotHub(ctx, Application.Current.Dispatcher);
+        Display = DisplaySettings.Load();
         var maps = new MapCatalog(Hub);
         Status = new StatusViewModel(Hub);
-        Cleaning = new CleaningViewModel(Hub, maps);
-        History = new HistoryViewModel(Hub, maps);
+        Cleaning = new CleaningViewModel(Hub, maps, Display);
+        History = new HistoryViewModel(Hub, maps, Display);
         Settings = new SettingsViewModel(Hub);
         Journal = new JournalViewModel(Hub);
 
         _refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _refresh.Tick += async (_, _) => await Hub.RefreshStateAsync();
-        // Kept in a field so Dispose can unsubscribe: ThemeService is static and outlives every
-        // login/logout cycle, and each cycle builds a new dashboard.
-        _onThemeChanged = () => Hub.Post(() => { Cleaning.RebuildScene(); History.RebuildScene(); });
-        ThemeService.Changed += _onThemeChanged;
+        // Both maps bake in the theme and the display preferences, so either changing has to redraw
+        // them rather than wait for the next robot message. Kept in a field so Dispose can
+        // unsubscribe: ThemeService is static and outlives every login/logout cycle, and each
+        // cycle builds a new dashboard.
+        _redrawMaps = () => Hub.Post(() => { Cleaning.RebuildScene(); History.RebuildScene(); });
+        ThemeService.Changed += _redrawMaps;
+        Display.Changed += _redrawMaps;
     }
 
     public async Task StartAsync()
@@ -189,7 +195,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _refresh.Stop();
-        ThemeService.Changed -= _onThemeChanged;
+        ThemeService.Changed -= _redrawMaps;
+        Display.Changed -= _redrawMaps;
         Journal.Dispose();
         Cleaning.Dispose();
         Hub.Dispose();

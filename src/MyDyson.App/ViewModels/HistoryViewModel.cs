@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MyDyson.App.Rendering;
+using MyDyson.App.Services;
 using MyDyson.Core;
 
 namespace MyDyson.App.ViewModels;
@@ -35,7 +36,7 @@ public sealed partial class CleanItem(CleanSummary Summary) : ObservableObject
 }
 
 /// <summary>The Historique tab: the list of past cleans and the selected one's trail on its map.</summary>
-public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps) : ObservableObject
+public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, DisplaySettings display) : ObservableObject
 {
     private readonly Dictionary<string, Task<CleanDetail>> _details = new();
 
@@ -167,6 +168,8 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps) : Ob
             Path = _path,
             Obstacles = _obstacles,
             DirtSpots = _dirt,
+            ShowFurniture = display.ShowFurniture,
+            ShowTravelPath = display.ShowTravelPath,
         };
     }
 

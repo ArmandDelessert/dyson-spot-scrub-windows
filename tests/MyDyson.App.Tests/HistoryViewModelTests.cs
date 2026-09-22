@@ -1,3 +1,4 @@
+using MyDyson.App.Services;
 using MyDyson.App.ViewModels;
 
 namespace MyDyson.App.Tests;
@@ -35,7 +36,7 @@ public class HistoryViewModelTests
             ("clean-maps", OneClean));
         var maps = new MapCatalog(hub);
         _ = maps.LoadAsync();
-        return new HistoryViewModel(hub, maps);
+        return new HistoryViewModel(hub, maps, new DisplaySettings());
     }
 
     [Fact]

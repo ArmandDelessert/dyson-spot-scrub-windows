@@ -79,6 +79,35 @@
             <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
         </Style>
+        <!-- A toolbar toggle that looks like a Secondary button and stays highlighted while its
+             popup is open, so it is obvious where the panel came from. -->
+        <Style TargetType="ToggleButton" x:Key="ToolbarToggle">
+            <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4" BorderThickness="2" BorderBrush="Transparent">
+                            <Border x:Name="Overlay" Background="Transparent" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Overlay" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Overlay" Property="Background" Value="{DynamicResource PressedOverlayBrush}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="Margin" Value="0,3"/>
@@ -413,7 +442,22 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <Button Content="▶ Nettoyer la sélection" Command="{Binding StartCleanCommand}" IsEnabled="{Binding CanStart}" Margin="0,10,0,0" HorizontalAlignment="Left"/>
+                            <!-- Disabled until a room is ticked and the robot can take a job. The
+                                 tooltip shows while disabled (WPF hides tooltips there by default),
+                                 which is what turns a dead button into an explanation. -->
+                            <Button Content="▶ Nettoyer la sélection" Command="{Binding StartCleanCommand}" IsEnabled="{Binding CanStart}"
+                                    Margin="0,10,0,0" HorizontalAlignment="Left" ToolTipService.ShowOnDisabled="True">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                        <Setter Property="ToolTip" Value="Lance le nettoyage des pièces cochées, dans l'ordre indiqué."/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CanStart}" Value="False">
+                                                <Setter Property="ToolTip" Value="Cochez au moins une pièce ; le robot doit aussi être disponible."/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </StackPanel>
                     </Border>
 
@@ -460,8 +504,28 @@
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="0,8,0,8">
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                <!-- Display preferences sit with the map they change, rather than in
+                                     the Réglages tab, where everything else is sent to the robot.
+                                     They apply to the history map too. -->
+                                <ToggleButton x:Name="DisplayOptionsButton" Content="Affichage ▾" Margin="0,0,8,8" Padding="10,4" Cursor="Hand"
+                                              AutomationProperties.Name="Options d'affichage de la carte"
+                                              Style="{StaticResource ToolbarToggle}"/>
+                                <Popup IsOpen="{Binding IsChecked, ElementName=DisplayOptionsButton, Mode=TwoWay}" StaysOpen="False"
+                                       PlacementTarget="{Binding ElementName=DisplayOptionsButton}" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Fade">
+                                    <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12,10">
+                                        <StackPanel DataContext="{Binding Display}">
+                                            <CheckBox IsChecked="{Binding ShowFurniture}" Content="Afficher les meubles"/>
+                                            <CheckBox IsChecked="{Binding ShowTravelPath}" Content="Afficher les déplacements sans nettoyage"/>
+                                            <CheckBox IsChecked="{Binding ShowExportButton}" Content="Afficher le bouton d'export PNG"/>
+                                            <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0" MaxWidth="260">
+                                                Ces réglages ne concernent que cet affichage : rien n'est envoyé au robot.
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+                                </Popup>
                                 <Button Content="Réinitialiser le zoom" Click="ResetZoom_Click" Style="{StaticResource Secondary}" Margin="0,0,8,0"/>
-                                <Button Content="Exporter en PNG" Command="{Binding ExportMapCommand}" Style="{StaticResource Secondary}" Margin="0"/>
+                                <Button Content="Exporter en PNG" Command="{Binding ExportMapCommand}" Style="{StaticResource Secondary}" Margin="0"
+                                        Visibility="{Binding Display.ShowExportButton, Converter={StaticResource Show}}"/>
                             </StackPanel>
                             <TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap">
                                 Clic/tape : sélectionne une pièce, efface la sélection en dehors. Double-clic/double-tape en dehors : réinitialise le zoom. Molette ou pincement pour zoomer, glisser pour déplacer.

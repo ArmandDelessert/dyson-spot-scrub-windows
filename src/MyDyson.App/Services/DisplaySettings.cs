@@ -1,0 +1,85 @@
+using System.IO;
+using System.Text.Json;
+using CommunityToolkit.Mvvm.ComponentModel;
+using MyDyson.Core;
+
+namespace MyDyson.App.Services;
+
+/// <summary>
+/// What this window draws, as opposed to what the robot does: preferences that belong to the
+/// installation, not to the account. Kept apart from the Réglages tab on purpose — everything
+/// there is sent to the robot and visible from the phone app, whereas nothing here leaves this
+/// machine. Stored in clear next to the session, since none of it is sensitive.
+/// </summary>
+public sealed partial class DisplaySettings : ObservableObject
+{
+    private static string DefaultPath => Path.Combine(SessionStore.Directory, "display.json");
+
+    /// <summary>Where <see cref="Save"/> writes. Null on a plain instance, which then only lives for the run — that is what tests use.</summary>
+    private string? _path;
+
+    /// <summary>Furniture outlines on both maps. Off makes the rooms and the trail easier to read.</summary>
+    [ObservableProperty] private bool _showFurniture = true;
+
+    /// <summary>
+    /// The stretches where the robot was only repositioning (the trail's "update" flag at 0).
+    /// Off leaves just the parts where it actually worked, which is what tells you what got cleaned.
+    /// </summary>
+    [ObservableProperty] private bool _showTravelPath = true;
+
+    /// <summary>Whether the map toolbar offers the PNG export at all.</summary>
+    [ObservableProperty] private bool _showExportButton = true;
+
+    /// <summary>Raised after any of the above changes, once they have been written back to disk.</summary>
+    public event Action? Changed;
+
+    /// <summary>
+    /// Reads the stored preferences, falling back to the defaults for anything missing or
+    /// unreadable, and remembers changes from then on. <paramref name="path"/> is for tests.
+    /// </summary>
+    public static DisplaySettings Load(string? path = null)
+    {
+        var settings = new DisplaySettings { _path = path ?? DefaultPath };
+        try
+        {
+            if (File.Exists(settings._path) && JsonSerializer.Deserialize<Stored>(File.ReadAllText(settings._path)) is { } s)
+            {
+                settings._loading = true;
+                settings.ShowFurniture = s.ShowFurniture ?? true;
+                settings.ShowTravelPath = s.ShowTravelPath ?? true;
+                settings.ShowExportButton = s.ShowExportButton ?? true;
+                settings._loading = false;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            // A corrupt or unreadable preferences file is not worth failing a launch over.
+        }
+        return settings;
+    }
+
+    private bool _loading;
+
+    private void Save()
+    {
+        if (_loading) return;
+        Changed?.Invoke();
+        if (_path is null) return;
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+            File.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton)));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Same: the setting still applies for this run, it just will not be remembered.
+        }
+    }
+
+    partial void OnShowFurnitureChanged(bool value) => Save();
+    partial void OnShowTravelPathChanged(bool value) => Save();
+    partial void OnShowExportButtonChanged(bool value) => Save();
+
+    /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton);
+}

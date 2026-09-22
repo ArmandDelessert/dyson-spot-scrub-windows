@@ -24,7 +24,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Modèle d'état typé, corrélation requête-réponse | fonctionne |
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
-| Tests unitaires | 112 tests, exécutés en CI |
+| Tests unitaires | 121 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -73,7 +73,8 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 - **Nettoyage** : choix de la carte, avec un bouton pour en faire la carte active du compte (comme
   le sélecteur de carte de l'application mobile), pièces triées par nom (l'ordre renvoyé par le
   cloud n'est ni alphabétique ni par identifiant), cochées ici ou cliquées sur la carte, ordre de
-  passage affiché.
+  passage affiché. Le bouton de lancement reste inactif tant qu'aucune pièce n'est cochée ou que le
+  robot n'est pas disponible, et dit pourquoi au survol.
   Une pièce cochée déplie ses réglages : type de nettoyage, mode de l'aspirateur (masqué si le type
   est « Laver » seul), et si le type inclut la serpillière, niveau d'hydratation et nombre de
   passages. Une pièce non cochée reste repliée avec un résumé d'une ligne, et peut être dépliée à la
@@ -94,6 +95,10 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   pour zoomer, glisser (souris ou un doigt) pour déplacer la vue.
   Export en PNG. Les pièces d'un type reconnu (cuisine, chambre, salon…) portent le même nom que
   dans l'application mobile, même quand le nom enregistré sur le compte diffère.
+  Un bouton « Affichage » regroupe ce qui ne concerne que cette fenêtre, et vaut aussi pour la carte
+  de l'historique : masquer les meubles, masquer les déplacements sans nettoyage (ne reste alors que
+  ce qui a réellement été nettoyé), masquer le bouton d'export. Ces choix sont retenus d'un
+  lancement à l'autre, dans `%APPDATA%\MyDyson\display.json`, et ne sont jamais envoyés au robot.
 - **Historique** : date, durée, fin, carte, pièces réellement nettoyées, surface, batterie et
   fautes pour chaque nettoyage. Les pièces se remplissent en arrière-plan une par une après le
   chargement de la liste, chacune nécessitant le détail complet de son nettoyage (l'API ne dit pas,

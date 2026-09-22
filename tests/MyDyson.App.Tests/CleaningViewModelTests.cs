@@ -1,3 +1,4 @@
+using MyDyson.App.Services;
 using MyDyson.App.ViewModels;
 using MyDyson.Core;
 
@@ -13,7 +14,9 @@ public class CleaningViewModelTests
     private static readonly (string Id, string Name, string? Type)[] Rooms =
         [("10", "Cuisine", "kitchen"), ("12", "Chambre", "bedroom"), ("13", "Couloir", "hallway")];
 
-    private static CleaningViewModel New(out RobotHub hub, params string[] maps)
+    private static CleaningViewModel New(out RobotHub hub, params string[] maps) => New(out hub, new DisplaySettings(), maps);
+
+    private static CleaningViewModel New(out RobotHub hub, DisplaySettings display, params string[] maps)
     {
         var list = maps.Length > 0 ? maps : [TestHub.Map("1000000002", "Étage", isCurrent: true, Rooms)];
         hub = TestHub.Create(
@@ -21,7 +24,7 @@ public class CleaningViewModelTests
             ("persistent-maps", TestHub.EmptyPersistentMap),
             ("live-maps/mapping", """{"dimensions":{"width":2,"height":2,"resolution":0.5,"offsetX":0,"offsetY":0},"mapData":[10,10,12,12]}"""),
             ("live-maps/cleaning", """{"cleanPath":[],"obstacles":[],"dirt":[]}"""));
-        return new CleaningViewModel(hub, new MapCatalog(hub));
+        return new CleaningViewModel(hub, new MapCatalog(hub), display);
     }
 
     private static ZoneItem Room(CleaningViewModel vm, string id) => vm.Zones.First(z => z.Id == id);
@@ -165,14 +168,67 @@ public class CleaningViewModelTests
     }
 
     [Fact]
+    public async Task TheStartButtonNeedsBothAReadyRobotAndATickedRoom()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        Assert.False(vm.CanStart); // no state yet, nothing ticked
+
+        vm.Apply(RobotState.Parse("""{"msg":"CURRENT-STATE","state":"INACTIVE_CHARGING","dockState":"IDLE"}""")!);
+        Assert.False(vm.CanStart); // robot ready, still nothing ticked
+
+        vm.ToggleZone("10");
+        Assert.True(vm.CanStart);
+
+        vm.ClearSelection();
+        Assert.False(vm.CanStart);
+
+        // And a robot in the middle of a clean cannot take another one, ticked rooms or not.
+        vm.ToggleZone("10");
+        vm.Apply(RobotState.Parse("""{"msg":"CURRENT-STATE","state":"FULL_CLEAN_RUNNING"}""")!);
+        Assert.False(vm.CanStart);
+    }
+
+    [Fact]
+    public async Task ASelectionRestoredByAReloadReEnablesTheStartButton()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        vm.Apply(RobotState.Parse("""{"msg":"CURRENT-STATE","state":"INACTIVE_CHARGING","dockState":"IDLE"}""")!);
+        vm.ToggleZone("10");
+
+        await vm.LoadMapsAsync();
+
+        Assert.True(vm.CanStart);
+    }
+
+    [Fact]
     public async Task StartingWithNothingTickedSaysSoInsteadOfSendingACleanRequest()
     {
+        // The button is disabled in that state, so this is the belt to its braces.
         var vm = New(out var hub);
         await vm.LoadMapsAsync();
 
         await vm.StartCleanCommand.ExecuteAsync(null);
 
         Assert.Equal("Sélectionnez au moins une pièce.", hub.Message);
+    }
+
+    [Fact]
+    public async Task TheDisplayPreferencesReachTheScene()
+    {
+        var display = new DisplaySettings();
+        var vm = New(out _, display);
+        await vm.LoadMapsAsync();
+        Assert.True(vm.Scene.ShowFurniture);
+        Assert.True(vm.Scene.ShowTravelPath);
+
+        display.ShowFurniture = false;
+        display.ShowTravelPath = false;
+        vm.RebuildScene();
+
+        Assert.False(vm.Scene.ShowFurniture);
+        Assert.False(vm.Scene.ShowTravelPath);
     }
 
     [Fact]

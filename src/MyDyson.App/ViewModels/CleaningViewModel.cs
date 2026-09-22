@@ -3,6 +3,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MyDyson.App.Rendering;
+using MyDyson.App.Services;
 using MyDyson.Core;
 
 namespace MyDyson.App.ViewModels;
@@ -11,15 +12,18 @@ namespace MyDyson.App.ViewModels;
 /// The Nettoyage card and the Carte tab: which map, which rooms in which order with which
 /// settings, and the live scene (grid, robot, trail, obstacles, stains) drawn from it.
 /// </summary>
-public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps) : ObservableObject, IDisposable
+public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, DisplaySettings display) : ObservableObject, IDisposable
 {
     public ObservableCollection<MapItem> Maps => maps.Maps;
+    /// <summary>Exposed so the map toolbar can bind straight to it: a Popup sits outside the window's visual tree, where an ancestor lookup would find nothing.</summary>
+    public DisplaySettings Display => display;
     [ObservableProperty] private MapItem? _selectedMap;
     public ObservableCollection<ZoneItem> Zones { get; } = new();
     [ObservableProperty] private MapScene _scene = new();
     [ObservableProperty] private bool _canStart;
 
     private PersistentMap? _map;
+    private bool _robotReady;
     private int _nextOrder = 1;
     private RobotPosition? _robotPosition;
     private IReadOnlyList<MyDyson.Core.Point>? _lastPath;
@@ -32,10 +36,18 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps) : O
 
     public void Apply(RobotState s)
     {
-        CanStart = s.IsDocked || s.State is "INACTIVE_DISCHARGING" or "FULL_CLEAN_FINISHED" or "ABORTED";
+        _robotReady = s.IsDocked || s.State is "INACTIVE_DISCHARGING" or "FULL_CLEAN_FINISHED" or "ABORTED";
+        UpdateCanStart();
         _robotPosition = s.LatestPosition ?? _robotPosition;
         RebuildScene();
     }
+
+    /// <summary>
+    /// The start button needs both halves: a robot that can take a job, and at least one room
+    /// ticked. Clicking it with nothing selected used to be answered by a red message, which is a
+    /// worse way to say "not yet" than a button that plainly cannot be pressed.
+    /// </summary>
+    private void UpdateCanStart() => CanStart = _robotReady && Zones.Any(z => z.Selected);
 
     public void SetLiveTrail(IReadOnlyList<RobotPosition> path)
     {
@@ -98,7 +110,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps) : O
             // made while the geometry below is still downloading, which must not be lost.
             item.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName == nameof(ZoneItem.Selected)) OnZoneSelectionChanged(item);
+                if (e.PropertyName == nameof(ZoneItem.Selected)) { OnZoneSelectionChanged(item); UpdateCanStart(); }
                 else if (e.PropertyName is nameof(ZoneItem.SelectedCleanType) or nameof(ZoneItem.SelectedStrategy)
                          or nameof(ZoneItem.SelectedWaterLevel) or nameof(ZoneItem.SelectedMopPasses))
                     ScheduleZoneSettingsPersist();
@@ -106,6 +118,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps) : O
             };
             Zones.Add(item);
         }
+        UpdateCanStart();   // the restored selection counts too
         await LoadMapGeometryAsync(map.Id);
         RebuildScene();
     }
@@ -172,6 +185,8 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps) : O
             DirtSpots = isCurrent ? _liveDirt : null,
             SelectedZoneIds = Zones.Where(z => z.Selected).Select(z => z.Id).ToHashSet(),
             ZoneOrder = Zones.Where(z => z.Selected).ToDictionary(z => z.Id, z => z.Order),
+            ShowFurniture = display.ShowFurniture,
+            ShowTravelPath = display.ShowTravelPath,
         };
     }
 

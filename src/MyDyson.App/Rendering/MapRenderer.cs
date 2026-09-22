@@ -46,6 +46,11 @@ public sealed class MapScene
     /// <summary>Zone id to its position in the clean order, shown as a badge.</summary>
     public IReadOnlyDictionary<string, int>? ZoneOrder { get; init; }
 
+    /// <summary>Draw the furniture outlines. See <see cref="Services.DisplaySettings"/>.</summary>
+    public bool ShowFurniture { get; init; } = true;
+    /// <summary>Draw the stretches where the robot was only repositioning, not working.</summary>
+    public bool ShowTravelPath { get; init; } = true;
+
     /// <summary>
     /// The driven path cut into same-action runs, which is what the renderer colours by. Finding
     /// the room under each point is the expensive part (on maps without a grid it is a nearest-
@@ -294,7 +299,7 @@ public static class MapRenderer
         else
             DrawVisitedPoints(dc, scene, m);
 
-        foreach (var f in scene.Map?.Furniture ?? [])
+        foreach (var f in scene.ShowFurniture ? scene.Map?.Furniture ?? [] : [])
             DrawPolygon(dc, f.Points, m, res.FurniturePen, res.FurnitureFill);
 
         foreach (var r in scene.Map?.Restrictions ?? [])
@@ -353,8 +358,13 @@ public static class MapRenderer
     {
         foreach (var run in scene.PathRuns)
         {
-            var pen = run.Action is { } t ? res.ActionPens[(int)t % res.ActionPens.Length] : res.PathPen;
-            DrawPathRun(dc, path, run.From, run.To, pen, m);
+            if (run.Action is not { } t)
+            {
+                if (!scene.ShowTravelPath) continue;
+                DrawPathRun(dc, path, run.From, run.To, res.PathPen, m);
+                continue;
+            }
+            DrawPathRun(dc, path, run.From, run.To, res.ActionPens[(int)t % res.ActionPens.Length], m);
         }
     }
 
