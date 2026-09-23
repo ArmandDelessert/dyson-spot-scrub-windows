@@ -22,7 +22,13 @@ public partial class RoomNameWindow : Window
         TypeBox.SelectedItem = types.FirstOrDefault(t => t.Type == room.Zone.Type) ?? types[0];
         NameBox.Text = room.Zone.Name ?? room.DisplayName;
         // Once the name has been typed in, changing the type stops overwriting it.
-        NameBox.TextChanged += (_, _) => _nameEdited = true;
+        NameBox.TextChanged += (_, _) =>
+        {
+            _nameEdited = true;
+            // An empty name is not something to send, and Enter on a blank field should not look
+            // like a working action.
+            OkButton.IsEnabled = !string.IsNullOrWhiteSpace(NameBox.Text);
+        };
         Loaded += (_, _) => { NameBox.Focus(); NameBox.SelectAll(); _nameEdited = false; };
     }
 
@@ -36,8 +42,19 @@ public partial class RoomNameWindow : Window
 
     private void Type_Changed(object sender, SelectionChangedEventArgs e)
     {
-        if (_nameEdited || TypeBox.SelectedItem is not RoomTypeOption option) return;
+        if (TypeBox.SelectedItem is not RoomTypeOption option) return;
+        // A free name has no default to go back to, so the reset only means something with a type.
+        ResetNameButton.IsEnabled = option.Type is not null;
+        if (_nameEdited) return;
         if (RoomTypeLabels.DefaultNameFor(option.Type) is { } label) NameBox.Text = label;
+        _nameEdited = false;
+    }
+
+    /// <summary>Puts back the name Dyson gives this type, for undoing a free name without retyping it.</summary>
+    private void ResetName_Click(object sender, RoutedEventArgs e)
+    {
+        if (RoomTypeLabels.DefaultNameFor((TypeBox.SelectedItem as RoomTypeOption)?.Type) is not { } label) return;
+        NameBox.Text = label;
         _nameEdited = false;
     }
 

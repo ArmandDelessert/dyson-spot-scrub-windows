@@ -24,6 +24,18 @@ public sealed class MapCatalog(RobotHub hub)
     public MapGrid? Grid { get; private set; }
     public string? GridMapId { get; private set; }
 
+    /// <summary>
+    /// Forgets the downloaded geometry and grid, so the next read fetches them again. Needed after
+    /// an edit in the map manager: a merge or a split renumbers rooms and redraws the grid, and the
+    /// cached copy would keep the dashboard showing the rooms as they were.
+    /// </summary>
+    public void Invalidate()
+    {
+        _maps.Clear();
+        Grid = null;
+        GridMapId = null;
+    }
+
     public MapItem? Find(string? id) => id is null ? null : Maps.FirstOrDefault(m => m.Id == id);
     public string? NameOf(string? id) => Find(id)?.Metadata.Name;
     public bool IsCurrent(string? id) => Find(id)?.Metadata.IsCurrentMap == true;

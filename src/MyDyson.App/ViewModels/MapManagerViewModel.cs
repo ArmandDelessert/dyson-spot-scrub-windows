@@ -90,7 +90,10 @@ public sealed partial class MapManagerViewModel : ObservableObject
             var wanted = preferredMapId ?? SelectedMap?.Id;
             var metadata = await _hub.Api.GetMapMetadataAsync(_hub.Serial, _hub.Ct);
             Maps.Clear();
-            foreach (var m in metadata) Maps.Add(new MapItem(m));
+            // The cloud returns them in no order anyone can act on; by name, active one first, is
+            // predictable and puts the map most edits are about at the top.
+            foreach (var m in metadata.OrderByDescending(m => m.IsCurrentMap).ThenBy(m => m.Name, StringComparer.CurrentCulture))
+                Maps.Add(new MapItem(m));
             SelectedMap = Maps.FirstOrDefault(m => m.Id == wanted)
                 ?? Maps.FirstOrDefault(m => m.Metadata.IsCurrentMap)
                 ?? Maps.FirstOrDefault();
@@ -102,6 +105,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
     partial void OnSelectedMapChanged(MapItem? value)
     {
         Splitting = false;
+        SelectedRoom = null;
+        RefreshCommandStates();
         if (value is not null) _ = LoadMapAsync(value);
     }
 
@@ -117,7 +122,16 @@ public sealed partial class MapManagerViewModel : ObservableObject
 
             Rooms.Clear();
             foreach (var z in (map.Zones ?? []).OrderBy(z => RoomTypeLabels.Resolve(z.Type, z.Name, z.Id), StringComparer.CurrentCulture))
-                Rooms.Add(new ManagedRoom(z));
+            {
+                var room = new ManagedRoom(z);
+                // Ticking a room for a merge changes whether the merge is offered at all.
+                room.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(ManagedRoom.Picked)) MergeRoomsCommand.NotifyCanExecuteChanged();
+                };
+                Rooms.Add(room);
+            }
+            MergeRoomsCommand.NotifyCanExecuteChanged();
             _map = map;
             _grid = grid;
             RebuildScene();
@@ -142,14 +156,39 @@ public sealed partial class MapManagerViewModel : ObservableObject
         ShowTravelPath = _display.ShowTravelPath,
     };
 
-    partial void OnSelectedRoomChanged(ManagedRoom? value) => RebuildScene();
+    partial void OnSelectedRoomChanged(ManagedRoom? value)
+    {
+        RebuildScene();
+        RenameRoomCommand.NotifyCanExecuteChanged();
+        StartSplitCommand.NotifyCanExecuteChanged();
+    }
 
     /// <summary>Called by the window when a room is clicked on the map.</summary>
     public void SelectRoomById(string zoneId) => SelectedRoom = Rooms.FirstOrDefault(r => r.Id == zoneId) ?? SelectedRoom;
 
+    // ---- What each action needs before it can be offered ----------------------
+
+    private bool NotBusy() => !Busy;
+    private bool HasMap() => SelectedMap is not null && !Busy;
+    private bool HasRoom() => SelectedRoom is not null && !Busy;
+    private bool CanSetActive() => SelectedMap is { Metadata.IsCurrentMap: false } && !Busy;
+    private bool CanMerge() => !Busy && Rooms.Count(r => r.Picked) >= 2;
+
+    partial void OnBusyChanged(bool value) => RefreshCommandStates();
+
+    private void RefreshCommandStates()
+    {
+        RenameMapCommand.NotifyCanExecuteChanged();
+        RenameRoomCommand.NotifyCanExecuteChanged();
+        MergeRoomsCommand.NotifyCanExecuteChanged();
+        StartSplitCommand.NotifyCanExecuteChanged();
+        SetActiveCommand.NotifyCanExecuteChanged();
+        StartMappingCommand.NotifyCanExecuteChanged();
+    }
+
     // ---- Commands --------------------------------------------------------------
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasMap))]
     private async Task RenameMapAsync()
     {
         if (SelectedMap is not { } map || AskForText is null) return;
@@ -160,7 +199,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         await EditAsync($"carte renommée en « {name} »", c => c.RenameMapAsync(mapId, name.Trim(), _hub.Ct));
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasRoom))]
     private async Task RenameRoomAsync()
     {
         if (SelectedRoom is not { } room || SelectedMap is not { } map || AskForRoomName is null) return;
@@ -173,7 +212,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
             c => c.RenameRoomAsync(mapId, room.NumericId, answer.Name.Trim(), answer.Type ?? "custom", _hub.Ct));
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanMerge))]
     private async Task MergeRoomsAsync()
     {
         if (SelectedMap is not { } map) return;
@@ -186,7 +225,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         await EditAsync($"{picked.Count} pièces fusionnées", c => c.MergeRoomsAsync(mapId, picked.Select(p => p.NumericId), ct: _hub.Ct));
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasRoom))]
     private void StartSplit()
     {
         if (SelectedRoom is null) { Status = "Choisissez d'abord la pièce à diviser."; return; }
@@ -215,7 +254,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         await EditAsync($"pièce {room.DisplayName} divisée", c => c.SplitRoomAsync(mapId, room.NumericId, from, to, ct: _hub.Ct));
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSetActive))]
     private async Task SetActiveAsync()
     {
         if (SelectedMap is not { } map || map.Metadata.IsCurrentMap) return;
@@ -227,7 +266,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         });
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(NotBusy))]
     private async Task StartMappingAsync()
     {
         if (Confirm?.Invoke("Nouvelle carte",
@@ -255,6 +294,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         Status = "";
         try
         {
+            var uploaded = WatchForMapUploadAsync();
             var result = await edit(client);
             if (result is null)
             {
@@ -263,7 +303,11 @@ public sealed partial class MapManagerViewModel : ObservableObject
                 return;
             }
             _hub.AddLog(label);
-            await Task.Delay(TimeSpan.FromSeconds(2), _hub.Ct);
+            // The robot answers as soon as it has re-saved the map, but the cloud copy the REST API
+            // serves catches up a moment later and announces itself with MAP-UPLOAD-STATUS. Reading
+            // the map back before that returns the old one, which is what made a rename look as if
+            // it had not happened.
+            await uploaded;
             await LoadAsync(SelectedMap?.Id);
             Status = char.ToUpper(label[0], CultureInfo.CurrentCulture) + label[1..] + ".";
             Changed?.Invoke();
@@ -275,6 +319,29 @@ public sealed partial class MapManagerViewModel : ObservableObject
             _hub.AddLog($"{label} : {ex.Message}");
         }
         finally { Busy = false; }
+    }
+
+    /// <summary>
+    /// Completes on the next MAP-UPLOAD-STATUS, or after a few seconds if none arrives — every kind
+    /// of edit was followed by one in the captures, but an edit the robot decides is a no-op may
+    /// well not re-upload anything, and waiting forever for that would hang the window.
+    /// </summary>
+    private async Task WatchForMapUploadAsync()
+    {
+        if (_hub.Session?.Tracker is not { } tracker) return;
+        var uploaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnEvent(string name, System.Text.Json.Nodes.JsonObject _)
+        {
+            if (name == "MAP-UPLOAD-STATUS") uploaded.TrySetResult();
+        }
+        tracker.EventReceived += OnEvent;
+        try
+        {
+            await Task.WhenAny(uploaded.Task, Task.Delay(TimeSpan.FromSeconds(8), _hub.Ct));
+            // The cloud copy lands a moment after the announcement, not with it.
+            await Task.Delay(TimeSpan.FromMilliseconds(800), _hub.Ct);
+        }
+        finally { tracker.EventReceived -= OnEvent; }
     }
 
     /// <summary>Raised after a successful edit so the dashboard can pick up the new names.</summary>

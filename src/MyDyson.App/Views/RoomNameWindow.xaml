@@ -14,7 +14,11 @@
         <TextBlock Text="Type de pièce" Style="{StaticResource Label}" Margin="0,0,0,4"/>
         <ComboBox x:Name="TypeBox" SelectionChanged="Type_Changed"/>
 
-        <TextBlock Text="Nom affiché" Style="{StaticResource Label}" Margin="0,8,0,4"/>
+        <DockPanel Margin="0,8,0,4">
+            <Button DockPanel.Dock="Right" x:Name="ResetNameButton" Content="Nom du type" Click="ResetName_Click" Margin="8,0,0,0"
+                    Style="{StaticResource Secondary}" ToolTip="Remet le nom que Dyson donne à ce type de pièce"/>
+            <TextBlock Text="Nom affiché" Style="{StaticResource Label}" Margin="0" VerticalAlignment="Center"/>
+        </DockPanel>
         <TextBox x:Name="NameBox" Padding="6,4" Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextBrush}"
                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
         <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap">
@@ -23,7 +27,7 @@
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,-8">
             <Button Content="Annuler" IsCancel="True" Style="{StaticResource Secondary}"/>
-            <Button Content="Renommer" IsDefault="True" Click="Ok_Click" Margin="0"/>
+            <Button x:Name="OkButton" Content="Renommer" IsDefault="True" Click="Ok_Click" Margin="0"/>
         </StackPanel>
     </StackPanel>
 </Window>

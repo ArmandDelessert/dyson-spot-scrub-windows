@@ -266,10 +266,10 @@
                                 <!-- Display preferences sit with the map they change, rather than in
                                      the Réglages tab, where everything else is sent to the robot.
                                      They apply to the history map too. -->
-                                <ToggleButton x:Name="DisplayOptionsButton" Content="Affichage ▾" Margin="0,0,8,8" Padding="10,4" Cursor="Hand"
+                                <ToggleButton x:Name="DisplayOptionsButton" PreviewMouseLeftButtonDown="DisplayOptions_MouseDown" Content="Affichage ▾" Margin="0,0,8,8" Padding="10,4" Cursor="Hand"
                                               AutomationProperties.Name="Options d'affichage de la carte"
                                               Style="{StaticResource ToolbarToggle}"/>
-                                <Popup IsOpen="{Binding IsChecked, ElementName=DisplayOptionsButton, Mode=TwoWay}" StaysOpen="False"
+                                <Popup x:Name="DisplayOptionsPopup" IsOpen="{Binding IsChecked, ElementName=DisplayOptionsButton, Mode=TwoWay}" StaysOpen="False"
                                        PlacementTarget="{Binding ElementName=DisplayOptionsButton}" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Fade">
                                     <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12,10">
                                         <StackPanel DataContext="{Binding Display}">

@@ -150,6 +150,79 @@ public class MapManagerViewModelTests
     }
 
     [Fact]
+    public async Task NoActionIsOfferedUntilItHasWhatItNeeds()
+    {
+        var vm = New(out _);
+        await vm.LoadAsync();
+
+        // A map is always chosen once loaded, so its two actions are live — except making the
+        // active map active again.
+        Assert.True(vm.RenameMapCommand.CanExecute(null));
+        Assert.True(vm.SetActiveCommand.CanExecute(null));
+        // Nothing is chosen among the rooms yet.
+        Assert.False(vm.RenameRoomCommand.CanExecute(null));
+        Assert.False(vm.StartSplitCommand.CanExecute(null));
+        Assert.False(vm.MergeRoomsCommand.CanExecute(null));
+
+        vm.SelectRoomById("10");
+        Assert.True(vm.RenameRoomCommand.CanExecute(null));
+        Assert.True(vm.StartSplitCommand.CanExecute(null));
+
+        // Merging needs two, and says so by staying unavailable with one.
+        vm.Rooms[0].Picked = true;
+        Assert.False(vm.MergeRoomsCommand.CanExecute(null));
+        vm.Rooms[1].Picked = true;
+        Assert.True(vm.MergeRoomsCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task TheActiveMapIsNotOfferedAsSomethingToActivate()
+    {
+        var hub = TestHub.Create(
+            ("persistent-map-metadata", "[" + TestHub.Map("1000000002", "Étage", isCurrent: true, ("10", "Cuisine", "kitchen")) + "]"),
+            ("persistent-maps", Rooms),
+            ("live-maps/mapping", """{"dimensions":{"width":2,"height":2,"resolution":0.5,"offsetX":0,"offsetY":0},"mapData":[10,10,11,11]}"""));
+        var vm = new MapManagerViewModel(hub, new DisplaySettings());
+
+        await vm.LoadAsync();
+
+        Assert.True(vm.SelectedMap!.Metadata.IsCurrentMap);
+        Assert.False(vm.SetActiveCommand.CanExecute(null));
+        Assert.True(vm.RenameMapCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task ChangingMapForgetsTheRoomThatWasChosen()
+    {
+        var vm = New(out _);
+        await vm.LoadAsync();
+        vm.SelectRoomById("10");
+
+        vm.SelectedMap = vm.Maps.First(m => m.Id != vm.SelectedMap!.Id);
+
+        // The room belonged to the other map; keeping it would aim the next action at nothing.
+        Assert.Null(vm.SelectedRoom);
+        Assert.False(vm.RenameRoomCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task TheActiveMapComesFirstThenTheRestByName()
+    {
+        var hub = TestHub.Create(
+            ("persistent-map-metadata", "[" 
+                + TestHub.Map("3", "Zèbre", isCurrent: false, ("10", "Cuisine", "kitchen")) + ","
+                + TestHub.Map("1", "Alpha", isCurrent: false, ("10", "Cuisine", "kitchen")) + ","
+                + TestHub.Map("2", "Milieu", isCurrent: true, ("10", "Cuisine", "kitchen")) + "]"),
+            ("persistent-maps", Rooms),
+            ("live-maps/mapping", """{"dimensions":{"width":2,"height":2,"resolution":0.5,"offsetX":0,"offsetY":0},"mapData":[10,10,11,11]}"""));
+        var vm = new MapManagerViewModel(hub, new DisplaySettings());
+
+        await vm.LoadAsync();
+
+        Assert.Equal(["2", "1", "3"], vm.Maps.Select(m => m.Id));
+    }
+
+    [Fact]
     public async Task TheTypeListOffersTheThirtyTypesPlusAFreeName()
     {
         var vm = New(out _);

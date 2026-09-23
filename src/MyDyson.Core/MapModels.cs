@@ -103,19 +103,32 @@ public sealed record FurnitureItem(
     [property: JsonPropertyName("points")] List<Point>? Points);
 
 /// <summary>
-/// What every map-editing jdm call answers: which map was touched, its kind (3 on every capture),
-/// and the robot's own save timestamp. A null result means the robot replied with something else,
-/// which is how a refused edit shows up — it never answers with an error field of its own.
+/// What a map-editing jdm call answers. There are two shapes, and which one a method uses is not
+/// guessable — it had to be read off the captures:
+///   rename_map, set_cur_map            {"result": 0}   0 success, anything else refused
+///   rename_room, split_room,           {"map_id": …, "map_type": …, "timestamp": …}
+///   arrange_room, set_virtual_wall
+/// A null result means refused or unrecognised; the robot has no error field of its own.
+/// MapId is null for the first shape, which does not name the map it changed.
 /// </summary>
-public sealed record MapEditResult(long MapId, int MapType, long Timestamp)
+public sealed record MapEditResult(long? MapId, int MapType, long Timestamp)
 {
     public static MapEditResult? From(JsonObject? reply)
     {
         if (reply?["data"] is not JsonObject data) return null;
-        if (data["map_id"] is not JsonValue idValue || !idValue.TryGetValue<long>(out var id)) return null;
-        var type = data["map_type"] is JsonValue t && t.TryGetValue<int>(out var ti) ? ti : 0;
-        var stamp = data["timestamp"] is JsonValue s && s.TryGetValue<long>(out var sl) ? sl : 0;
-        return new MapEditResult(id, type, stamp);
+
+        // Treating a missing "result" as success would turn a refusal into a silent no-op, so the
+        // two shapes are told apart by which member is there rather than by the method name.
+        if (data["result"] is JsonValue r)
+            return r.TryGetValue<int>(out var code) && code == 0 ? new MapEditResult(null, 0, 0) : null;
+
+        if (data["map_id"] is JsonValue idValue && idValue.TryGetValue<long>(out var id))
+        {
+            var type = data["map_type"] is JsonValue t && t.TryGetValue<int>(out var ti) ? ti : 0;
+            var stamp = data["timestamp"] is JsonValue s && s.TryGetValue<long>(out var sl) ? sl : 0;
+            return new MapEditResult(id, type, stamp);
+        }
+        return null;
     }
 }
 

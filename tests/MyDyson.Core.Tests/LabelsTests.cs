@@ -116,14 +116,27 @@ public class MapEditingTests
     }
 
     [Fact]
-    public void AMapEditReplyIsReadBackAndAnythingElseIsRefused()
+    public void TheTwoReplyShapesOfAMapEditAreBothRead()
     {
-        var ok = MapEditResult.From((JsonObject)JsonNode.Parse(
+        // rename_room, split_room and arrange_room name the map they re-saved...
+        var named = MapEditResult.From((JsonObject)JsonNode.Parse(
             """{"msgId":"1","code":0,"method":"service.rename_room","data":{"map_id":1000000002,"map_type":3,"timestamp":1789835979}}""")!);
-        Assert.Equal(new MapEditResult(1000000002, 3, 1789835979), ok);
+        Assert.Equal(new MapEditResult(1000000002, 3, 1789835979), named);
 
-        // A refused edit does not come back with an error field, it just is not this shape.
+        // ...while rename_map and set_cur_map answer with a bare result code. Reading only the
+        // first shape reported every successful map rename as a refusal.
+        var coded = MapEditResult.From((JsonObject)JsonNode.Parse(
+            """{"msgId":"1","code":0,"method":"service.rename_map","data":{"result":0}}""")!);
+        Assert.NotNull(coded);
+        Assert.Null(coded.MapId);
+    }
+
+    [Fact]
+    public void ARefusedOrUnrecognisedReplyIsNothing()
+    {
+        // A refused edit does not come back with an error field; result 1 is the refusal.
         Assert.Null(MapEditResult.From((JsonObject)JsonNode.Parse("""{"msgId":"1","code":1,"data":{"result":1}}""")!));
+        Assert.Null(MapEditResult.From((JsonObject)JsonNode.Parse("""{"msgId":"1","code":0,"data":{}}""")!));
         Assert.Null(MapEditResult.From((JsonObject)JsonNode.Parse("""{"msgId":"1","code":0}""")!));
         Assert.Null(MapEditResult.From(null));
     }

@@ -30,6 +30,7 @@ public partial class MainWindow : Window
             SelectTab(1);
         });
         _vm.MapManagerRequested += OpenMapManager;
+        DisplayOptionsPopup.Closed += (_, _) => _displayOptionsClosedUtc = DateTime.UtcNow;
         Loaded += async (_, _) => await _vm.StartAsync();
         Closing += async (_, _) => await _vm.ShutdownAsync();
         Closed += (_, _) => { _notifications.Dispose(); _vm.Dispose(); };
@@ -39,8 +40,18 @@ public partial class MainWindow : Window
     private void OpenMapManager()
     {
         var window = new MapManagerWindow(_vm.CreateMapManager(), _vm.Cleaning.SelectedMap?.Id) { Owner = this };
-        window.MapsChanged += () => _ = _vm.Cleaning.LoadMapsAsync();
+        window.MapsChanged += () => _ = _vm.ReloadMapsAsync();
         window.ShowDialog();
+    }
+
+    // A Popup with StaysOpen="False" closes on the mouse-down that happens outside it — including
+    // the one on its own toggle — and the toggle then reopens it, so a second click looked like a
+    // no-op. Swallowing a click that lands just after a close is the usual way out.
+    private DateTime _displayOptionsClosedUtc;
+
+    private void DisplayOptions_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (DateTime.UtcNow - _displayOptionsClosedUtc < TimeSpan.FromMilliseconds(250)) e.Handled = true;
     }
 
     private void ResetZoom_Click(object sender, RoutedEventArgs e) => MapCanvas.ResetView();

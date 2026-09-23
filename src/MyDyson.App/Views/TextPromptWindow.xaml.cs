@@ -11,6 +11,10 @@ public partial class TextPromptWindow : Window
         Title = title;
         PromptText.Text = prompt;
         Input.Text = initial;
+        // An empty name is not something the robot would take, and an accidental Enter on a blank
+        // field should not look like a working action.
+        Input.TextChanged += (_, _) => OkButton.IsEnabled = !string.IsNullOrWhiteSpace(Input.Text);
+        OkButton.IsEnabled = !string.IsNullOrWhiteSpace(initial);
         Loaded += (_, _) => { Input.Focus(); Input.SelectAll(); };
     }
 
@@ -21,5 +25,9 @@ public partial class TextPromptWindow : Window
         return w.ShowDialog() == true ? w.Input.Text : null;
     }
 
-    private void Ok_Click(object sender, RoutedEventArgs e) => DialogResult = true;
+    private void Ok_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(Input.Text)) { Input.Focus(); return; }
+        DialogResult = true;
+    }
 }

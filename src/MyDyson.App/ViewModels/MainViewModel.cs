@@ -22,6 +22,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _initialLoadDone;
     private bool _reloading;
     private RobotConnectionStatus _lastStatus = RobotConnectionStatus.Disconnected;
+    private readonly MapCatalog _maps;
 
     public RobotHub Hub { get; }
     public StatusViewModel Status { get; }
@@ -47,10 +48,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ctx = ctx;
         Hub = new RobotHub(ctx, Application.Current.Dispatcher);
         Display = DisplaySettings.Load();
-        var maps = new MapCatalog(Hub);
+        _maps = new MapCatalog(Hub);
         Status = new StatusViewModel(Hub);
-        Cleaning = new CleaningViewModel(Hub, maps, Display);
-        History = new HistoryViewModel(Hub, maps, Display);
+        Cleaning = new CleaningViewModel(Hub, _maps, Display);
+        History = new HistoryViewModel(Hub, _maps, Display);
         Settings = new SettingsViewModel(Hub);
         Journal = new JournalViewModel(Hub);
 
@@ -137,6 +138,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Builds the map manager's view model, which shares this session but keeps its own copy of the map.</summary>
     public MapManagerViewModel CreateMapManager() => new(Hub, Display);
+
+    /// <summary>Called once the map manager has changed something, to pick up new names and a new layout.</summary>
+    public Task ReloadMapsAsync()
+    {
+        _maps.Invalidate();
+        return Cleaning.LoadMapsAsync();
+    }
 
     [RelayCommand]
     private Task RefreshAsync() => ReloadAsync(null);

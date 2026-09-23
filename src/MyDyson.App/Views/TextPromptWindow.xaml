@@ -14,7 +14,7 @@
                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,-8">
             <Button Content="Annuler" IsCancel="True" Style="{StaticResource Secondary}"/>
-            <Button Content="Valider" IsDefault="True" Click="Ok_Click" Margin="0"/>
+            <Button x:Name="OkButton" Content="Valider" IsDefault="True" Click="Ok_Click" Margin="0"/>
         </StackPanel>
     </StackPanel>
 </Window>
