@@ -110,7 +110,8 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   revanche pas récupérable après coup : l'API ne renvoie que la préférence *actuelle* de la carte,
   pas celle du moment.
 - **Gérer les cartes** : une fenêtre à part, ouverte depuis la carte du panneau Nettoyage. Définir
-  la carte active, renommer ou supprimer une carte, lancer une cartographie. Pour les pièces :
+  la carte active (bouton ou double clic dans la liste), renommer ou supprimer une carte, lancer
+  une cartographie. Pour les pièces :
   renommer (un des trente types du robot, ou un nom libre ; le type s'affiche en petit à côté du
   nom quand il en diffère), diviser en cliquant les deux extrémités du trait de coupe sur la carte,
   et fusionner — un premier clic sur « Fusionner » permet de choisir plusieurs pièces, sur la carte
@@ -254,9 +255,9 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
 - **Zones de restriction** (éviter, franchir un seuil, lavage seul, aspirateur seul) : le protocole
   est entièrement décodé, y compris la correspondance avec l'API REST (voir
   [docs/protocole.md](docs/protocole.md)), mais pas encore exposé dans l'application.
-- **Modifier une carte non active** : volontairement bloqué. Aucune modification d'une carte non
-  active n'a jamais été observée, et une telle modification est la cause probable d'une carte
-  retrouvée renommée et vidée de ses pièces ; la fenêtre propose de la définir comme active d'abord.
+- **Modifier une carte non active** : volontairement bloqué. Le robot ne modifie que la carte
+  active : une carte non active modifiée devient active et prend le nom de la carte qui l'était
+  (confirmé par capture le 23 septembre). La fenêtre propose de la définir comme active d'abord.
 - Poser un meuble (`service.adjust_furniture`) et tourner la carte ne sont pas exposés.
 - Le débordement de la carte à travers les fenêtres vient du lidar du robot, pas du rendu. Une zone
   « Éviter la zone » posée dessus depuis l'application mobile empêche le robot d'y aller.

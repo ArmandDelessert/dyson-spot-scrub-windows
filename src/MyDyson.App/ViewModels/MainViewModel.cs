@@ -163,6 +163,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             if (reason is not null) Hub.AddLog($"{reason}, rechargement des données");
+            // Drop cached geometry too: furniture, zones or rooms edited from the phone would
+            // otherwise keep showing as they were when first loaded.
+            _maps.Invalidate();
             await Task.WhenAll(Hub.RefreshStateAsync(), Hub.RefreshPropertiesAsync(), Cleaning.LoadMapsAsync(), History.LoadAsync());
             await History.FillDetailsAsync();
         }

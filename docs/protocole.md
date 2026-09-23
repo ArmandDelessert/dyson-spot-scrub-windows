@@ -598,11 +598,10 @@ la carte en REST, sous peine de relire l'ancienne. Valeurs de `result` observée
 
 **Seule la carte active a jamais été modifiée.** Sur les 36 modifications capturées — depuis le
 téléphone comme depuis cette application — la carte visée était toujours la carte active au moment
-de l'envoi. Modifier une autre carte n'a jamais été observé, et le 23 septembre une carte a été
-retrouvée renommée comme la carte active et vidée de ses pièces, pendant un intervalle sans capture
-où elle a vraisemblablement été modifiée depuis cette application alors qu'elle n'était pas active.
-La cause n'est pas prouvée ; par prudence, l'application n'autorise plus que la carte active à être
-modifiée.
+de l'envoi. Une capture du 23 septembre (23 h 24) montre ce qui se passe sinon : deux divisions
+envoyées sur une carte non active ont chaque fois fait de cette carte la carte active, et lui ont
+donné le nom de la carte qui l'était jusque-là (`get_map_list` avant et après). L'application n'autorise donc
+que la carte active à être modifiée.
 
 **Supprimer une carte** (`del_map`, capturé le 23 septembre) fonctionne sur la carte active : le
 robot en active alors une autre de lui-même, et le `MAP-UPLOAD-STATUS` suivant porte sur cette

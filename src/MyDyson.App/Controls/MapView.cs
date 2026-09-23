@@ -67,10 +67,9 @@ public sealed class MapView : FrameworkElement
     private Vector _panAtDragStart;
     private bool _dragged;
 
-    // Capped at 250 ms for responsiveness, but never longer than the user's own configured
-    // double-click speed (Windows' default is 500 ms) — waiting longer than that would just be a
-    // needless delay, since anything slower already fails Windows' own double-click recognition.
-    private static readonly TimeSpan DoubleClickWindow = TimeSpan.FromMilliseconds(Math.Min(250, System.Windows.Forms.SystemInformation.DoubleClickTime));
+    // The user's own double-click speed from Windows settings (500 ms by default). Anyone who needs
+    // a slower double click will have set it there, so the deferred clear waits exactly that long.
+    private static readonly TimeSpan DoubleClickWindow = TimeSpan.FromMilliseconds(System.Windows.Forms.SystemInformation.DoubleClickTime);
 
     /// <summary>
     /// Whether a click on empty space waits to see if a double click follows before raising

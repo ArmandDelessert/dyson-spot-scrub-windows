@@ -34,10 +34,20 @@
                 </StackPanel>
                 <ListBox ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}" BorderThickness="0"
                          Background="Transparent" Foreground="{DynamicResource TextBrush}"
+                         HorizontalContentAlignment="Stretch"
                          AutomationProperties.Name="Cartes du compte">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Margin="2,4"/>
+                            <!-- A double click makes the map active. The first click has already
+                                 selected it, and the command stays disabled on the active map, so a
+                                 double click there does nothing. -->
+                            <Border Background="Transparent">
+                                <Border.InputBindings>
+                                    <MouseBinding MouseAction="LeftDoubleClick"
+                                                  Command="{Binding DataContext.SetActiveCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                                </Border.InputBindings>
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Margin="2,4"/>
+                            </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
