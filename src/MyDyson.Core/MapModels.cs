@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -100,6 +101,23 @@ public sealed record FurnitureItem(
     [property: JsonPropertyName("type")] string? Type,
     [property: JsonPropertyName("userDefined")] bool? UserDefined,
     [property: JsonPropertyName("points")] List<Point>? Points);
+
+/// <summary>
+/// What every map-editing jdm call answers: which map was touched, its kind (3 on every capture),
+/// and the robot's own save timestamp. A null result means the robot replied with something else,
+/// which is how a refused edit shows up — it never answers with an error field of its own.
+/// </summary>
+public sealed record MapEditResult(long MapId, int MapType, long Timestamp)
+{
+    public static MapEditResult? From(JsonObject? reply)
+    {
+        if (reply?["data"] is not JsonObject data) return null;
+        if (data["map_id"] is not JsonValue idValue || !idValue.TryGetValue<long>(out var id)) return null;
+        var type = data["map_type"] is JsonValue t && t.TryGetValue<int>(out var ti) ? ti : 0;
+        var stamp = data["timestamp"] is JsonValue s && s.TryGetValue<long>(out var sl) ? sl : 0;
+        return new MapEditResult(id, type, stamp);
+    }
+}
 
 public sealed record Restriction(
     [property: JsonPropertyName("id")] string? Id,

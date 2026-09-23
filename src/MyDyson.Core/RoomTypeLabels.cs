@@ -52,7 +52,29 @@ public static class RoomTypeLabels
         ["utilityRoom"] = "Cave",
     };
 
-    /// <summary>The label the app would show: the type's own label when known, else the stored name.</summary>
-    public static string Resolve(string? type, string? storedName, string fallback) =>
-        !string.IsNullOrEmpty(type) && Known.TryGetValue(type, out var label) ? label : storedName ?? fallback;
+    /// <summary>
+    /// What to show for a room. A typed room whose stored name is just the type's own default
+    /// ("Chambre", or "Chambre1" — Dyson appends a digit to keep storage unique) shows the type's
+    /// label, exactly like the phone app. A stored name the user actually chose ("Chambre d'amis")
+    /// wins instead: the app hides it, but hiding it here would make a rename from this window look
+    /// as though nothing had happened.
+    /// </summary>
+    public static string Resolve(string? type, string? storedName, string fallback)
+    {
+        if (string.IsNullOrEmpty(type) || !Known.TryGetValue(type, out var label)) return storedName ?? fallback;
+        return string.IsNullOrEmpty(storedName) || IsDefaultFor(storedName, label) ? label : storedName;
+    }
+
+    /// <summary>The label itself, or the label followed only by digits.</summary>
+    private static bool IsDefaultFor(string storedName, string label) =>
+        storedName.StartsWith(label, StringComparison.Ordinal)
+        && storedName.AsSpan(label.Length).ToString().All(char.IsAsciiDigit);
+
+    /// <summary>The default name the robot gives a room of this type, used to prefill a rename.</summary>
+    public static string? DefaultNameFor(string? type) =>
+        type is not null && Known.TryGetValue(type, out var label) ? label : null;
+
+    /// <summary>Every known type with its label, for a type picker. "custom" is not in here: it has no label of its own.</summary>
+    public static IReadOnlyList<(string Type, string Label)> All { get; } =
+        [.. Known.Select(kv => (kv.Key, kv.Value)).OrderBy(t => t.Value, StringComparer.CurrentCulture)];
 }

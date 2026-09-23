@@ -131,3 +131,88 @@ public class CleaningSequenceTests
         }
     }
 }
+
+/// <summary>
+/// The map-editing calls, checked against the payloads captured on 2026-09-19 while the official
+/// app renamed, merged and split rooms of a real map.
+/// </summary>
+public class MapEditingCommandTests
+{
+    private const long MapId = 1000000002;
+
+    private static RecordingRobot Robot() =>
+        new("""{"msgId":"1","code":0,"data":{"map_id":1000000002,"map_type":3,"timestamp":1789835979}}""");
+
+    [Fact]
+    public async Task RenamingAMapSendsAPlainName()
+    {
+        var robot = Robot();
+
+        var result = await robot.RenameMapAsync(MapId, "Appartement Rez v2");
+
+        var (method, payload) = Assert.Single(robot.Sent);
+        Assert.Equal("service.rename_map", method);
+        AssertJson("""{"map_id":1000000002,"map_name":"Appartement Rez v2"}""", payload);
+        Assert.Equal(new MapEditResult(MapId, 3, 1789835979), result);
+    }
+
+    [Fact]
+    public async Task RenamingARoomSendsTheTypeAndTheNameTogether()
+    {
+        var robot = Robot();
+
+        await robot.RenameRoomAsync(MapId, 15, "Débarras", "storageRoom");
+        await robot.RenameRoomAsync(MapId, 16, "Pièce secrète");
+
+        // Non-ASCII stays \u-escaped inside the nested name, byte for byte what the capture shows.
+        Assert.Equal(["service.rename_room", "service.rename_room"], robot.Sent.Select(m => m.Method));
+        AssertJson("""{"map_id":1000000002,"room_id":15,"room_name":"{\"type\":\"storageRoom\",\"name\":\"D\\u00E9barras\"}"}""", robot.Sent[0].Payload);
+        // No type given means a name the user made up, which the app sends as type "custom".
+        AssertJson("""{"map_id":1000000002,"room_id":16,"room_name":"{\"type\":\"custom\",\"name\":\"Pi\\u00E8ce secr\\u00E8te\"}"}""", robot.Sent[1].Payload);
+    }
+
+    [Fact]
+    public async Task MergingAndSplittingCarryTheLanguageTheAppSends()
+    {
+        var robot = Robot();
+
+        await robot.MergeRoomsAsync(MapId, [16, 15]);
+        await robot.SplitRoomAsync(MapId, 10, new Point(-0.825, -1.821), new Point(3.8, -1.821));
+
+        AssertJson("""{"map_id":1000000002,"room_ids":[16,15],"lang":5}""", robot.Sent[0].Payload);
+        AssertJson("""{"map_id":1000000002,"room_id":10,"split_points":[-0.825,-1.821,3.8,-1.821],"lang":5}""", robot.Sent[1].Payload);
+    }
+
+    [Fact]
+    public async Task ARefusedEditComesBackAsNothingRatherThanAnError()
+    {
+        // The robot answers a refused edit with some other shape, never an error field of its own.
+        var robot = new RecordingRobot("""{"msgId":"1","code":1,"data":{"result":1}}""");
+
+        Assert.Null(await robot.RenameMapAsync(MapId, "Peu importe"));
+    }
+
+    private static void AssertJson(string expected, JsonNode actual)
+    {
+        var expectedNode = JsonNode.Parse(expected);
+        Assert.True(JsonNode.DeepEquals(expectedNode, actual), $"expected {expectedNode!.ToJsonString()}\n but got {actual.ToJsonString()}");
+    }
+
+    /// <summary>Same idea as CleaningSequenceTests's own recorder, kept separate so each reads on its own.</summary>
+    private sealed class RecordingRobot(string reply) : IRobotCommands
+    {
+        public List<(string Method, JsonNode Payload)> Sent { get; } = [];
+
+        public Task<JsonObject> RequestJdmAsync(string method, JsonObject? parameters = null, TimeSpan? timeout = null, CancellationToken ct = default)
+        {
+            Sent.Add((method, parameters?.DeepClone() ?? new JsonObject()));
+            return Task.FromResult((JsonObject)JsonNode.Parse(reply)!);
+        }
+
+        public Task PublishJdmAsync(string method, JsonObject? parameters = null, CancellationToken ct = default) =>
+            throw new InvalidOperationException("map editing waits for the robot's reply");
+
+        public Task PublishCommandAsync(JsonObject payload, CancellationToken ct = default) =>
+            throw new InvalidOperationException("map editing is jdm only");
+    }
+}

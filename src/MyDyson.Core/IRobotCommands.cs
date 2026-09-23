@@ -78,4 +78,60 @@ public static class RobotCommands
             ["room_ids"] = ids,
         }, ct);
     }
+
+    // ---- Map editing ----------------------------------------------------------
+    //
+    // All four were captured on 2026-09-19 while the official app edited a real map. They answer
+    // with {map_id, map_type, timestamp}: the robot has re-saved the map, and a MAP-UPLOAD-STATUS
+    // follows once the cloud copy has caught up, which is what a caller should wait for before
+    // re-reading the map over REST. "lang" is 5 for French, as the app sends.
+
+    /// <summary>Renames a map. The name is a plain string, unlike a room's (see <see cref="RenameRoomAsync"/>).</summary>
+    public static async Task<MapEditResult?> RenameMapAsync(this IRobotCommands robot, long mapId, string name, CancellationToken ct = default) =>
+        MapEditResult.From(await robot.RequestJdmAsync("service.rename_map", new JsonObject
+        {
+            ["map_id"] = mapId,
+            ["map_name"] = name,
+        }, ct: ct).ConfigureAwait(false));
+
+    /// <summary>
+    /// Renames a room. The wire field is never a bare string: the app always sends the JSON form
+    /// {"type": "...", "name": "..."}, with type "custom" for a name the user made up (both forms
+    /// captured). See <see cref="RoomPreference.JoinName"/>.
+    /// </summary>
+    public static async Task<MapEditResult?> RenameRoomAsync(this IRobotCommands robot, long mapId, int roomId, string name, string type = "custom", CancellationToken ct = default) =>
+        MapEditResult.From(await robot.RequestJdmAsync("service.rename_room", new JsonObject
+        {
+            ["map_id"] = mapId,
+            ["room_id"] = roomId,
+            ["room_name"] = RoomPreference.JoinName(name, type),
+        }, ct: ct).ConfigureAwait(false));
+
+    /// <summary>Merges rooms of a map into one; the first id given is the one that survives.</summary>
+    public static async Task<MapEditResult?> MergeRoomsAsync(this IRobotCommands robot, long mapId, IEnumerable<int> roomIds, int lang = 5, CancellationToken ct = default)
+    {
+        var ids = new JsonArray();
+        foreach (var id in roomIds) ids.Add(id);
+        return MapEditResult.From(await robot.RequestJdmAsync("service.arrange_room", new JsonObject
+        {
+            ["map_id"] = mapId,
+            ["room_ids"] = ids,
+            ["lang"] = lang,
+        }, ct: ct).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// Cuts a room in two along the straight line between two world points. The robot decides where
+    /// the new boundary actually lands: it snaps the cut to its own occupancy grid, so the result
+    /// rarely matches the line exactly. Only a straight cut exists — no command sets a room's
+    /// outline, which is why a room cannot be given an arbitrary shape.
+    /// </summary>
+    public static async Task<MapEditResult?> SplitRoomAsync(this IRobotCommands robot, long mapId, int roomId, Point from, Point to, int lang = 5, CancellationToken ct = default) =>
+        MapEditResult.From(await robot.RequestJdmAsync("service.split_room", new JsonObject
+        {
+            ["map_id"] = mapId,
+            ["room_id"] = roomId,
+            ["split_points"] = new JsonArray(from.X, from.Y, to.X, to.Y),
+            ["lang"] = lang,
+        }, ct: ct).ConfigureAwait(false));
 }

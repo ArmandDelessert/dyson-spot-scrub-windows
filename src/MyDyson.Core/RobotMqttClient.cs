@@ -555,19 +555,6 @@ public sealed class RobotMqttClient : IAsyncDisposable, IRobotCommands
         return await RequestJdmAsync("prop.set", new JsonObject { ["back_wash_time"] = minutes, ["back_wash_type"] = 0 }, ct: ct).ConfigureAwait(false);
     }
 
-    /// <summary>Merges rooms of a map into one. lang 5 is French, as sent by the app.</summary>
-    public Task MergeRoomsAsync(long mapId, IEnumerable<int> roomIds, int lang = 5, CancellationToken ct = default)
-    {
-        var ids = new JsonArray();
-        foreach (var id in roomIds) ids.Add(id);
-        return PublishJdmAsync("service.arrange_room", new JsonObject
-        {
-            ["map_id"] = mapId,
-            ["room_ids"] = ids,
-            ["lang"] = lang,
-        }, ct);
-    }
-
     // ---- Commands not observed, taken from APK strings -----------------------
 
     /// <summary>Starts a clean of the whole map. Not observed: the app uses zones even for a full clean.</summary>
