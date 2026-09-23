@@ -29,7 +29,8 @@ public partial class MapManagerWindow : Window
             if (args.PropertyName == nameof(MapManagerViewModel.Splitting)) MapCanvas.IsPickingLine = vm.Splitting;
         };
 
-        MapCanvas.ZoneClicked += vm.SelectRoomById;
+        MapCanvas.ZoneClicked += vm.RoomClickedById;
+        MapCanvas.EmptySpaceClicked += vm.ClearRoomSelection;
         MapCanvas.LinePicked += (from, to) => _ = vm.SplitAsync(from, to);
         Loaded += async (_, _) => await vm.LoadAsync(openOnMapId);
     }

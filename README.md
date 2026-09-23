@@ -24,7 +24,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Modèle d'état typé, corrélation requête-réponse | fonctionne |
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
-| Tests unitaires | 143 tests, exécutés en CI |
+| Tests unitaires | 152 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -93,8 +93,8 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   sélectionner une pièce, ou pour effacer la sélection en dehors d'une pièce ; double-clic ou
   double-tape en dehors d'une pièce pour réinitialiser le zoom. Molette ou pincement à deux doigts
   pour zoomer, glisser (souris ou un doigt) pour déplacer la vue.
-  Export en PNG. Les pièces d'un type reconnu (cuisine, chambre, salon…) portent le même nom que
-  dans l'application mobile, même quand le nom enregistré sur le compte diffère.
+  Export en PNG. Une pièce porte partout le nom qu'elle a sur le compte — contrairement à
+  l'application mobile, qui affiche le libellé du type (« Salon ») et masque le nom (« Salon12 »).
   Un bouton « Affichage » regroupe ce qui ne concerne que cette fenêtre, et vaut aussi pour la carte
   de l'historique : masquer les meubles, masquer les déplacements sans nettoyage (ne reste alors que
   ce qui a réellement été nettoyé), masquer le bouton d'export. Ces choix sont retenus d'un
@@ -109,11 +109,13 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   la liste. Le réglage utilisé par pièce (aspirer, laver…) au lancement d'un nettoyage passé n'est en
   revanche pas récupérable après coup : l'API ne renvoie que la préférence *actuelle* de la carte,
   pas celle du moment.
-- **Gérer les cartes** : une fenêtre à part, ouverte depuis la carte du panneau Nettoyage. Renommer
-  une carte, renommer une pièce (un des trente types du robot, ou un nom libre), fusionner des
-  pièces cochées, diviser une pièce en cliquant les deux extrémités du trait de coupe sur la carte,
-  définir la carte active, et lancer une cartographie. Voir « Limites connues » pour ce que le robot
-  ne permet pas : supprimer une carte ou une pièce, et dessiner la forme d'une pièce.
+- **Gérer les cartes** : une fenêtre à part, ouverte depuis la carte du panneau Nettoyage. Définir
+  la carte active, renommer ou supprimer une carte, lancer une cartographie. Pour les pièces :
+  renommer (un des trente types du robot, ou un nom libre ; le type s'affiche en petit à côté du
+  nom quand il en diffère), diviser en cliquant les deux extrémités du trait de coupe sur la carte,
+  et fusionner — un premier clic sur « Fusionner » permet de choisir plusieurs pièces, sur la carte
+  ou dans la liste, un second les fusionne. Un clic dans le vide de la carte efface le choix. Voir
+  « Limites connues » pour ce que le robot ne permet pas.
 - **Réglages** : les mêmes libellés que l'application Android, en trois groupes : lavage, station,
   vocaux. Chaque réglage part au robot dans les deux dialectes.
 - **Journal** : les événements notables du robot et le résultat des commandes envoyées depuis la
@@ -243,21 +245,19 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
 
 - Pas de nettoyage de toute la maison depuis l'application : seulement par pièces. La commande
   existe dans la bibliothèque (`StartGlobalCleanAsync`) et dans la ligne de commande.
-- **Supprimer une carte** : aucune commande correspondante n'a été observée, ni dans les captures ni
-  dans les chaînes de l'APK. Cela reste à faire depuis l'application mobile.
-- **Supprimer une pièce** : n'existe pas non plus. Le découpage appartient au robot ; le seul moyen
-  de faire disparaître une zone est de la fusionner avec sa voisine.
+- **Supprimer une pièce** : n'existe pas. Le découpage appartient au robot ; le seul moyen de faire
+  disparaître une zone est de la fusionner avec sa voisine.
 - **Dessiner la forme d'une pièce** : impossible. Le robot n'offre que la division par un trait
   droit (`service.split_room`, deux points) et la fusion (`service.arrange_room`), et il recale la
   coupe sur sa propre grille d'occupation : la forme se guide par coupes et fusions successives,
-  elle ne se dicte pas.
-- **Zones interdites et sans lavage** : `service.set_virtual_wall` est capturé (rectangle de quatre
-  coins), mais les quatre valeurs de type observées (2, 6, 12, 13) ne sont pas décodées — rien ne
-  dit laquelle interdit le passage et laquelle interdit seulement le lavage. Pas exposé tant que ce
-  n'est pas tranché.
-- Poser un meuble (`service.adjust_furniture`) n'est pas exposé non plus.
-- Le débordement de la carte à travers les fenêtres vient du lidar du robot, pas du rendu ; seule
-  l'application mobile sait le retoucher.
+  elle ne se dicte pas. Une division efface en outre le nom des deux moitiés.
+- **Zones de restriction** (éviter, franchir un seuil, lavage seul, aspirateur seul) : le protocole
+  est décodé (voir [docs/protocole.md](docs/protocole.md)), mais l'application doit renvoyer toute
+  la liste à chaque ajout, et la correspondance avec la forme que l'API REST donne aux zones
+  existantes manque encore — les exposer tel quel effacerait celles créées depuis le téléphone.
+- Poser un meuble (`service.adjust_furniture`) et tourner la carte ne sont pas exposés.
+- Le débordement de la carte à travers les fenêtres vient du lidar du robot, pas du rendu. Une zone
+  « Éviter la zone » posée dessus depuis l'application mobile empêche le robot d'y aller.
 - Le réglage utilisé par pièce lors d'un nettoyage passé n'est pas récupérable (voir Historique).
 - Les types de taches autres que `liquid` n'ont jamais été observés : toutes sont dessinées pareil.
 

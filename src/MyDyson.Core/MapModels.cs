@@ -115,19 +115,33 @@ public sealed record MapEditResult(long? MapId, int MapType, long Timestamp)
 {
     public static MapEditResult? From(JsonObject? reply)
     {
-        if (reply?["data"] is not JsonObject data) return null;
+        if (reply?["data"] is not JsonObject dataNode) return null;
+        // The robot repeats keys inside "data" — {"result":0,"result":0} from del_map and
+        // set_cur_map, map_id twice from set_virtual_wall — and indexing a JsonObject with a
+        // duplicate throws. Re-reading it as a JsonElement walks the members instead, and the
+        // first occurrence wins.
+        using var doc = JsonDocument.Parse(dataNode.ToJsonString());
+        var data = doc.RootElement;
 
         // Treating a missing "result" as success would turn a refusal into a silent no-op, so the
         // two shapes are told apart by which member is there rather than by the method name.
-        if (data["result"] is JsonValue r)
-            return r.TryGetValue<int>(out var code) && code == 0 ? new MapEditResult(null, 0, 0) : null;
+        if (First(data, "result") is { } r)
+            return r.ValueKind == JsonValueKind.Number && r.TryGetInt32(out var code) && code == 0 ? new MapEditResult(null, 0, 0) : null;
 
-        if (data["map_id"] is JsonValue idValue && idValue.TryGetValue<long>(out var id))
+        if (First(data, "map_id") is { ValueKind: JsonValueKind.Number } idValue && idValue.TryGetInt64(out var id))
         {
-            var type = data["map_type"] is JsonValue t && t.TryGetValue<int>(out var ti) ? ti : 0;
-            var stamp = data["timestamp"] is JsonValue s && s.TryGetValue<long>(out var sl) ? sl : 0;
+            var type = First(data, "map_type") is { ValueKind: JsonValueKind.Number } t && t.TryGetInt32(out var ti) ? ti : 0;
+            var stamp = First(data, "timestamp") is { ValueKind: JsonValueKind.Number } s && s.TryGetInt64(out var sl) ? sl : 0;
             return new MapEditResult(id, type, stamp);
         }
+        return null;
+    }
+
+    private static JsonElement? First(JsonElement obj, string name)
+    {
+        if (obj.ValueKind != JsonValueKind.Object) return null;
+        foreach (var p in obj.EnumerateObject())
+            if (p.NameEquals(name)) return p.Value;
         return null;
     }
 }

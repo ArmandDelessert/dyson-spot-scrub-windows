@@ -5,48 +5,48 @@ namespace MyDyson.Core.Tests;
 
 public class RoomTypeLabelsTests
 {
-    [Theory]
-    [InlineData("bedroom", "Chambre")]
-    [InlineData("toilet", "W.-C.")]
-    [InlineData("utilityRoom", "Cave")]
-    [InlineData("primaryBathroom", "Salle de bain parentale")]
-    [InlineData("balcony", "Balcon")]
-    public void ATypedRoomShowsItsTypesLabel(string type, string label)
-    {
-        // Dyson auto-fills a new zone's stored name from the type and appends a digit to keep
-        // storage unique ("Chambre1", "Salon12"); that field is not what the room list shows.
-        Assert.Equal(label, RoomTypeLabels.Resolve(type, label, "12"));
-        Assert.Equal(label, RoomTypeLabels.Resolve(type, label + "3", "12"));
-        Assert.Equal(label, RoomTypeLabels.Resolve(type, null, "12"));
-    }
-
     [Fact]
-    public void AnUntypedOrCustomRoomKeepsItsStoredName()
+    public void TheStoredNameIsWhatShowsWhateverTheType()
     {
-        // "custom" has no default label of its own, so what the user stored is what shows.
+        // The phone app shows a typed room under its type's label; this app shows the name the
+        // room actually carries, so that what was typed in a rename is what appears.
+        Assert.Equal("Chambre de Paul", RoomTypeLabels.Resolve("bedroom", "Chambre de Paul", "12"));
+        Assert.Equal("Salon12", RoomTypeLabels.Resolve("livingRoom", "Salon12", "14"));
+        // Seen on a real account: a room typed W.-C. still named after its creation.
+        Assert.Equal("Salle de bain", RoomTypeLabels.Resolve("toilet", "Salle de bain", "11"));
         Assert.Equal("Pièce1", RoomTypeLabels.Resolve("custom", "Pièce1", "15"));
-        Assert.Equal("Pièce1", RoomTypeLabels.Resolve(null, "Pièce1", "15"));
-        Assert.Equal("Pièce1", RoomTypeLabels.Resolve("", "Pièce1", "15"));
-        // A name the user deliberately chose is never second-guessed either.
         Assert.Equal("Null", RoomTypeLabels.Resolve(null, "Null", "16"));
     }
 
     [Fact]
-    public void AnUnknownTypeFallsBackRatherThanShowingTheRawType()
+    public void WithNoNameTheTypeStandsInThenTheId()
     {
-        // A type added by a future firmware must not leak "someNewType" into the room list.
-        Assert.Equal("Chambre1", RoomTypeLabels.Resolve("someNewType", "Chambre1", "12"));
-        // With nothing stored either, the zone id is the last resort.
-        Assert.Equal("12", RoomTypeLabels.Resolve("someNewType", null, "12"));
+        // Never seen from the robot (a room shown as "<Null>" really is named that), but a missing
+        // name should still read as something.
+        Assert.Equal("Balcon", RoomTypeLabels.Resolve("balcony", null, "15"));
+        Assert.Equal("Balcon", RoomTypeLabels.Resolve("balcony", "", "15"));
+        Assert.Equal("15", RoomTypeLabels.Resolve("custom", null, "15"));
+        Assert.Equal("15", RoomTypeLabels.Resolve("someNewType", null, "15"));
     }
+
+    [Theory]
+    [InlineData("livingRoom", "Salon", "")]              // name and type agree: the type adds nothing
+    [InlineData("livingRoom", "Salon1", "Salon")]        // they differ: both are worth seeing
+    [InlineData("toilet", "Salle de bain", "W.-C.")]
+    [InlineData("custom", "Pièce secrète", "Personnalisée")]
+    [InlineData(null, "Pièce1", "Personnalisée")]        // what a split leaves behind: no type at all
+    [InlineData("", "Pièce1", "Personnalisée")]
+    [InlineData("someNewType", "Pièce", "someNewType")]  // a future type is shown raw, not hidden
+    [InlineData("balcony", null, "")]                    // no name: the label already stands in for it
+    public void TheTypeHintOnlyAppearsWhenItSaysSomethingTheNameDoesNot(string? type, string? name, string hint) =>
+        Assert.Equal(hint, RoomTypeLabels.TypeHint(type, name));
 
     [Fact]
     public void TypeMatchingIsCaseSensitiveBecauseTheApiIs()
     {
-        // The REST field is camelCase ("playRoom"); "playroom" is not a value the API produces, so
-        // it falls through to the stored name like any unknown type.
-        Assert.Equal("Salle de jeux", RoomTypeLabels.Resolve("playRoom", "Salle de jeux", "1"));
-        Assert.Equal("x", RoomTypeLabels.Resolve("playroom", "x", "1"));
+        // The REST field is camelCase ("playRoom"); "playroom" is not a value the API produces.
+        Assert.Equal("Salle de jeux", RoomTypeLabels.DefaultNameFor("playRoom"));
+        Assert.Null(RoomTypeLabels.DefaultNameFor("playroom"));
     }
 }
 
@@ -71,29 +71,6 @@ public class CleanStatusLabelsTests
 
 public class MapEditingTests
 {
-    [Fact]
-    public void ARenamedRoomShowsTheNameTheUserChose()
-    {
-        // The phone app hides the stored name for a typed room; here that would make a rename from
-        // the map manager look as if nothing had happened.
-        Assert.Equal("Chambre de Paul", RoomTypeLabels.Resolve("bedroom", "Chambre de Paul", "12"));
-        // But the auto-filled default, with or without Dyson's uniqueness digit, still reads as the type.
-        Assert.Equal("Chambre", RoomTypeLabels.Resolve("bedroom", "Chambre", "12"));
-        Assert.Equal("Chambre", RoomTypeLabels.Resolve("bedroom", "Chambre1", "12"));
-        Assert.Equal("Salon", RoomTypeLabels.Resolve("livingRoom", "Salon12", "14"));
-        // A name that merely starts like the label is not the default.
-        Assert.Equal("Chambre bis", RoomTypeLabels.Resolve("bedroom", "Chambre bis", "12"));
-        // Seen on a real account: a room typed W.-C. still carrying the name it was created with.
-        // That is Dyson's own label for another type, so it is auto-filled too and the type wins,
-        // which is also what the phone app shows.
-        Assert.Equal("W.-C.", RoomTypeLabels.Resolve("toilet", "Salle de bain", "11"));
-        Assert.Equal("W.-C.", RoomTypeLabels.Resolve("toilet", "Salle de bain1", "11"));
-        // Corner case of the same rule: a free name that happens to be another type's own label
-        // reads as auto-filled, so the type wins. Rare enough to prefer over the alternative,
-        // which would show Dyson's leftovers as if the user had chosen them.
-        Assert.Equal("Chambre", RoomTypeLabels.Resolve("bedroom", "Chambre d'amis", "12"));
-    }
-
     [Fact]
     public void TheTypeListIsOfferedWithItsDefaultNames()
     {

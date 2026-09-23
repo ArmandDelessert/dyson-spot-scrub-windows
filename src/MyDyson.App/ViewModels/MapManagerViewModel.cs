@@ -14,7 +14,7 @@ public sealed record RoomTypeOption(string? Type, string Label)
     public override string ToString() => Label;
 }
 
-/// <summary>One room of the map being managed, with the tick used for merging.</summary>
+/// <summary>One room of the map being managed.</summary>
 public sealed partial class ManagedRoom(MapZone Zone) : ObservableObject
 {
     public MapZone Zone { get; } = Zone;
@@ -22,34 +22,33 @@ public sealed partial class ManagedRoom(MapZone Zone) : ObservableObject
     public int NumericId => int.TryParse(Zone.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : -1;
     public string DisplayName => RoomTypeLabels.Resolve(Zone.Type, Zone.Name, Zone.Id);
     public string AreaText => Zone.Area is { } a ? $"{a:F1} m²" : "";
-    /// <summary>The type, shown beside the name only when it adds something: a typed room called
-    /// after its own type would otherwise read "Chambre Chambre".</summary>
-    public string TypeText
-    {
-        get
-        {
-            var label = RoomTypeLabels.DefaultNameFor(Zone.Type);
-            if (label is null) return "personnalisée";
-            return label == DisplayName ? "" : label.ToLower(System.Globalization.CultureInfo.CurrentCulture);
-        }
-    }
+    /// <summary>The type beside the name, only when it says something the name does not (see <see cref="RoomTypeLabels.TypeHint"/>).</summary>
+    public string TypeText => RoomTypeLabels.TypeHint(Zone.Type, Zone.Name);
 
-    [ObservableProperty] private bool _picked;
+    /// <summary>Highlighted in the list and on the map: the chosen room, or one of those gathered for a merge.</summary>
+    [ObservableProperty] private bool _isChosen;
 }
 
 /// <summary>
-/// The Gérer les cartes window: rename a map or a room, merge rooms, cut a room in two, make a map
-/// active, and run a new mapping scan. It works off its own copy of the map rather than the
+/// The Gérer les cartes window: rename, delete or activate a map, rename rooms, merge them, cut one
+/// in two, and run a new mapping scan. It works off its own copy of the map rather than the
 /// dashboard's, since every edit makes the robot re-save the map and the result has to be re-read.
 ///
-/// What the robot does not offer, and so is absent here: deleting a map, deleting a room, and
-/// setting a room's outline. Splitting only ever cuts along a straight line, and the robot snaps
-/// that line to its own occupancy grid, so a room's shape can be steered but not dictated.
+/// The room list has two modes. Normally a click chooses one room, which renaming and splitting
+/// act on. Once "Fusionner" is pressed, clicks gather rooms instead, and pressing it again merges
+/// them — no check boxes, so a room is never both chosen and ticked. A click on empty map space
+/// clears whatever is highlighted, in either mode.
+///
+/// What the robot does not offer, and so is absent here: deleting a room, and setting a room's
+/// outline. Splitting only ever cuts along a straight line, and the robot snaps that line to its
+/// own occupancy grid, so a room's shape can be steered but not dictated.
 /// </summary>
 public sealed partial class MapManagerViewModel : ObservableObject
 {
     private readonly RobotHub _hub;
     private readonly DisplaySettings _display;
+    /// <summary>The rooms gathered for a merge, in click order: the robot receives them in that order.</summary>
+    private readonly List<ManagedRoom> _mergeSet = [];
 
     public MapManagerViewModel(RobotHub hub, DisplaySettings display)
     {
@@ -70,11 +69,17 @@ public sealed partial class MapManagerViewModel : ObservableObject
     /// <summary>The 30 known types plus the free-name option, for the rename dialog.</summary>
     public IReadOnlyList<RoomTypeOption> RoomTypes { get; }
 
-    // ---- Splitting -------------------------------------------------------------
-
     /// <summary>True while the user is aiming a cut on the map; the view turns clicks into points.</summary>
-    [ObservableProperty] private bool _splitting;
-    [ObservableProperty] private string _splitHint = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode))] private bool _splitting;
+    /// <summary>True while clicks gather rooms to merge rather than choose one.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode))] private bool _merging;
+    /// <summary>Splitting or merging is under way, which is when there is something to cancel.</summary>
+    public bool InMode => Merging || Splitting;
+    /// <summary>What the current mode expects from the user, shown above the map.</summary>
+    [ObservableProperty] private string _hint = DefaultHint;
+    [ObservableProperty] private string _mergeButtonLabel = "Fusionner des pièces…";
+
+    private const string DefaultHint = "Cliquez une pièce pour la choisir, en dehors pour effacer le choix. Molette pour zoomer, glisser pour déplacer.";
 
     /// <summary>Asks the window to show a text prompt; returns null when the user cancels.</summary>
     public Func<string, string, string, string?>? AskForText { get; set; }
@@ -83,6 +88,11 @@ public sealed partial class MapManagerViewModel : ObservableObject
     /// <summary>Asks the window for a yes/no confirmation.</summary>
     public Func<string, string, bool>? Confirm { get; set; }
 
+    /// <summary>Raised after a successful edit so the dashboard can pick up the new names.</summary>
+    public event Action? Changed;
+
+    // ---- Loading ---------------------------------------------------------------
+
     public async Task LoadAsync(string? preferredMapId = null)
     {
         try
@@ -90,10 +100,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
             var wanted = preferredMapId ?? SelectedMap?.Id;
             var metadata = await _hub.Api.GetMapMetadataAsync(_hub.Serial, _hub.Ct);
             Maps.Clear();
-            // The cloud returns them in no order anyone can act on; by name, active one first, is
-            // predictable and puts the map most edits are about at the top.
-            foreach (var m in metadata.OrderByDescending(m => m.IsCurrentMap).ThenBy(m => m.Name, StringComparer.CurrentCulture))
-                Maps.Add(new MapItem(m));
+            foreach (var m in MapItem.InDisplayOrder(metadata)) Maps.Add(new MapItem(m));
             SelectedMap = Maps.FirstOrDefault(m => m.Id == wanted)
                 ?? Maps.FirstOrDefault(m => m.Metadata.IsCurrentMap)
                 ?? Maps.FirstOrDefault();
@@ -104,7 +111,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
 
     partial void OnSelectedMapChanged(MapItem? value)
     {
-        Splitting = false;
+        // Whatever was chosen, gathered or being cut belonged to the map that was on screen.
+        LeaveModes();
         SelectedRoom = null;
         RefreshCommandStates();
         if (value is not null) _ = LoadMapAsync(value);
@@ -122,18 +130,10 @@ public sealed partial class MapManagerViewModel : ObservableObject
 
             Rooms.Clear();
             foreach (var z in (map.Zones ?? []).OrderBy(z => RoomTypeLabels.Resolve(z.Type, z.Name, z.Id), StringComparer.CurrentCulture))
-            {
-                var room = new ManagedRoom(z);
-                // Ticking a room for a merge changes whether the merge is offered at all.
-                room.PropertyChanged += (_, e) =>
-                {
-                    if (e.PropertyName == nameof(ManagedRoom.Picked)) MergeRoomsCommand.NotifyCanExecuteChanged();
-                };
-                Rooms.Add(room);
-            }
-            MergeRoomsCommand.NotifyCanExecuteChanged();
+                Rooms.Add(new ManagedRoom(z));
             _map = map;
             _grid = grid;
+            RefreshCommandStates();
             RebuildScene();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
@@ -149,44 +149,101 @@ public sealed partial class MapManagerViewModel : ObservableObject
         Map = _map,
         ZoneMetadata = SelectedMap?.Metadata.Zones,
         Dock = _map?.DockLocation,
-        // The room being renamed or cut is highlighted, the others dimmed, so it is obvious which
-        // one an action is about to touch.
-        SelectedZoneIds = SelectedRoom is { } r ? new HashSet<string>([r.Id], StringComparer.Ordinal) : null,
+        // What an action is about to touch is highlighted, the rest dimmed.
+        SelectedZoneIds = Rooms.Any(r => r.IsChosen) ? Rooms.Where(r => r.IsChosen).Select(r => r.Id).ToHashSet(StringComparer.Ordinal) : null,
         ShowFurniture = _display.ShowFurniture,
         ShowTravelPath = _display.ShowTravelPath,
     };
 
-    partial void OnSelectedRoomChanged(ManagedRoom? value)
+    // ---- Choosing rooms ----------------------------------------------------------
+
+    /// <summary>A click on a room, from the list or the map. Chooses it, or gathers it for a merge.</summary>
+    public void RoomClicked(ManagedRoom room)
     {
+        if (Splitting || Busy) return;
+        if (Merging)
+        {
+            if (!_mergeSet.Remove(room)) _mergeSet.Add(room);
+            room.IsChosen = _mergeSet.Contains(room);
+            UpdateMergeLabel();
+        }
+        else
+        {
+            // Clicking the chosen room again lets go of it, as on the dashboard's map.
+            SelectedRoom = ReferenceEquals(SelectedRoom, room) ? null : room;
+        }
         RebuildScene();
-        RenameRoomCommand.NotifyCanExecuteChanged();
-        StartSplitCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand]
+    private void ClickRoom(ManagedRoom? room)
+    {
+        if (room is not null) RoomClicked(room);
     }
 
     /// <summary>Called by the window when a room is clicked on the map.</summary>
-    public void SelectRoomById(string zoneId) => SelectedRoom = Rooms.FirstOrDefault(r => r.Id == zoneId) ?? SelectedRoom;
+    public void RoomClickedById(string zoneId)
+    {
+        if (Rooms.FirstOrDefault(r => r.Id == zoneId) is { } room) RoomClicked(room);
+    }
+
+    /// <summary>A click on empty map space: lets go of whatever is highlighted, in either mode.</summary>
+    public void ClearRoomSelection()
+    {
+        if (Splitting) return;
+        if (Merging)
+        {
+            foreach (var r in _mergeSet) r.IsChosen = false;
+            _mergeSet.Clear();
+            UpdateMergeLabel();
+            RebuildScene();
+        }
+        else
+        {
+            SelectedRoom = null;
+        }
+    }
+
+    partial void OnSelectedRoomChanged(ManagedRoom? oldValue, ManagedRoom? newValue)
+    {
+        if (oldValue is not null) oldValue.IsChosen = false;
+        if (newValue is not null) newValue.IsChosen = true;
+        RebuildScene();
+        RefreshCommandStates();
+    }
 
     // ---- What each action needs before it can be offered ----------------------
 
-    private bool NotBusy() => !Busy;
-    private bool HasMap() => SelectedMap is not null && !Busy;
-    private bool HasRoom() => SelectedRoom is not null && !Busy;
-    private bool CanSetActive() => SelectedMap is { Metadata.IsCurrentMap: false } && !Busy;
-    private bool CanMerge() => !Busy && Rooms.Count(r => r.Picked) >= 2;
+    private bool Idle => !Busy && !Splitting && !Merging;
+    private bool NotBusy() => Idle;
+    private bool HasMap() => SelectedMap is not null && Idle;
+    private bool HasRoom() => SelectedRoom is not null && Idle;
+    private bool CanSetActive() => SelectedMap is { Metadata.IsCurrentMap: false } && Idle;
+    /// <summary>Entering merge mode needs two rooms to exist; confirming it needs two gathered.</summary>
+    private bool CanMerge() => !Busy && !Splitting && (Merging ? _mergeSet.Count >= 2 : Rooms.Count >= 2);
 
     partial void OnBusyChanged(bool value) => RefreshCommandStates();
 
     private void RefreshCommandStates()
     {
         RenameMapCommand.NotifyCanExecuteChanged();
-        RenameRoomCommand.NotifyCanExecuteChanged();
-        MergeRoomsCommand.NotifyCanExecuteChanged();
-        StartSplitCommand.NotifyCanExecuteChanged();
+        DeleteMapCommand.NotifyCanExecuteChanged();
         SetActiveCommand.NotifyCanExecuteChanged();
         StartMappingCommand.NotifyCanExecuteChanged();
+        RenameRoomCommand.NotifyCanExecuteChanged();
+        MergeCommand.NotifyCanExecuteChanged();
+        StartSplitCommand.NotifyCanExecuteChanged();
     }
 
-    // ---- Commands --------------------------------------------------------------
+    // ---- Map commands ------------------------------------------------------------
+
+    [RelayCommand(CanExecute = nameof(CanSetActive))]
+    private async Task SetActiveAsync()
+    {
+        if (SelectedMap is not { } map || map.Metadata.IsCurrentMap) return;
+        if (!TryMapId(map, out var mapId)) return;
+        await EditAsync($"carte active : {map.Metadata.Name}", c => c.ActivateMapAsync(mapId, _hub.Ct));
+    }
 
     [RelayCommand(CanExecute = nameof(HasMap))]
     private async Task RenameMapAsync()
@@ -196,74 +253,23 @@ public sealed partial class MapManagerViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(name) || name == map.Metadata.Name) return;
         if (!TryMapId(map, out var mapId)) return;
 
-        await EditAsync($"carte renommée en « {name} »", c => c.RenameMapAsync(mapId, name.Trim(), _hub.Ct));
+        await EditAsync($"carte renommée en « {name.Trim()} »", c => c.RenameMapAsync(mapId, name.Trim(), _hub.Ct));
     }
 
-    [RelayCommand(CanExecute = nameof(HasRoom))]
-    private async Task RenameRoomAsync()
+    [RelayCommand(CanExecute = nameof(HasMap))]
+    private async Task DeleteMapAsync()
     {
-        if (SelectedRoom is not { } room || SelectedMap is not { } map || AskForRoomName is null) return;
-        if (AskForRoomName(room, RoomTypes) is not { } answer) return;
-        if (string.IsNullOrWhiteSpace(answer.Name)) return;
-        if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
+        if (SelectedMap is not { } map || !TryMapId(map, out var mapId)) return;
+        var name = map.Metadata.Name ?? map.Id;
+        var active = map.Metadata.IsCurrentMap
+            ? "\n\nC'est la carte active : le robot en choisira une autre de lui-même."
+            : "";
+        if (Confirm?.Invoke("Supprimer la carte",
+                $"Supprimer définitivement la carte « {name} », avec ses pièces et leurs réglages ?{active}\n\nCette action ne peut pas être annulée.") != true) return;
 
-        // A free name travels as type "custom", which is what the app sends too.
-        await EditAsync($"pièce renommée en « {answer.Name.Trim()} »",
-            c => c.RenameRoomAsync(mapId, room.NumericId, answer.Name.Trim(), answer.Type ?? "custom", _hub.Ct));
-    }
-
-    [RelayCommand(CanExecute = nameof(CanMerge))]
-    private async Task MergeRoomsAsync()
-    {
-        if (SelectedMap is not { } map) return;
-        var picked = Rooms.Where(r => r.Picked && r.NumericId >= 0).ToList();
-        if (picked.Count < 2) { Status = "Cochez au moins deux pièces à fusionner."; return; }
-        if (!TryMapId(map, out var mapId)) return;
-        if (Confirm?.Invoke("Fusionner les pièces",
-                $"Fusionner {string.Join(", ", picked.Select(p => p.DisplayName))} en une seule pièce ?") != true) return;
-
-        await EditAsync($"{picked.Count} pièces fusionnées", c => c.MergeRoomsAsync(mapId, picked.Select(p => p.NumericId), ct: _hub.Ct));
-    }
-
-    [RelayCommand(CanExecute = nameof(HasRoom))]
-    private void StartSplit()
-    {
-        if (SelectedRoom is null) { Status = "Choisissez d'abord la pièce à diviser."; return; }
-        Splitting = true;
-        SplitHint = "Cliquez les deux extrémités du trait de coupe. Échap pour annuler.";
-        Status = "";
-    }
-
-    [RelayCommand]
-    private void CancelSplit()
-    {
-        Splitting = false;
-        SplitHint = "";
-    }
-
-    /// <summary>Called by the window once both ends of the cut have been clicked on the map.</summary>
-    public async Task SplitAsync(MyDyson.Core.Point from, MyDyson.Core.Point to)
-    {
-        Splitting = false;
-        SplitHint = "";
-        if (SelectedRoom is not { } room || SelectedMap is not { } map) return;
-        if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
-
-        // Said out loud because the robot rarely cuts exactly where asked: it snaps the line to its
-        // own occupancy grid, and a line that misses the room is simply refused.
-        await EditAsync($"pièce {room.DisplayName} divisée", c => c.SplitRoomAsync(mapId, room.NumericId, from, to, ct: _hub.Ct));
-    }
-
-    [RelayCommand(CanExecute = nameof(CanSetActive))]
-    private async Task SetActiveAsync()
-    {
-        if (SelectedMap is not { } map || map.Metadata.IsCurrentMap) return;
-        if (!TryMapId(map, out var mapId)) return;
-        await EditAsync($"carte active : {map.Metadata.Name}", async c =>
-        {
-            await c.SetCurrentMapAsync(mapId, _hub.Ct);
-            return new MapEditResult(mapId, 0, 0);
-        });
+        // Reloaded without a preference: the deleted map is gone, so the list falls back on the
+        // active one, which the robot may just have changed.
+        await EditAsync($"carte « {name} » supprimée", c => c.DeleteMapAsync(mapId, _hub.Ct), reloadOn: null);
     }
 
     [RelayCommand(CanExecute = nameof(NotBusy))]
@@ -282,12 +288,113 @@ public sealed partial class MapManagerViewModel : ObservableObject
         finally { Busy = false; }
     }
 
+    // ---- Room commands -----------------------------------------------------------
+
+    [RelayCommand(CanExecute = nameof(HasRoom))]
+    private async Task RenameRoomAsync()
+    {
+        if (SelectedRoom is not { } room || SelectedMap is not { } map || AskForRoomName is null) return;
+        if (AskForRoomName(room, RoomTypes) is not { } answer) return;
+        if (string.IsNullOrWhiteSpace(answer.Name)) return;
+        if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
+
+        // A free name travels as type "custom", which is what the app sends too.
+        await EditAsync($"pièce renommée en « {answer.Name.Trim()} »",
+            c => c.RenameRoomAsync(mapId, room.NumericId, answer.Name.Trim(), answer.Type ?? "custom", _hub.Ct));
+    }
+
     /// <summary>
-    /// Sends one map edit, then re-reads the map list. The robot answers as soon as it has re-saved
-    /// the map, but the cloud copy the REST API serves catches up a moment later (it announces
-    /// itself with MAP-UPLOAD-STATUS), hence the short wait before reloading.
+    /// First press: start gathering rooms (the chosen one, if any, is the first). Second press:
+    /// merge what was gathered. The label says which press this is.
     /// </summary>
-    private async Task EditAsync(string label, Func<RobotMqttClient, Task<MapEditResult?>> edit)
+    [RelayCommand(CanExecute = nameof(CanMerge))]
+    private async Task MergeAsync()
+    {
+        if (!Merging)
+        {
+            Merging = true;
+            if (SelectedRoom is { } first)
+            {
+                SelectedRoom = null;
+                _mergeSet.Add(first);
+                first.IsChosen = true;
+            }
+            Hint = "Cliquez les pièces à fusionner, sur la carte ou dans la liste. « Fusionner » à nouveau pour valider, Échap pour annuler.";
+            UpdateMergeLabel();
+            RebuildScene();
+            return;
+        }
+
+        if (SelectedMap is not { } map || !TryMapId(map, out var mapId)) return;
+        var rooms = _mergeSet.Where(r => r.NumericId >= 0).ToList();
+        if (rooms.Count < 2) { Status = "Choisissez au moins deux pièces à fusionner."; return; }
+        if (Confirm?.Invoke("Fusionner les pièces",
+                $"Fusionner {string.Join(", ", rooms.Select(p => p.DisplayName))} en une seule pièce ?") != true) return;
+
+        LeaveModes();
+        await EditAsync($"{rooms.Count} pièces fusionnées", c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), ct: _hub.Ct));
+    }
+
+    private void UpdateMergeLabel()
+    {
+        MergeButtonLabel = !Merging ? "Fusionner des pièces…"
+            : _mergeSet.Count < 2 ? "Fusionner (choisissez 2 pièces ou plus)"
+            : $"Fusionner les {_mergeSet.Count} pièces";
+        MergeCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasRoom))]
+    private void StartSplit()
+    {
+        if (SelectedRoom is null) { Status = "Choisissez d'abord la pièce à diviser."; return; }
+        Splitting = true;
+        Hint = "Cliquez les deux extrémités du trait de coupe. Échap pour annuler.";
+        Status = "";
+        RefreshCommandStates();
+    }
+
+    /// <summary>Called by the window once both ends of the cut have been clicked on the map.</summary>
+    public async Task SplitAsync(MyDyson.Core.Point from, MyDyson.Core.Point to)
+    {
+        var room = SelectedRoom;
+        LeaveModes();
+        if (room is null || SelectedMap is not { } map) return;
+        if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
+
+        // A cut that misses the room, or that the robot will not make, comes back refused.
+        await EditAsync($"pièce {room.DisplayName} divisée", c => c.SplitRoomAsync(mapId, room.NumericId, from, to, ct: _hub.Ct));
+    }
+
+    /// <summary>Escape, or the cancel button: leaves splitting or merging without doing anything.</summary>
+    [RelayCommand]
+    private void Cancel()
+    {
+        var wasMerging = Merging;
+        LeaveModes();
+        if (wasMerging) RebuildScene();
+    }
+
+    private void LeaveModes()
+    {
+        Splitting = false;
+        if (Merging)
+        {
+            foreach (var r in _mergeSet) r.IsChosen = false;
+            _mergeSet.Clear();
+            Merging = false;
+        }
+        Hint = DefaultHint;
+        UpdateMergeLabel();
+        RefreshCommandStates();
+    }
+
+    // ---- Sending -------------------------------------------------------------------
+
+    /// <summary>
+    /// Sends one map edit, waits for the cloud copy to catch up, then re-reads the maps — on the
+    /// map given by <paramref name="reloadOn"/>, which defaults to the one on screen.
+    /// </summary>
+    private async Task EditAsync(string label, Func<RobotMqttClient, Task<MapEditResult?>> edit, string? reloadOn = "")
     {
         if (_hub.Session?.Client is not { IsConnected: true } client) { Status = "Robot non connecté."; return; }
         Busy = true;
@@ -308,7 +415,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
             // the map back before that returns the old one, which is what made a rename look as if
             // it had not happened.
             await uploaded;
-            await LoadAsync(SelectedMap?.Id);
+            await LoadAsync(reloadOn == "" ? SelectedMap?.Id : reloadOn);
             Status = char.ToUpper(label[0], CultureInfo.CurrentCulture) + label[1..] + ".";
             Changed?.Invoke();
         }
@@ -343,9 +450,6 @@ public sealed partial class MapManagerViewModel : ObservableObject
         }
         finally { tracker.EventReceived -= OnEvent; }
     }
-
-    /// <summary>Raised after a successful edit so the dashboard can pick up the new names.</summary>
-    public event Action? Changed;
 
     private bool TryMapId(MapItem map, out long id)
     {

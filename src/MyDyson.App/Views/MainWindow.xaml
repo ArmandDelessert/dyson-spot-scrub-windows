@@ -266,7 +266,11 @@
                                 <!-- Display preferences sit with the map they change, rather than in
                                      the Réglages tab, where everything else is sent to the robot.
                                      They apply to the history map too. -->
-                                <ToggleButton x:Name="DisplayOptionsButton" PreviewMouseLeftButtonDown="DisplayOptions_MouseDown" Content="Affichage ▾" Margin="0,0,8,8" Padding="10,4" Cursor="Hand"
+                                <!-- While the panel is open the toggle ignores the mouse: the click that
+                                     lands on it then only closes the panel (StaysOpen="False"), where it
+                                     used to close it and immediately reopen it through the toggle. -->
+                                <ToggleButton x:Name="DisplayOptionsButton" Content="Affichage ▾"
+                                              IsHitTestVisible="{Binding IsOpen, ElementName=DisplayOptionsPopup, Converter={StaticResource Not}}" Margin="0,0,8,8" Padding="10,4" Cursor="Hand"
                                               AutomationProperties.Name="Options d'affichage de la carte"
                                               Style="{StaticResource ToolbarToggle}"/>
                                 <Popup x:Name="DisplayOptionsPopup" IsOpen="{Binding IsChecked, ElementName=DisplayOptionsButton, Mode=TwoWay}" StaysOpen="False"

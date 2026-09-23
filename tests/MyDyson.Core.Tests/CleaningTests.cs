@@ -184,6 +184,30 @@ public class MapEditingCommandTests
     }
 
     [Fact]
+    public async Task DeletingAMapSendsItsIdAndReadsTheDuplicatedResultKey()
+    {
+        // Captured 2026-09-23: the reply really carries "result" twice. It must still read as a
+        // success rather than blow up on the duplicate key.
+        var robot = new RecordingRobot("""{"msgId":"1","code":0,"method":"service.del_map","data":{"result":0,"result":0}}""");
+
+        var result = await robot.DeleteMapAsync(MapId);
+
+        var (method, payload) = Assert.Single(robot.Sent);
+        Assert.Equal("service.del_map", method);
+        AssertJson("""{"map_id":1000000002}""", payload);
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public void ARefusedSplitIsReadAsRefused()
+    {
+        // Captured 2026-09-23: a cut the robot would not make answers {"result": 1}, not the map
+        // shape a successful split answers with.
+        Assert.Null(MapEditResult.From((JsonObject)JsonNode.Parse(
+            """{"msgId":"1","code":0,"method":"service.split_room","data":{"result":1}}""")!));
+    }
+
+    [Fact]
     public async Task ARefusedEditComesBackAsNothingRatherThanAnError()
     {
         // The robot answers a refused edit with some other shape, never an error field of its own.

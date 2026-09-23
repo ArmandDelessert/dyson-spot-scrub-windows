@@ -1,8 +1,9 @@
 namespace MyDyson.Core;
 
 /// <summary>
-/// French labels the official app shows for a typed room, in place of whatever is stored in the
-/// zone's own "name" field.
+/// French labels of the thirty room types, as the official app shows them. The app displays a
+/// typed room under its type's label and hides the stored name; this app shows the stored name
+/// instead (see <see cref="Resolve"/>) and uses the labels for the type picker and as a hint.
 ///
 /// Established by decompiling the room-type enum (class d11.a: thirty types, BALCONY through
 /// UTILITY_ROOM plus CUSTOM, declared alphabetically with a localisation key per entry) and
@@ -53,29 +54,28 @@ public static class RoomTypeLabels
     };
 
     /// <summary>
-    /// What to show for a room. A typed room whose stored name is just the type's own default
-    /// ("Chambre", or "Chambre1" — Dyson appends a digit to keep storage unique) shows the type's
-    /// label, exactly like the phone app. A stored name the user actually chose ("Chambre de Paul")
-    /// wins instead: the app hides it, but hiding it here would make a rename from this window look
-    /// as though nothing had happened.
+    /// What to show for a room: always its stored name. Unlike the phone app, which shows a typed
+    /// room under its type's label and hides the name, what the user named a room is what they
+    /// see, everywhere. The type's label only stands in when there is no name at all — never seen
+    /// from the robot, but cheaper to handle than to crash on — and the zone id after that.
     /// </summary>
     public static string Resolve(string? type, string? storedName, string fallback)
     {
-        if (string.IsNullOrEmpty(type) || !Known.TryGetValue(type, out var label)) return storedName ?? fallback;
-        return string.IsNullOrEmpty(storedName) || IsAutoFilled(storedName) ? label : storedName;
+        if (!string.IsNullOrEmpty(storedName)) return storedName;
+        return DefaultNameFor(type) ?? fallback;
     }
 
     /// <summary>
-    /// Whether a stored name is one Dyson filled in rather than one the user wrote: any type's own
-    /// label, optionally followed by the digits Dyson appends to keep storage unique. Checking
-    /// every label, not just this room's, matters — a room typed as W.-C. can still carry the name
-    /// "Salle de bain" from when it was created, and showing that would contradict both the phone
-    /// app and its own type.
+    /// The type to show beside a room's name where both are listed, or empty when it would only
+    /// repeat the name. A room with no type or type "custom" reads "Personnalisée"; a type this
+    /// table does not know (a future firmware's) is shown raw rather than hidden.
     /// </summary>
-    private static bool IsAutoFilled(string storedName) =>
-        Known.Values.Any(label =>
-            storedName.StartsWith(label, StringComparison.Ordinal)
-            && storedName.AsSpan(label.Length).ToString().All(char.IsAsciiDigit));
+    public static string TypeHint(string? type, string? storedName)
+    {
+        if (string.IsNullOrEmpty(type) || type == "custom") return "Personnalisée";
+        if (DefaultNameFor(type) is not { } label) return type;
+        return label == Resolve(type, storedName, "") ? "" : label;
+    }
 
     /// <summary>The default name the robot gives a room of this type, used to prefill a rename.</summary>
     public static string? DefaultNameFor(string? type) =>

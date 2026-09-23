@@ -7,6 +7,13 @@ public sealed record MapItem(MapMetadata Metadata)
 {
     public string Id => Metadata.Id;
     public string Name => (Metadata.Name ?? Metadata.Id) + (Metadata.IsCurrentMap ? "  (active)" : "");
+
+    /// <summary>
+    /// The order every map list uses: the active map first, the others by name. The cloud returns
+    /// them in no order anyone can act on.
+    /// </summary>
+    public static IEnumerable<MapMetadata> InDisplayOrder(IEnumerable<MapMetadata> maps) =>
+        maps.OrderByDescending(m => m.IsCurrentMap).ThenBy(m => m.Name ?? m.Id, StringComparer.CurrentCulture);
 }
 
 /// <summary>
@@ -45,7 +52,7 @@ public sealed class MapCatalog(RobotHub hub)
     {
         var maps = await hub.Api.GetMapMetadataAsync(hub.Serial, hub.Ct);
         Maps.Clear();
-        foreach (var m in maps) Maps.Add(new MapItem(m));
+        foreach (var m in MapItem.InDisplayOrder(maps)) Maps.Add(new MapItem(m));
     }
 
     /// <summary>

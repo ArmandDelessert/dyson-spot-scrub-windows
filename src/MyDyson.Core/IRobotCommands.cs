@@ -67,6 +67,14 @@ public static class RobotCommands
     public static Task SetCurrentMapAsync(this IRobotCommands robot, long mapId, CancellationToken ct = default) =>
         robot.PublishJdmAsync("service.set_cur_map", new JsonObject { ["map_id"] = mapId }, ct);
 
+    /// <summary>
+    /// The same set_cur_map, waiting for the robot's {"result": 0} rather than firing and
+    /// forgetting as the start sequence does — for when the change is the whole point and the user
+    /// should hear whether it took.
+    /// </summary>
+    public static async Task<MapEditResult?> ActivateMapAsync(this IRobotCommands robot, long mapId, CancellationToken ct = default) =>
+        MapEditResult.From(await robot.RequestJdmAsync("service.set_cur_map", new JsonObject { ["map_id"] = mapId }, ct: ct).ConfigureAwait(false));
+
     public static Task SetRoomCleanAsync(this IRobotCommands robot, IEnumerable<int> roomIds, int cleanType = 0, int ctrlValue = 1, CancellationToken ct = default)
     {
         var ids = new JsonArray();
@@ -85,6 +93,14 @@ public static class RobotCommands
     // with {map_id, map_type, timestamp}: the robot has re-saved the map, and a MAP-UPLOAD-STATUS
     // follows once the cloud copy has caught up, which is what a caller should wait for before
     // re-reading the map over REST. "lang" is 5 for French, as the app sends.
+
+    /// <summary>
+    /// Deletes a map for good, with everything attached to it. Captured on 2026-09-23 from the phone
+    /// app, on the map that was active at the time: the robot accepted it and made another map
+    /// active on its own (the next MAP-UPLOAD-STATUS names that one, not the deleted one).
+    /// </summary>
+    public static async Task<MapEditResult?> DeleteMapAsync(this IRobotCommands robot, long mapId, CancellationToken ct = default) =>
+        MapEditResult.From(await robot.RequestJdmAsync("service.del_map", new JsonObject { ["map_id"] = mapId }, ct: ct).ConfigureAwait(false));
 
     /// <summary>Renames a map. The name is a plain string, unlike a room's (see <see cref="RenameRoomAsync"/>).</summary>
     public static async Task<MapEditResult?> RenameMapAsync(this IRobotCommands robot, long mapId, string name, CancellationToken ct = default) =>

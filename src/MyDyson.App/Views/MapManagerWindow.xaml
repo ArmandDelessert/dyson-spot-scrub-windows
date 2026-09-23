@@ -10,7 +10,8 @@
         <ResourceDictionary Source="/Themes/Controls.xaml"/>
     </Window.Resources>
     <Window.InputBindings>
-        <KeyBinding Key="Escape" Command="{Binding CancelSplitCommand}"/>
+        <!-- Leaves splitting or merging, whichever is under way. -->
+        <KeyBinding Key="Escape" Command="{Binding CancelCommand}"/>
     </Window.InputBindings>
     <DockPanel Margin="14">
         <!-- Status strip -->
@@ -28,10 +29,8 @@
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,-8">
                     <Button Content="Définir comme active" Command="{Binding SetActiveCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
                     <Button Content="Renommer la carte…" Command="{Binding RenameMapCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                    <Button Content="Supprimer la carte…" Command="{Binding DeleteMapCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
                     <Button Content="Nouvelle carte (scan)…" Command="{Binding StartMappingCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
-                    <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0">
-                        Le robot ne propose aucune commande pour supprimer une carte : cela reste à faire depuis l'application mobile.
-                    </TextBlock>
                 </StackPanel>
                 <ListBox ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}" BorderThickness="0"
                          Background="Transparent" Foreground="{DynamicResource TextBrush}"
@@ -51,43 +50,55 @@
                 <TextBlock DockPanel.Dock="Top" Text="Pièces" Style="{StaticResource Section}"/>
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,-8">
                     <Button Content="Renommer la pièce…" Command="{Binding RenameRoomCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
-                    <Button Content="Fusionner les pièces cochées" Command="{Binding MergeRoomsCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
-                    <Button Content="Diviser la pièce…" Command="{Binding StartSplitCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
-                            Visibility="{Binding Splitting, Converter={StaticResource Collapse}}"/>
-                    <Button Content="Annuler la division" Command="{Binding CancelSplitCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
-                            Visibility="{Binding Splitting, Converter={StaticResource Show}}"/>
+                    <!-- One button, two presses: the first starts gathering rooms, the second merges
+                         them. Its label says which press is next. -->
+                    <Button Content="{Binding MergeButtonLabel}" Command="{Binding MergeCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                    <Button Content="Diviser la pièce…" Command="{Binding StartSplitCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                    <Button Content="Annuler" Command="{Binding CancelCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
+                            Visibility="{Binding InMode, Converter={StaticResource Show}}"/>
                     <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0">
-                        Une division suit toujours un trait droit, et le robot la recale sur sa propre grille : la forme se guide, elle ne se dicte pas. Il n'existe pas de commande pour supprimer une pièce ; fusionnez-la avec sa voisine.
+                        Une division suit toujours un trait droit que le robot recale sur sa propre grille, et les deux moitiés perdent leur nom. Il n'existe pas de commande pour supprimer une pièce ; fusionnez-la avec sa voisine.
                     </TextBlock>
                 </StackPanel>
-                <ListBox ItemsSource="{Binding Rooms}" SelectedItem="{Binding SelectedRoom}" BorderThickness="0"
-                         Background="Transparent" Foreground="{DynamicResource TextBrush}"
-                         HorizontalContentAlignment="Stretch" AutomationProperties.Name="Pièces de la carte">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <DockPanel Margin="2,3">
-                                <CheckBox DockPanel.Dock="Left" IsChecked="{Binding Picked}" Margin="0,0,6,0"
-                                          AutomationProperties.Name="{Binding DisplayName, StringFormat='Inclure {0} dans la fusion'}"/>
-                                <TextBlock DockPanel.Dock="Right" Text="{Binding AreaText}" Style="{StaticResource Muted}" Margin="6,0,0,0"/>
-                                <TextBlock TextTrimming="CharacterEllipsis">
-                                    <Run Text="{Binding DisplayName, Mode=OneWay}"/>
-                                    <Run Text="{Binding TypeText, Mode=OneWay}" Foreground="{DynamicResource MutedBrush}" FontSize="11"/>
-                                </TextBlock>
-                            </DockPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                <!-- Plain clickable rows rather than a ListBox: a click means "choose" or "gather
+                     for the merge" depending on the mode, which ListBox selection would fight. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Rooms}" AutomationProperties.Name="Pièces de la carte">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="Row" Padding="6,5" CornerRadius="4" Background="Transparent" Cursor="Hand">
+                                    <Border.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick"
+                                                      Command="{Binding DataContext.ClickRoomCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                      CommandParameter="{Binding}"/>
+                                    </Border.InputBindings>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding AreaText}" Style="{StaticResource Muted}" Margin="6,0,0,0"/>
+                                        <TextBlock TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding DisplayName, Mode=OneWay}"/>
+                                            <Run Text="{Binding TypeText, Mode=OneWay}" Foreground="{DynamicResource MutedBrush}" FontSize="11"/>
+                                        </TextBlock>
+                                    </DockPanel>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Row" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding IsChosen}" Value="True">
+                                        <Setter TargetName="Row" Property="Background" Value="{DynamicResource SelectionBrush}"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </DockPanel>
         </Border>
 
         <!-- Map -->
         <Border Style="{StaticResource Card}" Padding="8">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Muted}" Margin="4,0,4,6"
-                           Text="{Binding SplitHint}" Visibility="{Binding Splitting, Converter={StaticResource Show}}"/>
-                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Muted}" Margin="4,0,4,6"
-                           Visibility="{Binding Splitting, Converter={StaticResource Collapse}}"
-                           Text="Cliquez une pièce pour la choisir. Molette pour zoomer, glisser pour déplacer."/>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Muted}" Margin="4,0,4,6" Text="{Binding Hint}" TextWrapping="Wrap"/>
                 <controls:MapView x:Name="MapCanvas" Scene="{Binding Scene}" AutomationProperties.Name="Carte en cours de modification"/>
             </DockPanel>
         </Border>

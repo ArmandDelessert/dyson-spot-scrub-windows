@@ -570,20 +570,62 @@ lavage.
 
 | Méthode | Paramètres | Réponse |
 |---|---|---|
-| `service.set_cur_map` | `{map_id}` | `{result: 0}` |
+| `service.set_cur_map` | `{map_id}` | `{result: 0, result: 0}` |
 | `service.rename_map` | `{map_id, map_name}` | `{result: 0}` |
+| `service.del_map` | `{map_id}` | `{result: 0, result: 0}` |
 | `service.rename_room` | `{map_id, room_id, room_name}` | `{map_id, map_type: 3, timestamp}` |
-| `service.split_room` | `{map_id, room_id, split_points: [x1, y1, x2, y2], lang}` | `{map_id, map_type: 3, timestamp}` |
-| `service.set_virtual_wall` | `{virwall: [n, [map_id, type, x1, y1, x2, y2, x3, y3, x4, y4]]}` | `{map_id, map_type: 2, timestamp}` |
-| `service.adjust_furniture` | `{timestamp, package: [1, 1], furniture_list: "[[id, type, …, 8 coordonnées]]"}` | `{map_id, map_type, timestamp, package}` |
+| `service.split_room` | `{map_id, room_id, split_points: [x1, y1, x2, y2], lang}` | `{map_id, map_type: 3, timestamp}`, ou `{result: 1}` si refusé |
 | `service.arrange_room` | `{map_id, room_ids: [16, 15], lang}` | `{map_id, map_type: 3, timestamp}` |
+| `service.set_virtual_wall` | `{virwall: [n, [map_id, type, 8 coordonnées], …]}` | `{map_id, map_type, timestamp}`, clés en double |
+| `service.adjust_furniture` | `{timestamp, package: [1, 1], furniture_list: "…"}` | `{map_id: 0, map_type: 0, timestamp, package}` |
 
-Toutes ces méthodes ont été capturées le 19 septembre 2026 pendant que l'application officielle
-modifiait une vraie carte, et répondent `{map_id, map_type: 3, timestamp}` : le robot a réenregistré
-la carte, et un `MAP-UPLOAD-STATUS` suit une fois la copie cloud à jour — c'est lui qu'il faut
-attendre avant de relire la carte en REST. `rename_room` n'envoie jamais une chaîne nue : toujours
-`{"type": "...", "name": "..."}`, avec le type `custom` pour un nom libre. Aucune commande de
-suppression de carte ou de pièce n'a été observée.
+Capturées les 19 et 23 septembre 2026 pendant que l'application officielle modifiait de vraies
+cartes. **Deux formes de réponse coexistent**, et laquelle une méthode emploie ne se devine pas :
+un code `{result: 0}` (0 réussite, 1 refus) ou la carte réenregistrée `{map_id, map_type,
+timestamp}`. Plusieurs réponses **répètent une clé** dans `data` (`{"result":0,"result":0}`,
+`map_id` deux fois) : un `JsonObject` .NET lève une exception en y accédant, il faut les relire
+membre par membre. Chaque modification est suivie d'un `event.map_change.post` (`result` 3 en cas
+de succès, 4 pour une division refusée) puis d'un `MAP-UPLOAD-STATUS` une fois la copie cloud à
+jour — c'est lui qu'il faut attendre avant de relire la carte en REST, sous peine de relire
+l'ancienne.
+
+**Supprimer une carte** (`del_map`, capturé le 23 septembre) fonctionne aussi sur la carte active :
+le robot en active alors une autre de lui-même, et le `MAP-UPLOAD-STATUS` suivant porte sur cette
+nouvelle carte active. Aucune commande de suppression de *pièce* n'a été observée ; seule la
+fusion fait disparaître une zone.
+
+**Diviser une pièce** efface le nom et le type des deux moitiés : sur trois divisions réussies le
+23 septembre, dont deux sur des pièces tout juste renommées « Balcon », toutes les pièces issues
+sont revenues sans type, nommées « Pièce1 », « Pièce2 », « Pièce3 » — et deux s'appelaient
+« Pièce1 » en même temps. Il faut donc renommer les deux moitiés après coup.
+
+### Zones de restriction (`set_virtual_wall`)
+
+Chaque appel envoie **la liste complète** des zones de la carte, `[nombre, zone, zone, …]`, et
+`[0]` les efface toutes : ajouter une zone suppose de renvoyer les existantes. Une zone vaut
+`[map_id, type, x1, y1, x2, y2, x3, y3, x4, y4]`, un rectangle en mètres. Les quatre types, créés
+dans cet ordre depuis l'application le 23 septembre :
+
+| `type` | Libellé de l'application | Effet annoncé |
+|---|---|---|
+| 2 | Éviter la zone | le robot ne nettoie pas cette zone |
+| 13 | Franchir le seuil | le robot tente de franchir de petits obstacles |
+| 12 | Lavage uniquement | nettoyage sans la brosse |
+| 6 | Aspirateur uniquement | nettoyage sans laver |
+
+La réponse reprend dans son second `map_type` le type de la zone ajoutée en dernier. Côté REST,
+`persistent-maps` expose ces zones sous `restrictions` avec un champ `behavior` textuel dont la
+correspondance avec ces codes n'a pas encore été observée.
+
+### Meubles (`adjust_furniture`)
+
+`furniture_list` est une **chaîne** contenant du JSON (double encodage) :
+`[[index, code, 1, x1, y1, x2, y2, x3, y3, x4, y4], …]`, liste complète à chaque appel, `"[]"` pour
+tout effacer. Pas de `map_id` : l'appel porte sur la carte active. Codes vus : 1512, 1525, 1526,
+1527, 1528 ; leur correspondance avec les types de meubles de l'application n'est pas établie.
+
+La rotation de la carte, faite pendant la même capture, n'a produit aucun message MQTT : elle
+passe vraisemblablement par l'API REST, que les captures ne voient pas.
 
 `service.set_cur_map` change la carte active du compte, exactement l'action du sélecteur de carte
 de l'application mobile ; c'est aussi la première étape de tout nettoyage par pièce (voir plus
