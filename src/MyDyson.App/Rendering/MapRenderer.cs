@@ -182,6 +182,12 @@ public static class MapRenderer
         public static readonly Pen BlackPen = Frozen(new Pen(Brushes.Black, 1));
         public static readonly Pen RobotOutline = Frozen(new Pen(Brushes.White, 1.5));
         public static readonly Pen RobotHeading = Frozen(new Pen(Brushes.White, 2));
+        /// <summary>The cut being aimed while splitting a room: dashed so it reads as a proposal, not as map data.</summary>
+        public static readonly Pen CutPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xe0, 0x30, 0x30))), 2)
+        {
+            DashStyle = new DashStyle([4, 3], 0),
+            LineJoin = PenLineJoin.Round,
+        });
         public static readonly Typeface LabelFont = new("Segoe UI");
         public static readonly Typeface BadgeFont = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
 
@@ -404,6 +410,18 @@ public static class MapRenderer
     /// </summary>
     private static void DrawDirtMarker(DrawingContext dc, Point p) =>
         dc.DrawEllipse(Resources.RobotFill, Resources.BlackPen, p, 5, 5);
+
+    /// <summary>
+    /// The cut being aimed while splitting a room: the first end as a ring, and the line to the
+    /// cursor once there is one. Drawn by <see cref="Controls.MapView"/> over the finished scene,
+    /// since it belongs to an interaction rather than to the map.
+    /// </summary>
+    public static void DrawPendingCut(DrawingContext dc, Point from, Point? to)
+    {
+        if (to is { } end) dc.DrawLine(Resources.CutPen, from, end);
+        dc.DrawEllipse(null, Resources.CutPen, from, 5, 5);
+        if (to is { } e2) dc.DrawEllipse(null, Resources.CutPen, e2, 5, 5);
+    }
 
     // Panning/zooming re-renders every frame but never changes the grid's own pixels, only where
     // they're drawn: rebuilding an 84 000-cell bitmap on every single frame (as this used to do)

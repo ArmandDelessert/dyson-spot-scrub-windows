@@ -110,7 +110,18 @@ public partial class App : Application
                             main.SelectTab(tab);
                         });
                         await Task.Delay(500);
-                        await Dispatcher.InvokeAsync(() => main.SaveScreenshot(args[shot + 1]));
+                        // --manage-maps shoots the map manager instead of the dashboard, that window
+                        // being reachable no other way without a person to click the button.
+                        if (Array.IndexOf(args, "--manage-maps") >= 0)
+                        {
+                            await Dispatcher.InvokeAsync(() => main.OpenMapManagerForScreenshot());
+                            await Task.Delay(TimeSpan.FromSeconds(6));
+                            await Dispatcher.InvokeAsync(() => main.SaveMapManagerScreenshot(args[shot + 1]));
+                        }
+                        else
+                        {
+                            await Dispatcher.InvokeAsync(() => main.SaveScreenshot(args[shot + 1]));
+                        }
                     }
                     catch (Exception ex)
                     {

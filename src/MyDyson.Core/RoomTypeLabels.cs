@@ -55,20 +55,27 @@ public static class RoomTypeLabels
     /// <summary>
     /// What to show for a room. A typed room whose stored name is just the type's own default
     /// ("Chambre", or "Chambre1" — Dyson appends a digit to keep storage unique) shows the type's
-    /// label, exactly like the phone app. A stored name the user actually chose ("Chambre d'amis")
+    /// label, exactly like the phone app. A stored name the user actually chose ("Chambre de Paul")
     /// wins instead: the app hides it, but hiding it here would make a rename from this window look
     /// as though nothing had happened.
     /// </summary>
     public static string Resolve(string? type, string? storedName, string fallback)
     {
         if (string.IsNullOrEmpty(type) || !Known.TryGetValue(type, out var label)) return storedName ?? fallback;
-        return string.IsNullOrEmpty(storedName) || IsDefaultFor(storedName, label) ? label : storedName;
+        return string.IsNullOrEmpty(storedName) || IsAutoFilled(storedName) ? label : storedName;
     }
 
-    /// <summary>The label itself, or the label followed only by digits.</summary>
-    private static bool IsDefaultFor(string storedName, string label) =>
-        storedName.StartsWith(label, StringComparison.Ordinal)
-        && storedName.AsSpan(label.Length).ToString().All(char.IsAsciiDigit);
+    /// <summary>
+    /// Whether a stored name is one Dyson filled in rather than one the user wrote: any type's own
+    /// label, optionally followed by the digits Dyson appends to keep storage unique. Checking
+    /// every label, not just this room's, matters — a room typed as W.-C. can still carry the name
+    /// "Salle de bain" from when it was created, and showing that would contradict both the phone
+    /// app and its own type.
+    /// </summary>
+    private static bool IsAutoFilled(string storedName) =>
+        Known.Values.Any(label =>
+            storedName.StartsWith(label, StringComparison.Ordinal)
+            && storedName.AsSpan(label.Length).ToString().All(char.IsAsciiDigit));
 
     /// <summary>The default name the robot gives a room of this type, used to prefill a rename.</summary>
     public static string? DefaultNameFor(string? type) =>

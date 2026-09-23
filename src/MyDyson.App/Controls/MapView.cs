@@ -3,6 +3,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using MyDyson.App.Rendering;
+using CorePoint = MyDyson.Core.Point;
 
 namespace MyDyson.App.Controls;
 
@@ -31,6 +32,33 @@ public sealed class MapView : FrameworkElement
     public event Action<string>? ZoneClicked;
     /// <summary>Raised when a single click/tap (confirmed not to be the first half of a double) lands on empty map space, to clear the current room selection.</summary>
     public event Action? EmptySpaceClicked;
+
+    // ---- Picking a line (splitting a room) ------------------------------------
+
+    /// <summary>
+    /// While set, clicks pick the two ends of a line instead of selecting rooms, and the pending
+    /// line is drawn over the map. Zoom and pan keep working, so the cut can be aimed closely.
+    /// </summary>
+    public bool IsPickingLine
+    {
+        get;
+        set
+        {
+            field = value;
+            _lineStart = null;
+            _linePreview = null;
+            Cursor = value ? Cursors.Cross : null;
+            InvalidateVisual();
+        }
+    }
+
+    /// <summary>Both ends of the line the user drew, in world metres.</summary>
+    public event Action<CorePoint, CorePoint>? LinePicked;
+    /// <summary>The point under the cursor while picking, or null once it leaves; for a coordinate readout.</summary>
+    public event Action<CorePoint?>? LinePointMoved;
+
+    private Point? _lineStart;
+    private Point? _linePreview;
 
     public Matrix WorldToScreen { get; private set; } = Matrix.Identity;
     public double Zoom { get; private set; } = 1;
@@ -67,6 +95,8 @@ public sealed class MapView : FrameworkElement
         var size = new Size(Math.Max(1, ActualWidth), Math.Max(1, ActualHeight));
         MapRenderer.Render(drawingContext, Scene ?? new MapScene(), size, out var m, Zoom, _pan);
         WorldToScreen = m;
+        if (IsPickingLine && _lineStart is { } start)
+            MapRenderer.DrawPendingCut(drawingContext, m.Transform(start), _linePreview is { } end ? m.Transform(end) : null);
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
@@ -93,6 +123,16 @@ public sealed class MapView : FrameworkElement
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
+        if (IsPickingLine)
+        {
+            var world = ToWorld(e.GetPosition(this));
+            LinePointMoved?.Invoke(world is { } w ? new CorePoint(w.X, w.Y) : null);
+            if (_lineStart is not null)
+            {
+                _linePreview = world;
+                InvalidateVisual();
+            }
+        }
         if (_dragStart is not { } start || e.LeftButton != MouseButtonState.Pressed) return;
         var delta = e.GetPosition(this) - start;
         if (!_dragged && delta.Length < 4) return;
@@ -164,6 +204,30 @@ public sealed class MapView : FrameworkElement
     /// <summary>A room always reacts right away; only empty space needs to wait and see whether a second click/tap turns this into a double, since that's the only place the two mean different things.</summary>
     private void HandleClick(Point pos, bool isDouble)
     {
+        if (IsPickingLine)
+        {
+            if (ToWorld(pos) is not { } picked) return;
+            if (_lineStart is not { } start)
+            {
+                _lineStart = picked;
+                InvalidateVisual();
+                return;
+            }
+            // Two clicks in the same spot would be a zero-length cut, which the robot refuses;
+            // treat it as the user changing their mind about where to start.
+            if ((WorldToScreen.Transform(picked) - WorldToScreen.Transform(start)).Length < 8)
+            {
+                _lineStart = picked;
+                InvalidateVisual();
+                return;
+            }
+            _lineStart = null;
+            _linePreview = null;
+            InvalidateVisual();
+            LinePicked?.Invoke(new CorePoint(start.X, start.Y), new CorePoint(picked.X, picked.Y));
+            return;
+        }
+
         var zone = ToWorld(pos) is { } w ? Scene?.ZoneAt(w.X, w.Y) : null;
         if (zone is not null)
         {

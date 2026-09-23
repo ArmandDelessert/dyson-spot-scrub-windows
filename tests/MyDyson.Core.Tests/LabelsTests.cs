@@ -76,13 +76,22 @@ public class MapEditingTests
     {
         // The phone app hides the stored name for a typed room; here that would make a rename from
         // the map manager look as if nothing had happened.
-        Assert.Equal("Chambre d'amis", RoomTypeLabels.Resolve("bedroom", "Chambre d'amis", "12"));
+        Assert.Equal("Chambre de Paul", RoomTypeLabels.Resolve("bedroom", "Chambre de Paul", "12"));
         // But the auto-filled default, with or without Dyson's uniqueness digit, still reads as the type.
         Assert.Equal("Chambre", RoomTypeLabels.Resolve("bedroom", "Chambre", "12"));
         Assert.Equal("Chambre", RoomTypeLabels.Resolve("bedroom", "Chambre1", "12"));
         Assert.Equal("Salon", RoomTypeLabels.Resolve("livingRoom", "Salon12", "14"));
         // A name that merely starts like the label is not the default.
         Assert.Equal("Chambre bis", RoomTypeLabels.Resolve("bedroom", "Chambre bis", "12"));
+        // Seen on a real account: a room typed W.-C. still carrying the name it was created with.
+        // That is Dyson's own label for another type, so it is auto-filled too and the type wins,
+        // which is also what the phone app shows.
+        Assert.Equal("W.-C.", RoomTypeLabels.Resolve("toilet", "Salle de bain", "11"));
+        Assert.Equal("W.-C.", RoomTypeLabels.Resolve("toilet", "Salle de bain1", "11"));
+        // Corner case of the same rule: a free name that happens to be another type's own label
+        // reads as auto-filled, so the type wins. Rare enough to prefer over the alternative,
+        // which would show Dyson's leftovers as if the user had chosen them.
+        Assert.Equal("Chambre", RoomTypeLabels.Resolve("bedroom", "Chambre d'amis", "12"));
     }
 
     [Fact]

@@ -130,6 +130,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Asks the window to open the map manager; the view models stay clear of windows.</summary>
+    public event Action? MapManagerRequested;
+
+    [RelayCommand] private void ManageMaps() => MapManagerRequested?.Invoke();
+
+    /// <summary>Builds the map manager's view model, which shares this session but keeps its own copy of the map.</summary>
+    public MapManagerViewModel CreateMapManager() => new(Hub, Display);
+
     [RelayCommand]
     private Task RefreshAsync() => ReloadAsync(null);
 

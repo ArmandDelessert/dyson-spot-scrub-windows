@@ -578,6 +578,13 @@ lavage.
 | `service.adjust_furniture` | `{timestamp, package: [1, 1], furniture_list: "[[id, type, …, 8 coordonnées]]"}` | `{map_id, map_type, timestamp, package}` |
 | `service.arrange_room` | `{map_id, room_ids: [16, 15], lang}` | `{map_id, map_type: 3, timestamp}` |
 
+Toutes ces méthodes ont été capturées le 19 septembre 2026 pendant que l'application officielle
+modifiait une vraie carte, et répondent `{map_id, map_type: 3, timestamp}` : le robot a réenregistré
+la carte, et un `MAP-UPLOAD-STATUS` suit une fois la copie cloud à jour — c'est lui qu'il faut
+attendre avant de relire la carte en REST. `rename_room` n'envoie jamais une chaîne nue : toujours
+`{"type": "...", "name": "..."}`, avec le type `custom` pour un nom libre. Aucune commande de
+suppression de carte ou de pièce n'a été observée.
+
 `service.set_cur_map` change la carte active du compte, exactement l'action du sélecteur de carte
 de l'application mobile ; c'est aussi la première étape de tout nettoyage par pièce (voir plus
 haut, `CleaningSequence.StartAsync`), puisqu'on ne peut lancer un nettoyage que sur la carte active.

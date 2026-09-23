@@ -29,9 +29,18 @@ public partial class MainWindow : Window
             Activate();
             SelectTab(1);
         });
+        _vm.MapManagerRequested += OpenMapManager;
         Loaded += async (_, _) => await _vm.StartAsync();
         Closing += async (_, _) => await _vm.ShutdownAsync();
         Closed += (_, _) => { _notifications.Dispose(); _vm.Dispose(); };
+    }
+
+    /// <summary>Opens the map manager, and refreshes the dashboard afterwards so renames show up there too.</summary>
+    private void OpenMapManager()
+    {
+        var window = new MapManagerWindow(_vm.CreateMapManager(), _vm.Cleaning.SelectedMap?.Id) { Owner = this };
+        window.MapsChanged += () => _ = _vm.Cleaning.LoadMapsAsync();
+        window.ShowDialog();
     }
 
     private void ResetZoom_Click(object sender, RoutedEventArgs e) => MapCanvas.ResetView();
@@ -45,25 +54,18 @@ public partial class MainWindow : Window
         if (index == 1) _vm.History.SelectFirstClean();
     }
 
-    /// <summary>Renders the window content to a PNG, for documentation and for checking the layout without a screen.</summary>
-    public void SaveScreenshot(string path)
+    private MapManagerWindow? _mapManager;
+
+    /// <summary>Diagnostics only: opens the map manager without waiting for it, so a screenshot run can shoot it.</summary>
+    public void OpenMapManagerForScreenshot()
     {
-        var root = (FrameworkElement)Content;
-        var w = (int)Math.Ceiling(root.ActualWidth);
-        var h = (int)Math.Ceiling(root.ActualHeight);
-        // Paint the window background first: the content alone leaves transparent areas, which
-        // come out black in the PNG.
-        var visual = new System.Windows.Media.DrawingVisual();
-        using (var dc = visual.RenderOpen())
-        {
-            dc.DrawRectangle(Background, null, new Rect(0, 0, w, h));
-            dc.DrawRectangle(new System.Windows.Media.VisualBrush(root), null, new Rect(0, 0, w, h));
-        }
-        var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(w, h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-        rtb.Render(visual);
-        var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
-        enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
-        using var fs = System.IO.File.Create(path);
-        enc.Save(fs);
+        _mapManager = new MapManagerWindow(_vm.CreateMapManager(), _vm.Cleaning.SelectedMap?.Id) { Owner = this };
+        _mapManager.Show();
     }
+
+    /// <summary>Diagnostics only: renders the map manager to a PNG.</summary>
+    public void SaveMapManagerScreenshot(string path) => _mapManager?.SaveScreenshot(path);
+
+    /// <summary>Renders the window content to a PNG, for documentation and for checking the layout without a screen.</summary>
+    public void SaveScreenshot(string path) => WindowScreenshot.Save(this, path);
 }
