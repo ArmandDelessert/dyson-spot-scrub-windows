@@ -24,7 +24,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Modèle d'état typé, corrélation requête-réponse | fonctionne |
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
-| Tests unitaires | 152 tests, exécutés en CI |
+| Tests unitaires | 154 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -252,9 +252,11 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
   coupe sur sa propre grille d'occupation : la forme se guide par coupes et fusions successives,
   elle ne se dicte pas. Une division efface en outre le nom des deux moitiés.
 - **Zones de restriction** (éviter, franchir un seuil, lavage seul, aspirateur seul) : le protocole
-  est décodé (voir [docs/protocole.md](docs/protocole.md)), mais l'application doit renvoyer toute
-  la liste à chaque ajout, et la correspondance avec la forme que l'API REST donne aux zones
-  existantes manque encore — les exposer tel quel effacerait celles créées depuis le téléphone.
+  est entièrement décodé, y compris la correspondance avec l'API REST (voir
+  [docs/protocole.md](docs/protocole.md)), mais pas encore exposé dans l'application.
+- **Modifier une carte non active** : volontairement bloqué. Aucune modification d'une carte non
+  active n'a jamais été observée, et une telle modification est la cause probable d'une carte
+  retrouvée renommée et vidée de ses pièces ; la fenêtre propose de la définir comme active d'abord.
 - Poser un meuble (`service.adjust_furniture`) et tourner la carte ne sont pas exposés.
 - Le débordement de la carte à travers les fenêtres vient du lidar du robot, pas du rendu. Une zone
   « Éviter la zone » posée dessus depuis l'application mobile empêche le robot d'y aller.

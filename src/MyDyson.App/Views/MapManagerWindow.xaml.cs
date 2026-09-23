@@ -30,6 +30,8 @@ public partial class MapManagerWindow : Window
         };
 
         MapCanvas.ZoneClicked += vm.RoomClickedById;
+        // Clearing here costs nothing, so it need not wait to see whether a double click follows.
+        MapCanvas.DeferEmptySpaceClick = false;
         MapCanvas.EmptySpaceClicked += vm.ClearRoomSelection;
         MapCanvas.LinePicked += (from, to) => _ = vm.SplitAsync(from, to);
         Loaded += async (_, _) => await vm.LoadAsync(openOnMapId);

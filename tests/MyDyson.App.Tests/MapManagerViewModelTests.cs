@@ -21,7 +21,7 @@ public class MapManagerViewModelTests
          "dockLocation":{"x":0,"y":0,"angle":0}}
         """;
 
-    private static MapManagerViewModel New(bool firstIsActive = false)
+    private static MapManagerViewModel New(bool firstIsActive = true)
     {
         var hub = TestHub.Create(
             ("persistent-map-metadata", "["
@@ -32,7 +32,7 @@ public class MapManagerViewModelTests
         return new MapManagerViewModel(hub, new DisplaySettings());
     }
 
-    private static async Task<MapManagerViewModel> LoadedAsync(bool firstIsActive = false)
+    private static async Task<MapManagerViewModel> LoadedAsync(bool firstIsActive = true)
     {
         var vm = New(firstIsActive);
         await vm.LoadAsync("1000000002");
@@ -78,7 +78,7 @@ public class MapManagerViewModelTests
     public async Task AnInactiveMapIsDrawnFromItsVisitedPointsWithNoGrid()
     {
         // Only the active map has an occupancy grid; asking for one here would fetch another map's.
-        var vm = await LoadedAsync();
+        var vm = await LoadedAsync(firstIsActive: false);
 
         Assert.Null(vm.Scene.Grid);
         Assert.Equal(3, vm.Scene.Map!.Zones!.Count);
@@ -144,7 +144,7 @@ public class MapManagerViewModelTests
 
         Assert.True(vm.RenameMapCommand.CanExecute(null));
         Assert.True(vm.DeleteMapCommand.CanExecute(null));
-        Assert.True(vm.SetActiveCommand.CanExecute(null));
+        Assert.False(vm.SetActiveCommand.CanExecute(null)); // already active
         // A merge can always be started on a map with two rooms; it is confirming it that waits.
         Assert.True(vm.MergeCommand.CanExecute(null));
         // Nothing is chosen among the rooms yet.
@@ -164,6 +164,35 @@ public class MapManagerViewModelTests
         Assert.True(vm.SelectedMap!.Metadata.IsCurrentMap);
         Assert.False(vm.SetActiveCommand.CanExecute(null));
         Assert.True(vm.RenameMapCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task AnInactiveMapIsReadOnlyUntilMadeActive()
+    {
+        // Every edit ever captured targeted the active map, and editing an inactive one is the
+        // likeliest cause of a map found renamed and emptied of rooms. Only activating is offered.
+        var vm = await LoadedAsync(firstIsActive: false);
+        vm.RoomClickedById("10");
+
+        Assert.False(vm.IsActiveMap);
+        Assert.True(vm.SetActiveCommand.CanExecute(null));
+        Assert.False(vm.RenameMapCommand.CanExecute(null));
+        Assert.False(vm.DeleteMapCommand.CanExecute(null));
+        Assert.False(vm.RenameRoomCommand.CanExecute(null));
+        Assert.False(vm.StartSplitCommand.CanExecute(null));
+        Assert.False(vm.MergeCommand.CanExecute(null));
+        Assert.StartsWith("Seule la carte active", vm.EditBlockedReason, StringComparison.Ordinal);
+        // Rooms can still be looked at, only not changed.
+        Assert.True(Room(vm, "10").IsChosen);
+    }
+
+    [Fact]
+    public async Task TheActiveMapExplainsNothingBecauseNothingIsBlocked()
+    {
+        var vm = await LoadedAsync();
+
+        Assert.True(vm.IsActiveMap);
+        Assert.Equal("", vm.EditBlockedReason);
     }
 
     // ---- Merging -----------------------------------------------------------------------

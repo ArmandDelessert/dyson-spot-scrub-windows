@@ -582,47 +582,73 @@ lavage.
 Capturées les 19 et 23 septembre 2026 pendant que l'application officielle modifiait de vraies
 cartes. **Deux formes de réponse coexistent**, et laquelle une méthode emploie ne se devine pas :
 un code `{result: 0}` (0 réussite, 1 refus) ou la carte réenregistrée `{map_id, map_type,
-timestamp}`. Plusieurs réponses **répètent une clé** dans `data` (`{"result":0,"result":0}`,
-`map_id` deux fois) : un `JsonObject` .NET lève une exception en y accédant, il faut les relire
-membre par membre. Chaque modification est suivie d'un `event.map_change.post` (`result` 3 en cas
-de succès, 4 pour une division refusée) puis d'un `MAP-UPLOAD-STATUS` une fois la copie cloud à
-jour — c'est lui qu'il faut attendre avant de relire la carte en REST, sous peine de relire
-l'ancienne.
+timestamp}`. Une division ou une fusion refusée répond, elle, `{result: 1}`. Plusieurs réponses
+**répètent une clé** dans `data` (`{"result":0,"result":0}`, `map_id` deux fois) : un `JsonObject`
+.NET lève une exception en y accédant, il faut les relire membre par membre.
 
-**Supprimer une carte** (`del_map`, capturé le 23 septembre) fonctionne aussi sur la carte active :
-le robot en active alors une autre de lui-même, et le `MAP-UPLOAD-STATUS` suivant porte sur cette
+Chaque modification est suivie d'un `event.map_change.post` dont `result` donne l'issue, puis d'un
+`MAP-UPLOAD-STATUS` une fois la copie cloud à jour — c'est lui qu'il faut attendre avant de relire
+la carte en REST, sous peine de relire l'ancienne. Valeurs de `result` observées :
+
+| `result` | Signification |
+|---|---|
+| 3 | modification appliquée |
+| 4 | division refusée (pièce trop petite, provoqué le 23 septembre) |
+| 6 | fusion refusée (pièces non adjacentes, provoqué le 23 septembre) |
+
+**Seule la carte active a jamais été modifiée.** Sur les 36 modifications capturées — depuis le
+téléphone comme depuis cette application — la carte visée était toujours la carte active au moment
+de l'envoi. Modifier une autre carte n'a jamais été observé, et le 23 septembre une carte a été
+retrouvée renommée comme la carte active et vidée de ses pièces, pendant un intervalle sans capture
+où elle a vraisemblablement été modifiée depuis cette application alors qu'elle n'était pas active.
+La cause n'est pas prouvée ; par prudence, l'application n'autorise plus que la carte active à être
+modifiée.
+
+**Supprimer une carte** (`del_map`, capturé le 23 septembre) fonctionne sur la carte active : le
+robot en active alors une autre de lui-même, et le `MAP-UPLOAD-STATUS` suivant porte sur cette
 nouvelle carte active. Aucune commande de suppression de *pièce* n'a été observée ; seule la
 fusion fait disparaître une zone.
 
-**Diviser une pièce** efface le nom et le type des deux moitiés : sur trois divisions réussies le
-23 septembre, dont deux sur des pièces tout juste renommées « Balcon », toutes les pièces issues
-sont revenues sans type, nommées « Pièce1 », « Pièce2 », « Pièce3 » — et deux s'appelaient
-« Pièce1 » en même temps. Il faut donc renommer les deux moitiés après coup.
+**Diviser une pièce** envoie la pièce visée (`room_id`) et les deux extrémités du trait de coupe
+(`split_points`, en mètres dans le repère de la carte), pas une forme. Elle efface le nom et le
+type des deux moitiés : sur trois divisions réussies le 23 septembre, dont deux sur des pièces tout
+juste renommées « Balcon », toutes les pièces issues sont revenues sans type, nommées « Pièce1 »,
+« Pièce2 », « Pièce3 » — et deux s'appelaient « Pièce1 » en même temps. Il faut donc renommer les
+deux moitiés après coup.
 
 ### Zones de restriction (`set_virtual_wall`)
 
-Chaque appel envoie **la liste complète** des zones de la carte, `[nombre, zone, zone, …]`, et
-`[0]` les efface toutes : ajouter une zone suppose de renvoyer les existantes. Une zone vaut
-`[map_id, type, x1, y1, x2, y2, x3, y3, x4, y4]`, un rectangle en mètres. Les quatre types, créés
-dans cet ordre depuis l'application le 23 septembre :
+Chaque appel envoie **la liste complète** des zones de la carte active, `[nombre, zone, zone, …]`,
+et `[0]` les efface toutes : ajouter une zone suppose de renvoyer les existantes. Une zone vaut
+`[map_id, type, x1, y1, x2, y2, x3, y3, x4, y4]`, un rectangle en mètres. `persistent-maps` les
+restitue sous `restrictions`, `{id, points, behavior}`. Correspondance établie le 23 septembre en
+recoupant les coordonnées des mêmes rectangles des deux côtés, indépendamment de l'ordre de
+création :
 
-| `type` | Libellé de l'application | Effet annoncé |
-|---|---|---|
-| 2 | Éviter la zone | le robot ne nettoie pas cette zone |
-| 13 | Franchir le seuil | le robot tente de franchir de petits obstacles |
-| 12 | Lavage uniquement | nettoyage sans la brosse |
-| 6 | Aspirateur uniquement | nettoyage sans laver |
+| jdm `type` | REST `behavior` | Libellé de l'application | Effet annoncé |
+|---|---|---|---|
+| 2 | `keepOut` | Éviter la zone | le robot ne nettoie pas cette zone |
+| 13 | `climbObstacle` | Franchir le seuil | le robot tente de franchir de petits obstacles |
+| 12 | `brushBarOff` | Lavage uniquement | nettoyage sans la brosse |
+| 6 | `noMop` | Aspirateur uniquement | nettoyage sans laver |
 
-La réponse reprend dans son second `map_type` le type de la zone ajoutée en dernier. Côté REST,
-`persistent-maps` expose ces zones sous `restrictions` avec un champ `behavior` textuel dont la
-correspondance avec ces codes n'a pas encore été observée.
+La réponse reprend dans son second `map_type` le type de la zone ajoutée en dernier.
 
 ### Meubles (`adjust_furniture`)
 
 `furniture_list` est une **chaîne** contenant du JSON (double encodage) :
 `[[index, code, 1, x1, y1, x2, y2, x3, y3, x4, y4], …]`, liste complète à chaque appel, `"[]"` pour
-tout effacer. Pas de `map_id` : l'appel porte sur la carte active. Codes vus : 1512, 1525, 1526,
-1527, 1528 ; leur correspondance avec les types de meubles de l'application n'est pas établie.
+tout effacer. Pas de `map_id` : l'appel porte sur la carte active. `persistent-maps` restitue les
+meubles sous `furniture`, `{id, type, userDefined, points}`. Correspondances établies par les
+coordonnées le 23 septembre :
+
+| jdm `code` | REST `type` | Meuble de l'application |
+|---|---|---|
+| 1516 | `refrigerator` | Réfrigérateur |
+| 1524 | `washingMachine` | Laveuse (lave-linge) |
+| 1608 | `cabinetWithStove` | Cuisinière |
+
+D'autres codes ont été vus sans correspondance établie : 1512, 1525, 1526, 1527, 1528.
 
 La rotation de la carte, faite pendant la même capture, n'a produit aucun message MQTT : elle
 passe vraisemblablement par l'API REST, que les captures ne voient pas.

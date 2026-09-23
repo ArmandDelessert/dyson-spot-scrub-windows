@@ -70,7 +70,16 @@ public sealed class MapView : FrameworkElement
     // Capped at 250 ms for responsiveness, but never longer than the user's own configured
     // double-click speed (Windows' default is 500 ms) — waiting longer than that would just be a
     // needless delay, since anything slower already fails Windows' own double-click recognition.
-    private static readonly TimeSpan DoubleClickWindow = TimeSpan.FromMilliseconds(System.Windows.Forms.SystemInformation.DoubleClickTime);
+    private static readonly TimeSpan DoubleClickWindow = TimeSpan.FromMilliseconds(Math.Min(250, System.Windows.Forms.SystemInformation.DoubleClickTime));
+
+    /// <summary>
+    /// Whether a click on empty space waits to see if a double click follows before raising
+    /// <see cref="EmptySpaceClicked"/>. The dashboard needs it: there, clearing the selection on
+    /// the first half of a double click would untick the rooms queued for a clean. Where clearing
+    /// costs nothing (the map manager), turning it off makes the click react at once; a double
+    /// click still resets the zoom, the first click having simply cleared along the way.
+    /// </summary>
+    public bool DeferEmptySpaceClick { get; set; } = true;
     private const double DoubleClickMaxDistance = 24;
     private DateTime _lastClickTimeUtc;
     private Point _lastClickPosition;
@@ -240,6 +249,10 @@ public sealed class MapView : FrameworkElement
             _pendingEmptySpaceClear?.Stop();
             _pendingEmptySpaceClear = null;
             ResetView();
+        }
+        else if (!DeferEmptySpaceClick)
+        {
+            EmptySpaceClicked?.Invoke();
         }
         else
         {

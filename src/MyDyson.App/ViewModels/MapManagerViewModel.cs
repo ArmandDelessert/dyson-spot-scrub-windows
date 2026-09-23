@@ -114,6 +114,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
         // Whatever was chosen, gathered or being cut belonged to the map that was on screen.
         LeaveModes();
         SelectedRoom = null;
+        OnPropertyChanged(nameof(IsActiveMap));
+        OnPropertyChanged(nameof(EditBlockedReason));
         RefreshCommandStates();
         if (value is not null) _ = LoadMapAsync(value);
     }
@@ -214,13 +216,27 @@ public sealed partial class MapManagerViewModel : ObservableObject
 
     // ---- What each action needs before it can be offered ----------------------
 
+    /// <summary>
+    /// Every edit is kept to the active map. Across 36 captured edits, from the phone app and from
+    /// this one, the target was always the active map — editing another one was never observed —
+    /// and on 2026-09-23 a map came out renamed after the active one and stripped of its rooms, in
+    /// an uncaptured stretch where it was likely being edited from here while not active. Until
+    /// that path is understood, the other maps are read-only here; "Définir comme active" is one
+    /// click away.
+    /// </summary>
+    public bool IsActiveMap => SelectedMap?.Metadata.IsCurrentMap == true;
+
+    /// <summary>Why the edits are unavailable on the map on screen, or empty when they are available.</summary>
+    public string EditBlockedReason => SelectedMap is null || IsActiveMap ? ""
+        : "Seule la carte active peut être modifiée. Définissez celle-ci comme active pour la renommer, la supprimer ou changer ses pièces.";
+
     private bool Idle => !Busy && !Splitting && !Merging;
     private bool NotBusy() => Idle;
-    private bool HasMap() => SelectedMap is not null && Idle;
-    private bool HasRoom() => SelectedRoom is not null && Idle;
+    private bool HasMap() => SelectedMap is not null && IsActiveMap && Idle;
+    private bool HasRoom() => SelectedRoom is not null && IsActiveMap && Idle;
     private bool CanSetActive() => SelectedMap is { Metadata.IsCurrentMap: false } && Idle;
     /// <summary>Entering merge mode needs two rooms to exist; confirming it needs two gathered.</summary>
-    private bool CanMerge() => !Busy && !Splitting && (Merging ? _mergeSet.Count >= 2 : Rooms.Count >= 2);
+    private bool CanMerge() => !Busy && !Splitting && IsActiveMap && (Merging ? _mergeSet.Count >= 2 : Rooms.Count >= 2);
 
     partial void OnBusyChanged(bool value) => RefreshCommandStates();
 
@@ -332,7 +348,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
                 $"Fusionner {string.Join(", ", rooms.Select(p => p.DisplayName))} en une seule pièce ?") != true) return;
 
         LeaveModes();
-        await EditAsync($"{rooms.Count} pièces fusionnées", c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), ct: _hub.Ct));
+        await EditAsync($"{rooms.Count} pièces fusionnées", c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), ct: _hub.Ct),
+            refused: "Le robot a refusé la fusion : les pièces doivent se toucher.");
     }
 
     private void UpdateMergeLabel()
@@ -362,7 +379,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
         if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
 
         // A cut that misses the room, or that the robot will not make, comes back refused.
-        await EditAsync($"pièce {room.DisplayName} divisée", c => c.SplitRoomAsync(mapId, room.NumericId, from, to, ct: _hub.Ct));
+        await EditAsync($"pièce {room.DisplayName} divisée", c => c.SplitRoomAsync(mapId, room.NumericId, from, to, ct: _hub.Ct),
+            refused: "Le robot a refusé la division : la pièce est sans doute trop petite à cet endroit, ou le trait ne la traverse pas.");
     }
 
     /// <summary>Escape, or the cancel button: leaves splitting or merging without doing anything.</summary>
@@ -394,7 +412,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     /// Sends one map edit, waits for the cloud copy to catch up, then re-reads the maps — on the
     /// map given by <paramref name="reloadOn"/>, which defaults to the one on screen.
     /// </summary>
-    private async Task EditAsync(string label, Func<RobotMqttClient, Task<MapEditResult?>> edit, string? reloadOn = "")
+    private async Task EditAsync(string label, Func<RobotMqttClient, Task<MapEditResult?>> edit, string? reloadOn = "", string? refused = null)
     {
         if (_hub.Session?.Client is not { IsConnected: true } client) { Status = "Robot non connecté."; return; }
         Busy = true;
@@ -405,7 +423,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
             var result = await edit(client);
             if (result is null)
             {
-                Status = "Le robot a refusé la modification.";
+                Status = refused ?? "Le robot a refusé la modification.";
                 _hub.AddLog($"{label} : refusé par le robot");
                 return;
             }
