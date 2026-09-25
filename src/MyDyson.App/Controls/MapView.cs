@@ -7,6 +7,19 @@ using CorePoint = MyDyson.Core.Point;
 
 namespace MyDyson.App.Controls;
 
+/// <summary>What clicks on the map pick while an edit is being aimed; see <see cref="MapView.Picking"/>.</summary>
+public enum MapPick
+{
+    /// <summary>Clicks choose rooms as usual.</summary>
+    None,
+    /// <summary>Two clicks, the ends of a cut.</summary>
+    Line,
+    /// <summary>Two clicks, opposite corners of a zone.</summary>
+    Rectangle,
+    /// <summary>One click, where a piece of furniture goes.</summary>
+    Point,
+}
+
 /// <summary>
 /// Draws a <see cref="MapScene"/>. Mouse wheel or two-finger pinch zoom about the cursor/pinch
 /// centre; drag or single-finger swipe pans. A click or tap toggles the room underneath through
@@ -33,13 +46,15 @@ public sealed class MapView : FrameworkElement
     /// <summary>Raised when a single click/tap (confirmed not to be the first half of a double) lands on empty map space, to clear the current room selection.</summary>
     public event Action? EmptySpaceClicked;
 
-    // ---- Picking a line (splitting a room) ------------------------------------
+    // ---- Picking points (cutting a room, drawing a zone, placing furniture) -----
 
     /// <summary>
-    /// While set, clicks pick the two ends of a line instead of selecting rooms, and the pending
-    /// line is drawn over the map. Zoom and pan keep working, so the cut can be aimed closely.
+    /// While not <see cref="MapPick.None"/>, clicks pick points instead of selecting rooms, and
+    /// what is being drawn shows over the map: the cut line, the zone's rectangle, or the outline
+    /// of <see cref="PlacementShape"/> under the cursor. Zoom and pan keep working, so it can be
+    /// aimed closely.
     /// </summary>
-    public bool IsPickingLine
+    public MapPick Picking
     {
         get;
         set
@@ -47,13 +62,30 @@ public sealed class MapView : FrameworkElement
             field = value;
             _lineStart = null;
             _linePreview = null;
-            Cursor = value ? Cursors.Cross : null;
+            Cursor = value == MapPick.None ? null : Cursors.Cross;
             InvalidateVisual();
         }
     }
 
+    /// <summary>For <see cref="MapPick.Point"/>: the outline to show under the cursor, as corners relative to its centre, in metres.</summary>
+    public IReadOnlyList<CorePoint>? PlacementShape
+    {
+        get;
+        set { field = value; InvalidateVisual(); }
+    }
+
     /// <summary>Both ends of the line the user drew, in world metres.</summary>
     public event Action<CorePoint, CorePoint>? LinePicked;
+    /// <summary>Two opposite corners of the rectangle the user drew, in world metres.</summary>
+    public event Action<CorePoint, CorePoint>? RectanglePicked;
+    /// <summary>The point the user clicked, in world metres.</summary>
+    public event Action<CorePoint>? PointPicked;
+    /// <summary>
+    /// Every single click or tap outside picking, in world metres, raised before <see cref="ZoneClicked"/>
+    /// or <see cref="EmptySpaceClicked"/>: what lies there besides rooms (zones, furniture) is for the
+    /// listener to find.
+    /// </summary>
+    public event Action<CorePoint>? WorldClicked;
     /// <summary>The point under the cursor while picking, or null once it leaves; for a coordinate readout.</summary>
     public event Action<CorePoint?>? LinePointMoved;
 
@@ -103,8 +135,18 @@ public sealed class MapView : FrameworkElement
         var size = new Size(Math.Max(1, ActualWidth), Math.Max(1, ActualHeight));
         MapRenderer.Render(drawingContext, Scene ?? new MapScene(), size, out var m, Zoom, _pan);
         WorldToScreen = m;
-        if (IsPickingLine && _lineStart is { } start)
-            MapRenderer.DrawPendingCut(drawingContext, m.Transform(start), _linePreview is { } end ? m.Transform(end) : null);
+        switch (Picking)
+        {
+            case MapPick.Line when _lineStart is { } start:
+                MapRenderer.DrawPendingCut(drawingContext, m.Transform(start), _linePreview is { } end ? m.Transform(end) : null);
+                break;
+            case MapPick.Rectangle when _lineStart is { } corner:
+                MapRenderer.DrawPendingRectangle(drawingContext, m.Transform(corner), _linePreview is { } other ? m.Transform(other) : null);
+                break;
+            case MapPick.Point when _linePreview is { } at && PlacementShape is { Count: > 2 } shape:
+                MapRenderer.DrawPendingShape(drawingContext, [.. shape.Select(p => m.Transform(new Point(at.X + p.X, at.Y + p.Y)))]);
+                break;
+        }
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
@@ -131,11 +173,12 @@ public sealed class MapView : FrameworkElement
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
-        if (IsPickingLine)
+        if (Picking != MapPick.None)
         {
             var world = ToWorld(e.GetPosition(this));
             LinePointMoved?.Invoke(world is { } w ? new CorePoint(w.X, w.Y) : null);
-            if (_lineStart is not null)
+            // A placement follows the cursor from the start; a line or a rectangle once it has a first point.
+            if (_lineStart is not null || Picking == MapPick.Point)
             {
                 _linePreview = world;
                 InvalidateVisual();
@@ -212,17 +255,22 @@ public sealed class MapView : FrameworkElement
     /// <summary>A room always reacts right away; only empty space needs to wait and see whether a second click/tap turns this into a double, since that's the only place the two mean different things.</summary>
     private void HandleClick(Point pos, bool isDouble)
     {
-        if (IsPickingLine)
+        if (Picking != MapPick.None)
         {
             if (ToWorld(pos) is not { } picked) return;
+            if (Picking == MapPick.Point)
+            {
+                PointPicked?.Invoke(new CorePoint(picked.X, picked.Y));
+                return;
+            }
             if (_lineStart is not { } start)
             {
                 _lineStart = picked;
                 InvalidateVisual();
                 return;
             }
-            // Two clicks in the same spot would be a zero-length cut, which the robot refuses;
-            // treat it as the user changing their mind about where to start.
+            // Two clicks in the same spot would be a zero-length cut or an empty zone, which the
+            // robot refuses; treat it as the user changing their mind about where to start.
             if ((WorldToScreen.Transform(picked) - WorldToScreen.Transform(start)).Length < 8)
             {
                 _lineStart = picked;
@@ -232,11 +280,15 @@ public sealed class MapView : FrameworkElement
             _lineStart = null;
             _linePreview = null;
             InvalidateVisual();
-            LinePicked?.Invoke(new CorePoint(start.X, start.Y), new CorePoint(picked.X, picked.Y));
+            var (a, b) = (new CorePoint(start.X, start.Y), new CorePoint(picked.X, picked.Y));
+            if (Picking == MapPick.Rectangle) RectanglePicked?.Invoke(a, b);
+            else LinePicked?.Invoke(a, b);
             return;
         }
 
-        var zone = ToWorld(pos) is { } w ? Scene?.ZoneAt(w.X, w.Y) : null;
+        var world = ToWorld(pos);
+        if (world is { } clicked && !isDouble) WorldClicked?.Invoke(new CorePoint(clicked.X, clicked.Y));
+        var zone = world is { } w ? Scene?.ZoneAt(w.X, w.Y) : null;
         if (zone is not null)
         {
             _pendingEmptySpaceClear?.Stop();

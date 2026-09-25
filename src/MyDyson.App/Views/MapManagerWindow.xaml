@@ -54,56 +54,183 @@
             </DockPanel>
         </Border>
 
-        <!-- Rooms -->
-        <Border DockPanel.Dock="Right" Style="{StaticResource Card}" Width="300" Margin="12,0,0,0">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Pièces" Style="{StaticResource Section}"/>
-                <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,-8">
-                    <Button Content="Renommer la pièce…" Command="{Binding RenameRoomCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
-                    <!-- "Diviser" and "Fusionner" are the phone app's own words. -->
-                    <Button Content="Diviser la pièce…" Command="{Binding StartSplitCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
-                    <!-- One button, two presses: the first starts gathering rooms, the second merges
-                         them. Its label says which press is next. -->
-                    <Button Content="{Binding MergeButtonLabel}" Command="{Binding MergeCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
-                    <Button Content="Annuler" Command="{Binding CancelCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
-                            Visibility="{Binding InMode, Converter={StaticResource Show}}"/>
-                    <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0">
-                        Une division suit toujours un trait droit que le robot recale sur sa propre grille, et les deux moitiés perdent leur nom. Il n'existe pas de commande pour supprimer une pièce ; fusionnez-la avec sa voisine.
-                    </TextBlock>
-                </StackPanel>
-                <!-- Plain clickable rows rather than a ListBox: a click means "choose" or "gather
-                     for the merge" depending on the mode, which ListBox selection would fight. -->
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Rooms}" AutomationProperties.Name="Pièces de la carte">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border x:Name="Row" Padding="6,5" CornerRadius="4" Background="Transparent" Cursor="Hand">
-                                    <Border.InputBindings>
-                                        <MouseBinding MouseAction="LeftClick"
-                                                      Command="{Binding DataContext.ClickRoomCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                      CommandParameter="{Binding}"/>
-                                    </Border.InputBindings>
-                                    <DockPanel>
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding AreaText}" Style="{StaticResource Muted}" Margin="6,0,0,0"/>
-                                        <TextBlock TextTrimming="CharacterEllipsis">
-                                            <Run Text="{Binding DisplayName, Mode=OneWay}"/>
-                                            <Run Text="{Binding TypeText, Mode=OneWay}" Foreground="{DynamicResource MutedBrush}" FontSize="11"/>
+        <!-- Rooms, zones, furniture: one tab each. The tab on show decides what a click on the map
+             chooses; the tabs stay put while something is being sent. -->
+        <Border DockPanel.Dock="Right" Style="{StaticResource Card}" Width="320" Margin="12,0,0,0" Padding="8,10">
+            <TabControl SelectedIndex="{Binding LayerIndex}" Foreground="{DynamicResource TextBrush}"
+                        IsEnabled="{Binding Busy, Converter={StaticResource Not}}">
+                <TabItem Header="Pièces">
+                    <DockPanel Margin="4,8,4,0">
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                            <Button Content="Renommer la pièce…" Command="{Binding RenameRoomCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <!-- "Diviser" and "Fusionner" are the phone app's own words. -->
+                            <Button Content="Diviser la pièce…" Command="{Binding StartSplitCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <!-- One button, two presses: the first starts gathering rooms, the second merges
+                                 them. Its label says which press is next. -->
+                            <Button Content="{Binding MergeButtonLabel}" Command="{Binding MergeCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <Button Content="Annuler" Command="{Binding CancelCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
+                                    Visibility="{Binding InMode, Converter={StaticResource Show}}"/>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0">
+                                Une division suit toujours un trait droit que le robot recale sur sa propre grille, et les deux moitiés perdent leur nom. Il n'existe pas de commande pour supprimer une pièce ; fusionnez-la avec sa voisine.
+                            </TextBlock>
+                        </StackPanel>
+                        <!-- Plain clickable rows rather than a ListBox: a click means "choose" or "gather
+                             for the merge" depending on the mode, which ListBox selection would fight. -->
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Rooms}" AutomationProperties.Name="Pièces de la carte">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="Row" Padding="6,5" CornerRadius="4" Background="Transparent" Cursor="Hand">
+                                            <Border.InputBindings>
+                                                <MouseBinding MouseAction="LeftClick"
+                                                              Command="{Binding DataContext.ClickRoomCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                              CommandParameter="{Binding}"/>
+                                            </Border.InputBindings>
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding AreaText}" Style="{StaticResource Muted}" Margin="6,0,0,0"/>
+                                                <TextBlock TextTrimming="CharacterEllipsis">
+                                                    <Run Text="{Binding DisplayName, Mode=OneWay}"/>
+                                                    <Run Text="{Binding TypeText, Mode=OneWay}" Foreground="{DynamicResource MutedBrush}" FontSize="11"/>
+                                                </TextBlock>
+                                            </DockPanel>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                                            </Trigger>
+                                            <DataTrigger Binding="{Binding IsChosen}" Value="True">
+                                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource SelectionBrush}"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </TabItem>
+
+                <TabItem Header="Zones">
+                    <DockPanel Margin="4,8,4,0">
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                            <TextBlock Text="Type de zone" Style="{StaticResource Label}" Margin="0,0,0,4"/>
+                            <ComboBox ItemsSource="{Binding ZoneKinds}" SelectedItem="{Binding ZoneKind}" AutomationProperties.Name="Type de zone">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Label}"/>
+                                            <TextBlock Text="{Binding Effect}" Style="{StaticResource Muted}" FontSize="11"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Content="Ajouter une zone…" Command="{Binding AddZoneCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <Button Content="Changer le type de la zone" Command="{Binding ChangeZoneKindCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <Button Content="Supprimer la zone…" Command="{Binding DeleteZoneCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <Button Content="Annuler" Command="{Binding CancelCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
+                                    Visibility="{Binding InMode, Converter={StaticResource Show}}"/>
+                            <TextBlock Text="{Binding ZonesBlockedReason}" Foreground="{DynamicResource DangerBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       Visibility="{Binding ZonesBlockedReason, Converter={StaticResource Show}}"/>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0">
+                                Une zone est un rectangle droit, comme dans l'application mobile. Le robot reçoit toujours la liste entière des zones de la carte.
+                            </TextBlock>
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="{Binding ZonesEmptyText}" Style="{StaticResource Muted}" Margin="6,4"
+                                           Visibility="{Binding ZonesEmptyText, Converter={StaticResource Show}}"/>
+                                <ItemsControl ItemsSource="{Binding RestrictionZones}" AutomationProperties.Name="Zones de la carte">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="Row" Padding="6,5" CornerRadius="4" Background="Transparent" Cursor="Hand">
+                                                <Border.InputBindings>
+                                                    <MouseBinding MouseAction="LeftClick"
+                                                                  Command="{Binding DataContext.ClickZoneCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                  CommandParameter="{Binding}"/>
+                                                </Border.InputBindings>
+                                                <DockPanel>
+                                                    <!-- The zone's colour on the map, which doubles as the legend. -->
+                                                    <Border DockPanel.Dock="Left" Width="12" Height="12" CornerRadius="2" Background="{Binding Swatch}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" Style="{StaticResource Muted}" Margin="6,0,0,0"/>
+                                                    <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
+                                                </DockPanel>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                                                </Trigger>
+                                                <DataTrigger Binding="{Binding IsChosen}" Value="True">
+                                                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource SelectionBrush}"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </TabItem>
+
+                <TabItem Header="Meubles">
+                    <DockPanel Margin="4,8,4,0">
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                            <TextBlock Text="Meuble à ajouter" Style="{StaticResource Label}" Margin="0,0,0,4"/>
+                            <ComboBox ItemsSource="{Binding FurnitureKinds}" SelectedItem="{Binding FurnitureKind}" AutomationProperties.Name="Meuble à ajouter">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock>
+                                            <Run Text="{Binding Category, Mode=OneWay}" Foreground="{DynamicResource MutedBrush}"/>
+                                            <Run Text="·" Foreground="{DynamicResource MutedBrush}"/>
+                                            <Run Text="{Binding Label, Mode=OneWay}"/>
                                         </TextBlock>
-                                    </DockPanel>
-                                </Border>
-                                <DataTemplate.Triggers>
-                                    <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Row" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
-                                    </Trigger>
-                                    <DataTrigger Binding="{Binding IsChosen}" Value="True">
-                                        <Setter TargetName="Row" Property="Background" Value="{DynamicResource SelectionBrush}"/>
-                                    </DataTrigger>
-                                </DataTemplate.Triggers>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </DockPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Content="Ajouter ce meuble…" Command="{Binding AddFurnitureCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <Button Content="Déplacer le meuble…" Command="{Binding MoveFurnitureCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <Button Content="Tourner d'un quart de tour" Command="{Binding RotateFurnitureCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <Button Content="Retirer le meuble…" Command="{Binding DeleteFurnitureCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <Button Content="Annuler" Command="{Binding CancelCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
+                                    Visibility="{Binding InMode, Converter={StaticResource Show}}"/>
+                            <TextBlock Text="{Binding FurnitureBlockedReason}" Foreground="{DynamicResource DangerBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       Visibility="{Binding FurnitureBlockedReason, Converter={StaticResource Show}}"/>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0">
+                                Un meuble est posé à la taille que lui donne l'application mobile, et tourne dans le sens des aiguilles d'une montre. Le robot reçoit toujours la liste entière des meubles de la carte.
+                            </TextBlock>
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="{Binding FurnitureEmptyText}" Style="{StaticResource Muted}" Margin="6,4"
+                                           Visibility="{Binding FurnitureEmptyText, Converter={StaticResource Show}}"/>
+                                <ItemsControl ItemsSource="{Binding FurnitureItems}" AutomationProperties.Name="Meubles de la carte">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="Row" Padding="6,5" CornerRadius="4" Background="Transparent" Cursor="Hand">
+                                                <Border.InputBindings>
+                                                    <MouseBinding MouseAction="LeftClick"
+                                                                  Command="{Binding DataContext.ClickFurnitureCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                  CommandParameter="{Binding}"/>
+                                                </Border.InputBindings>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" Style="{StaticResource Muted}" Margin="6,0,0,0"/>
+                                                    <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
+                                                </DockPanel>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                                                </Trigger>
+                                                <DataTrigger Binding="{Binding IsChosen}" Value="True">
+                                                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource SelectionBrush}"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </TabItem>
+            </TabControl>
         </Border>
 
         <!-- Map -->

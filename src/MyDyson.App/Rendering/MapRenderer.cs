@@ -51,6 +51,11 @@ public sealed class MapScene
     /// <summary>Draw the stretches where the robot was only repositioning, not working.</summary>
     public bool ShowTravelPath { get; init; } = true;
 
+    /// <summary>The restriction zone (REST id) the map manager is acting on, outlined.</summary>
+    public string? SelectedRestrictionId { get; init; }
+    /// <summary>The piece of furniture (REST id) the map manager is acting on, outlined.</summary>
+    public string? SelectedFurnitureId { get; init; }
+
     /// <summary>
     /// The driven path cut into same-action runs, which is what the renderer colours by. Finding
     /// the room under each point is the expensive part (on maps without a grid it is a nearest-
@@ -174,8 +179,24 @@ public static class MapRenderer
         public readonly Pen[] ActionPens;   // indexed by (int)CleanType, like MapPalette.ActionColors
         private readonly Dictionary<(int Id, bool Dimmed), Brush> _zoneBrushes = [];
 
-        public static readonly Pen RestrictionPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xe0, 0x50, 0x50))), 2));
-        public static readonly Brush RestrictionFill = Frozen(new SolidColorBrush(Color.FromArgb(0x40, 0xe0, 0x50, 0x50)));
+        /// <summary>
+        /// One colour per kind of restriction zone, so the four read apart at a glance: red where the
+        /// robot must not go, amber where it climbs, blue where it only mops, violet where it only
+        /// vacuums. Kept the same in both themes; the legend in the map manager uses them too.
+        /// </summary>
+        public static readonly Dictionary<string, (Pen Pen, Brush Fill)> Restrictions = new()
+        {
+            ["keepOut"] = RestrictionStyle(RestrictionColor("keepOut")),
+            ["climbObstacle"] = RestrictionStyle(RestrictionColor("climbObstacle")),
+            ["brushBarOff"] = RestrictionStyle(RestrictionColor("brushBarOff")),
+            ["noMop"] = RestrictionStyle(RestrictionColor("noMop")),
+        };
+        public static readonly (Pen Pen, Brush Fill) UnknownRestriction = RestrictionStyle(Color.FromRgb(0x90, 0x90, 0x90));
+        /// <summary>What the map manager has chosen: a thick outline over whatever it is.</summary>
+        public static readonly Pen SelectionPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xff, 0xd7, 0x00))), 3) { LineJoin = PenLineJoin.Round });
+
+        private static (Pen, Brush) RestrictionStyle(Color c) =>
+            (Frozen(new Pen(Frozen(new SolidColorBrush(c)), 2)), Frozen(new SolidColorBrush(Color.FromArgb(0x50, c.R, c.G, c.B))));
         public static readonly Brush DockFill = Frozen(new SolidColorBrush(Color.FromRgb(0xff, 0xd7, 0x00)));
         public static readonly Brush RobotFill = Frozen(new SolidColorBrush(Color.FromRgb(0x3c, 0xb4, 0x3c)));
         public static readonly Brush ObstacleFill = Frozen(new SolidColorBrush(Color.FromRgb(0xe0, 0xa0, 0x30)));
@@ -306,10 +327,13 @@ public static class MapRenderer
             DrawVisitedPoints(dc, scene, m);
 
         foreach (var f in scene.ShowFurniture ? scene.Map?.Furniture ?? [] : [])
-            DrawPolygon(dc, f.Points, m, res.FurniturePen, res.FurnitureFill);
+            DrawPolygon(dc, f.Points, m, f.Id == scene.SelectedFurnitureId ? Resources.SelectionPen : res.FurniturePen, res.FurnitureFill);
 
         foreach (var r in scene.Map?.Restrictions ?? [])
-            DrawPolygon(dc, r.Points, m, Resources.RestrictionPen, Resources.RestrictionFill);
+        {
+            var (pen, fill) = r.Behavior is { } b && Resources.Restrictions.TryGetValue(b, out var style) ? style : Resources.UnknownRestriction;
+            DrawPolygon(dc, r.Points, m, r.Id == scene.SelectedRestrictionId ? Resources.SelectionPen : pen, fill);
+        }
 
         if (scene.Path is { Count: > 1 } path)
             DrawActionPath(dc, res, scene, path, m);
@@ -422,6 +446,37 @@ public static class MapRenderer
         dc.DrawEllipse(null, Resources.CutPen, from, 5, 5);
         if (to is { } e2) dc.DrawEllipse(null, Resources.CutPen, e2, 5, 5);
     }
+
+    /// <summary>The zone being drawn: its first corner, then the upright rectangle to the cursor. Screen points.</summary>
+    public static void DrawPendingRectangle(DrawingContext dc, Point from, Point? to)
+    {
+        dc.DrawEllipse(null, Resources.CutPen, from, 5, 5);
+        if (to is { } end) dc.DrawRectangle(null, Resources.CutPen, new Rect(from, end));
+    }
+
+    /// <summary>Where a piece of furniture would land: its outline, already in screen points.</summary>
+    public static void DrawPendingShape(DrawingContext dc, IReadOnlyList<Point> corners)
+    {
+        if (corners.Count < 3) return;
+        var geo = new StreamGeometry();
+        using (var g = geo.Open())
+        {
+            g.BeginFigure(corners[0], false, true);
+            for (var i = 1; i < corners.Count; i++) g.LineTo(corners[i], true, false);
+        }
+        geo.Freeze();
+        dc.DrawGeometry(null, Resources.CutPen, geo);
+    }
+
+    /// <summary>The colour a kind of restriction zone is drawn in (REST behaviour), for the map and its legend.</summary>
+    public static Color RestrictionColor(string? behavior) => behavior switch
+    {
+        "keepOut" => Color.FromRgb(0xe0, 0x50, 0x50),
+        "climbObstacle" => Color.FromRgb(0xe8, 0xa0, 0x20),
+        "brushBarOff" => Color.FromRgb(0x3c, 0x96, 0xe6),
+        "noMop" => Color.FromRgb(0xa0, 0x6c, 0xe6),
+        _ => Color.FromRgb(0x90, 0x90, 0x90),
+    };
 
     // Panning/zooming re-renders every frame but never changes the grid's own pixels, only where
     // they're drawn: rebuilding an 84 000-cell bitmap on every single frame (as this used to do)

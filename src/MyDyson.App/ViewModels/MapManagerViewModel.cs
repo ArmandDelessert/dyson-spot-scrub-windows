@@ -29,6 +29,47 @@ public sealed partial class ManagedRoom(MapZone Zone) : ObservableObject
     [ObservableProperty] private bool _isChosen;
 }
 
+/// <summary>Which kind of map object clicks and actions are about: one tab of the right-hand panel each.</summary>
+public enum MapLayer { Rooms, Zones, Furniture }
+
+/// <summary>One restriction zone of the map being managed.</summary>
+public sealed partial class ManagedZone(Restriction restriction) : ObservableObject
+{
+    public Restriction Restriction { get; } = restriction;
+    public string Id => Restriction.Id ?? "";
+    /// <summary>Null for a behaviour this app does not know, which it could not send back.</summary>
+    public RestrictionKind? Kind { get; } = RestrictionKind.FromBehavior(restriction.Behavior);
+    public IReadOnlyList<MyDyson.Core.Point> Corners => Restriction.Points ?? [];
+    public bool CanBeSentBack => Kind is not null && Corners.Count == 4;
+    public string Label => Kind?.Label ?? $"Type inconnu ({Restriction.Behavior})";
+    public string SizeText => MapManagerViewModel.SizeOf(Corners);
+    /// <summary>The zone's colour on the map, for the list.</summary>
+    public System.Windows.Media.Brush Swatch { get; } = Frozen(MapRenderer.RestrictionColor(restriction.Behavior));
+    [ObservableProperty] private bool _isChosen;
+
+    private static System.Windows.Media.SolidColorBrush Frozen(System.Windows.Media.Color c)
+    {
+        var b = new System.Windows.Media.SolidColorBrush(c);
+        b.Freeze();
+        return b;
+    }
+}
+
+/// <summary>One piece of furniture of the map being managed.</summary>
+public sealed partial class ManagedFurniture(FurnitureItem item) : ObservableObject
+{
+    public FurnitureItem Item { get; } = item;
+    public string Id => Item.Id;
+    /// <summary>Null for a type this app has no code for, which it could not send back.</summary>
+    public FurnitureKind? Kind { get; } = FurnitureKind.FromRestType(item.Type);
+    public IReadOnlyList<MyDyson.Core.Point> Corners => Item.Points ?? [];
+    public int Index => int.TryParse(Item.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) ? i : -1;
+    public bool CanBeSentBack => Kind is not null && Corners.Count == 4 && Index >= 0;
+    public string Label => Kind?.Label ?? $"Meuble inconnu ({Item.Type})";
+    public string SizeText => MapManagerViewModel.SizeOf(Corners);
+    [ObservableProperty] private bool _isChosen;
+}
+
 /// <summary>
 /// The Gérer les cartes window: rename, delete or activate a map, rename rooms, merge them, cut one
 /// in two, and run a new mapping scan. It works off its own copy of the map rather than the
@@ -42,6 +83,11 @@ public sealed partial class ManagedRoom(MapZone Zone) : ObservableObject
 /// What the robot does not offer, and so is absent here: deleting a room, and setting a room's
 /// outline. Splitting only ever cuts along a straight line, and the robot snaps that line to its
 /// own occupancy grid, so a room's shape can be steered but not dictated.
+///
+/// Restriction zones and furniture have a tab each (<see cref="Layer"/>): there a click on the map
+/// chooses a zone or a piece instead of a room. Both are sent to the robot as whole lists — every
+/// change resends everything else as the cloud last gave it back — so a zone or a piece this app
+/// cannot describe would be lost by any change, and its whole layer is then left read-only.
 /// </summary>
 public sealed partial class MapManagerViewModel : ObservableObject
 {
@@ -73,13 +119,87 @@ public sealed partial class MapManagerViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode))] private bool _splitting;
     /// <summary>True while clicks gather rooms to merge rather than choose one.</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode))] private bool _merging;
-    /// <summary>Splitting or merging is under way, which is when there is something to cancel.</summary>
-    public bool InMode => Merging || Splitting;
+    /// <summary>True while the user is drawing a restriction zone's rectangle on the map.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode))] private bool _addingZone;
+    /// <summary>True while the user is choosing where a new piece of furniture goes.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode)), NotifyPropertyChangedFor(nameof(PlacementShape))] private bool _placingFurniture;
+    /// <summary>True while the user is choosing where the chosen piece of furniture moves to.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode)), NotifyPropertyChangedFor(nameof(PlacementShape))] private bool _movingFurniture;
+    /// <summary>An edit is being aimed or gathered, which is when there is something to cancel.</summary>
+    public bool InMode => Merging || Splitting || AddingZone || PlacingFurniture || MovingFurniture;
     /// <summary>What the current mode expects from the user, shown above the map.</summary>
-    [ObservableProperty] private string _hint = DefaultHint;
+    [ObservableProperty] private string _hint = RoomsHint;
     [ObservableProperty] private string _mergeButtonLabel = "Fusionner des pièces…";
 
-    private const string DefaultHint = "Cliquez une pièce pour la choisir, en dehors pour effacer le choix. Molette pour zoomer, glisser pour déplacer.";
+    private const string RoomsHint = "Cliquez une pièce pour la choisir, en dehors pour effacer le choix. Molette pour zoomer, glisser pour déplacer.";
+    private const string ZonesHint = "Cliquez une zone pour la choisir, en dehors pour effacer le choix. Molette pour zoomer, glisser pour déplacer.";
+    private const string FurnitureHint = "Cliquez un meuble pour le choisir, en dehors pour effacer le choix. Molette pour zoomer, glisser pour déplacer.";
+
+    private string LayerHint => Layer switch
+    {
+        MapLayer.Zones => ZonesHint,
+        MapLayer.Furniture => FurnitureHint,
+        _ => RoomsHint,
+    };
+
+    // ---- Zones and furniture ---------------------------------------------------------
+
+    /// <summary>The tab on show; the TabControl binds <see cref="LayerIndex"/>.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(LayerIndex))] private MapLayer _layer;
+    public int LayerIndex
+    {
+        get => (int)Layer;
+        set => Layer = (MapLayer)value;
+    }
+
+    public ObservableCollection<ManagedZone> RestrictionZones { get; } = new();
+    [ObservableProperty] private ManagedZone? _selectedZone;
+    public IReadOnlyList<RestrictionKind> ZoneKinds { get; } = RestrictionKind.All;
+    /// <summary>The kind a new zone gets, and the one "Changer le type" turns the chosen zone into.</summary>
+    [ObservableProperty] private RestrictionKind _zoneKind = RestrictionKind.All[0];
+
+    public ObservableCollection<ManagedFurniture> FurnitureItems { get; } = new();
+    [ObservableProperty] private ManagedFurniture? _selectedFurniture;
+    public IReadOnlyList<FurnitureKind> FurnitureKinds { get; } = FurnitureKind.All;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(PlacementShape))] private FurnitureKind _furnitureKind = FurnitureKind.All[0];
+
+    /// <summary>
+    /// The outline to show under the cursor while placing or moving a piece, as corners relative
+    /// to its centre: the new piece at its default size, or the chosen one as it stands.
+    /// </summary>
+    public IReadOnlyList<MyDyson.Core.Point>? PlacementShape
+    {
+        get
+        {
+            if (PlacingFurniture) return MapShapes.Centred(new(0, 0), FurnitureKind.Length, FurnitureKind.Width);
+            if (MovingFurniture && SelectedFurniture is { } f)
+            {
+                var c = MapShapes.Centre(f.Corners);
+                return MapShapes.Translate(f.Corners, -c.X, -c.Y);
+            }
+            return null;
+        }
+    }
+
+    /// <summary>Why the zones cannot be changed on this map, or empty when they can.</summary>
+    public string ZonesBlockedReason => RestrictionZones.FirstOrDefault(z => !z.CanBeSentBack) is { } odd
+        ? $"Cette carte porte une zone que cette application ne sait pas décrire ({odd.Label}) : toute modification l'effacerait, les zones restent donc en lecture seule."
+        : "";
+
+    /// <summary>Why the furniture cannot be changed on this map, or empty when it can.</summary>
+    public string FurnitureBlockedReason => FurnitureItems.FirstOrDefault(f => !f.CanBeSentBack) is { } odd
+        ? $"Cette carte porte un meuble que cette application ne sait pas décrire ({odd.Label}) : toute modification l'effacerait, les meubles restent donc en lecture seule."
+        : "";
+
+    public string ZonesEmptyText => RestrictionZones.Count == 0 ? "Aucune zone sur cette carte." : "";
+    public string FurnitureEmptyText => FurnitureItems.Count == 0 ? "Aucun meuble sur cette carte." : "";
+
+    /// <summary>"1,2 × 0,5 m": the first two sides of a shape.</summary>
+    internal static string SizeOf(IReadOnlyList<MyDyson.Core.Point> corners)
+    {
+        var (a, b) = MapShapes.Sides(corners);
+        return string.Create(CultureInfo.CurrentCulture, $"{a:0.0} × {b:0.0} m");
+    }
 
     /// <summary>Asks the window to show a text prompt; returns null when the user cancels.</summary>
     public Func<string, string, string, string?>? AskForText { get; set; }
@@ -114,6 +234,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
         // Whatever was chosen, gathered or being cut belonged to the map that was on screen.
         LeaveModes();
         SelectedRoom = null;
+        SelectedZone = null;
+        SelectedFurniture = null;
         OnPropertyChanged(nameof(IsActiveMap));
         OnPropertyChanged(nameof(EditBlockedReason));
         RefreshCommandStates();
@@ -133,6 +255,15 @@ public sealed partial class MapManagerViewModel : ObservableObject
             Rooms.Clear();
             foreach (var z in (map.Zones ?? []).OrderBy(z => RoomTypeLabels.Resolve(z.Type, z.Name, z.Id), StringComparer.CurrentCulture))
                 Rooms.Add(new ManagedRoom(z));
+            // Kept in the cloud's own order, which is also the order they are sent back in.
+            RestrictionZones.Clear();
+            foreach (var r in map.Restrictions ?? []) RestrictionZones.Add(new ManagedZone(r));
+            FurnitureItems.Clear();
+            foreach (var f in map.Furniture ?? []) FurnitureItems.Add(new ManagedFurniture(f));
+            OnPropertyChanged(nameof(ZonesBlockedReason));
+            OnPropertyChanged(nameof(FurnitureBlockedReason));
+            OnPropertyChanged(nameof(ZonesEmptyText));
+            OnPropertyChanged(nameof(FurnitureEmptyText));
             _map = map;
             _grid = grid;
             RefreshCommandStates();
@@ -153,7 +284,10 @@ public sealed partial class MapManagerViewModel : ObservableObject
         Dock = _map?.DockLocation,
         // What an action is about to touch is highlighted, the rest dimmed.
         SelectedZoneIds = Rooms.Any(r => r.IsChosen) ? Rooms.Where(r => r.IsChosen).Select(r => r.Id).ToHashSet(StringComparer.Ordinal) : null,
-        ShowFurniture = _display.ShowFurniture,
+        SelectedRestrictionId = SelectedZone?.Id,
+        SelectedFurnitureId = SelectedFurniture?.Id,
+        // The furniture tab shows it whatever the display option says: it is what is being edited.
+        ShowFurniture = _display.ShowFurniture || Layer == MapLayer.Furniture,
         ShowTravelPath = _display.ShowTravelPath,
     };
 
@@ -162,7 +296,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     /// <summary>A click on a room, from the list or the map. Chooses it, or gathers it for a merge.</summary>
     public void RoomClicked(ManagedRoom room)
     {
-        if (Splitting || Busy) return;
+        if (Splitting || Busy || Layer != MapLayer.Rooms) return;
         if (Merging)
         {
             if (!_mergeSet.Remove(room)) _mergeSet.Add(room);
@@ -192,7 +326,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     /// <summary>A click on empty map space: lets go of whatever is highlighted, in either mode.</summary>
     public void ClearRoomSelection()
     {
-        if (Splitting) return;
+        if (Splitting || Layer != MapLayer.Rooms) return;
         if (Merging)
         {
             foreach (var r in _mergeSet) r.IsChosen = false;
@@ -228,15 +362,25 @@ public sealed partial class MapManagerViewModel : ObservableObject
 
     /// <summary>Why the edits are unavailable on the map on screen, or empty when they are available.</summary>
     public string EditBlockedReason => SelectedMap is null || IsActiveMap ? ""
-        : "Seule la carte active peut être modifiée. Définissez celle-ci comme active pour la renommer, la supprimer ou changer ses pièces.";
+        : "Seule la carte active peut être modifiée. Définissez celle-ci comme active pour la renommer, la supprimer ou changer ses pièces, ses zones ou ses meubles.";
 
-    private bool Idle => !Busy && !Splitting && !Merging;
+    private bool Idle => !Busy && !InMode;
     private bool NotBusy() => Idle;
     private bool HasMap() => SelectedMap is not null && IsActiveMap && Idle;
     private bool HasRoom() => SelectedRoom is not null && IsActiveMap && Idle;
     private bool CanSetActive() => SelectedMap is { Metadata.IsCurrentMap: false } && Idle;
     /// <summary>Entering merge mode needs two rooms to exist; confirming it needs two gathered.</summary>
-    private bool CanMerge() => !Busy && !Splitting && IsActiveMap && (Merging ? _mergeSet.Count >= 2 : Rooms.Count >= 2);
+    private bool CanMerge() => !Busy && (Merging || !InMode) && IsActiveMap && (Merging ? _mergeSet.Count >= 2 : Rooms.Count >= 2);
+
+    private bool ZonesEditable => IsActiveMap && Idle && ZonesBlockedReason == "";
+    private bool CanAddZone() => ZonesEditable;
+    private bool CanDeleteZone() => SelectedZone is not null && ZonesEditable;
+    /// <summary>Only offered when the kind picked differs from the chosen zone's: otherwise there is nothing to change.</summary>
+    private bool CanChangeZoneKind() => SelectedZone is { Kind: { } k } && k != ZoneKind && ZonesEditable;
+
+    private bool FurnitureEditable => IsActiveMap && Idle && FurnitureBlockedReason == "";
+    private bool CanAddFurniture() => FurnitureEditable;
+    private bool HasFurniture() => SelectedFurniture is not null && FurnitureEditable;
 
     partial void OnBusyChanged(bool value) => RefreshCommandStates();
 
@@ -249,7 +393,201 @@ public sealed partial class MapManagerViewModel : ObservableObject
         RenameRoomCommand.NotifyCanExecuteChanged();
         MergeCommand.NotifyCanExecuteChanged();
         StartSplitCommand.NotifyCanExecuteChanged();
+        AddZoneCommand.NotifyCanExecuteChanged();
+        ChangeZoneKindCommand.NotifyCanExecuteChanged();
+        DeleteZoneCommand.NotifyCanExecuteChanged();
+        AddFurnitureCommand.NotifyCanExecuteChanged();
+        MoveFurnitureCommand.NotifyCanExecuteChanged();
+        RotateFurnitureCommand.NotifyCanExecuteChanged();
+        DeleteFurnitureCommand.NotifyCanExecuteChanged();
     }
+
+    // ---- Changing tab, and clicks outside the rooms tab --------------------------
+
+    partial void OnLayerChanged(MapLayer value)
+    {
+        // What was chosen or under way on one tab means nothing on another.
+        LeaveModes();
+        SelectedRoom = null;
+        SelectedZone = null;
+        SelectedFurniture = null;
+        RebuildScene();
+    }
+
+    /// <summary>
+    /// A click on the map, wherever it lands, from the window. On the zones and furniture tabs it
+    /// chooses what lies under it — the smallest shape, when several overlap — or lets go of the
+    /// choice on empty space. The rooms tab has its own handling (<see cref="RoomClickedById"/>).
+    /// </summary>
+    public void MapClickedAt(MyDyson.Core.Point p)
+    {
+        if (Busy || InMode) return;
+        switch (Layer)
+        {
+            case MapLayer.Zones:
+                SelectedZone = RestrictionZones.Where(z => z.Corners.Count > 2 && MapShapes.Contains(z.Corners, p.X, p.Y))
+                    .OrderBy(z => MapShapes.Area(z.Corners)).FirstOrDefault();
+                break;
+            case MapLayer.Furniture:
+                SelectedFurniture = FurnitureItems.Where(f => f.Corners.Count > 2 && MapShapes.Contains(f.Corners, p.X, p.Y))
+                    .OrderBy(f => MapShapes.Area(f.Corners)).FirstOrDefault();
+                break;
+        }
+    }
+
+    [RelayCommand]
+    private void ClickZone(ManagedZone? zone)
+    {
+        if (zone is not null && !Busy && !InMode) SelectedZone = ReferenceEquals(SelectedZone, zone) ? null : zone;
+    }
+
+    [RelayCommand]
+    private void ClickFurniture(ManagedFurniture? piece)
+    {
+        if (piece is not null && !Busy && !InMode) SelectedFurniture = ReferenceEquals(SelectedFurniture, piece) ? null : piece;
+    }
+
+    partial void OnSelectedZoneChanged(ManagedZone? oldValue, ManagedZone? newValue)
+    {
+        if (oldValue is not null) oldValue.IsChosen = false;
+        if (newValue is not null)
+        {
+            newValue.IsChosen = true;
+            // The kind picker starts from the chosen zone's own, so "Changer le type" only lights
+            // up once another kind is picked.
+            if (newValue.Kind is { } k) ZoneKind = k;
+        }
+        RebuildScene();
+        RefreshCommandStates();
+    }
+
+    partial void OnZoneKindChanged(RestrictionKind value) => ChangeZoneKindCommand.NotifyCanExecuteChanged();
+
+    partial void OnSelectedFurnitureChanged(ManagedFurniture? oldValue, ManagedFurniture? newValue)
+    {
+        if (oldValue is not null) oldValue.IsChosen = false;
+        if (newValue is not null) newValue.IsChosen = true;
+        RebuildScene();
+        RefreshCommandStates();
+    }
+
+    // ---- Zone commands -----------------------------------------------------------
+
+    /// <summary>The smallest zone side accepted; a narrower one would be a slip of the mouse rather than a zone.</summary>
+    private const double MinimumZoneSide = 0.2;
+
+    [RelayCommand(CanExecute = nameof(CanAddZone))]
+    private void AddZone()
+    {
+        AddingZone = true;
+        Hint = $"Cliquez deux coins opposés de la zone « {ZoneKind.Label} ». Échap pour annuler.";
+        Status = "";
+        RefreshCommandStates();
+    }
+
+    /// <summary>Called by the window once both corners of the new zone have been clicked on the map.</summary>
+    public async Task ZoneDrawnAsync(MyDyson.Core.Point a, MyDyson.Core.Point b)
+    {
+        var kind = ZoneKind;
+        LeaveModes();
+        if (Math.Abs(a.X - b.X) < MinimumZoneSide || Math.Abs(a.Y - b.Y) < MinimumZoneSide)
+        {
+            Status = "Zone trop étroite : il faut au moins 20 cm de côté.";
+            return;
+        }
+        var zones = CurrentZones();
+        zones.Add(new RestrictionZone(kind, MapShapes.Rectangle(a, b)));
+        await SendZonesAsync($"zone « {kind.Label} » ajoutée", zones);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanChangeZoneKind))]
+    private async Task ChangeZoneKindAsync()
+    {
+        if (SelectedZone is not { } chosen) return;
+        var kind = ZoneKind;
+        var zones = RestrictionZones.Select(z => new RestrictionZone(ReferenceEquals(z, chosen) ? kind : z.Kind!, z.Corners)).ToList();
+        await SendZonesAsync($"zone changée en « {kind.Label} »", zones);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteZone))]
+    private async Task DeleteZoneAsync()
+    {
+        if (SelectedZone is not { } chosen) return;
+        if (Confirm?.Invoke("Supprimer la zone", $"Supprimer la zone « {chosen.Label} » ({chosen.SizeText}) ?") != true) return;
+        var zones = RestrictionZones.Where(z => !ReferenceEquals(z, chosen)).Select(z => new RestrictionZone(z.Kind!, z.Corners)).ToList();
+        await SendZonesAsync($"zone « {chosen.Label} » supprimée", zones);
+    }
+
+    private List<RestrictionZone> CurrentZones() => [.. RestrictionZones.Select(z => new RestrictionZone(z.Kind!, z.Corners))];
+
+    private async Task SendZonesAsync(string label, IReadOnlyList<RestrictionZone> zones)
+    {
+        if (SelectedMap is not { } map || !TryMapId(map, out var mapId)) return;
+        await EditAsync(label, c => c.SetRestrictionsAsync(mapId, zones, _hub.Ct), refused: "Le robot a refusé les zones.");
+    }
+
+    // ---- Furniture commands --------------------------------------------------------
+
+    [RelayCommand(CanExecute = nameof(CanAddFurniture))]
+    private void AddFurniture()
+    {
+        PlacingFurniture = true;
+        Hint = $"Cliquez l'endroit où poser « {FurnitureKind.Label} » (le centre du meuble). Échap pour annuler.";
+        Status = "";
+        RefreshCommandStates();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasFurniture))]
+    private void MoveFurniture()
+    {
+        MovingFurniture = true;
+        Hint = $"Cliquez le nouvel emplacement de « {SelectedFurniture?.Label} » (son centre). Échap pour annuler.";
+        Status = "";
+        RefreshCommandStates();
+    }
+
+    /// <summary>Called by the window with the point clicked while placing or moving a piece.</summary>
+    public async Task FurniturePointPickedAsync(MyDyson.Core.Point p)
+    {
+        var (placing, moving, kind, chosen) = (PlacingFurniture, MovingFurniture, FurnitureKind, SelectedFurniture);
+        LeaveModes();
+        if (placing)
+        {
+            var pieces = CurrentFurniture();
+            var index = pieces.Count == 0 ? 1 : pieces.Max(f => f.Index) + 1;
+            pieces.Add(new FurniturePiece(index, kind, MapShapes.Centred(p, kind.Length, kind.Width)));
+            await SendFurnitureAsync($"« {kind.Label} » ajouté", pieces);
+        }
+        else if (moving && chosen is not null)
+        {
+            var c = MapShapes.Centre(chosen.Corners);
+            await SendFurnitureAsync($"« {chosen.Label} » déplacé",
+                ReplaceCorners(chosen, MapShapes.Translate(chosen.Corners, p.X - c.X, p.Y - c.Y)));
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(HasFurniture))]
+    private async Task RotateFurnitureAsync()
+    {
+        if (SelectedFurniture is not { } chosen) return;
+        await SendFurnitureAsync($"« {chosen.Label} » tourné", ReplaceCorners(chosen, MapShapes.RotateClockwise(chosen.Corners)));
+    }
+
+    [RelayCommand(CanExecute = nameof(HasFurniture))]
+    private async Task DeleteFurnitureAsync()
+    {
+        if (SelectedFurniture is not { } chosen) return;
+        if (Confirm?.Invoke("Supprimer le meuble", $"Retirer « {chosen.Label} » de la carte ?") != true) return;
+        await SendFurnitureAsync($"« {chosen.Label} » retiré", CurrentFurniture().Where(f => f.Index != chosen.Index).ToList());
+    }
+
+    private List<FurniturePiece> CurrentFurniture() => [.. FurnitureItems.Select(f => new FurniturePiece(f.Index, f.Kind!, f.Corners))];
+
+    private List<FurniturePiece> ReplaceCorners(ManagedFurniture chosen, IReadOnlyList<MyDyson.Core.Point> corners) =>
+        [.. CurrentFurniture().Select(f => f.Index == chosen.Index ? f with { Corners = corners } : f)];
+
+    private Task SendFurnitureAsync(string label, IReadOnlyList<FurniturePiece> pieces) =>
+        EditAsync(label, c => c.AdjustFurnitureAsync(pieces, ct: _hub.Ct), refused: "Le robot a refusé les meubles.");
 
     // ---- Map commands ------------------------------------------------------------
 
@@ -401,7 +739,10 @@ public sealed partial class MapManagerViewModel : ObservableObject
             _mergeSet.Clear();
             Merging = false;
         }
-        Hint = DefaultHint;
+        AddingZone = false;
+        PlacingFurniture = false;
+        MovingFurniture = false;
+        Hint = LayerHint;
         UpdateMergeLabel();
         RefreshCommandStates();
     }

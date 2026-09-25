@@ -112,9 +112,14 @@ public partial class App : Application
                         await Task.Delay(500);
                         // --manage-maps shoots the map manager instead of the dashboard, that window
                         // being reachable no other way without a person to click the button.
+                        // --layer 1 or 2 opens it on the zones or the furniture tab, --map-id on another map.
                         if (Array.IndexOf(args, "--manage-maps") >= 0)
                         {
-                            await Dispatcher.InvokeAsync(() => main.OpenMapManagerForScreenshot());
+                            var layerIdx = Array.IndexOf(args, "--layer");
+                            var layer = layerIdx >= 0 && layerIdx + 1 < args.Length && int.TryParse(args[layerIdx + 1], out var l) ? l : 0;
+                            var mapIdx = Array.IndexOf(args, "--map-id");
+                            var onMap = mapIdx >= 0 && mapIdx + 1 < args.Length ? args[mapIdx + 1] : null;
+                            await Dispatcher.InvokeAsync(() => main.OpenMapManagerForScreenshot(layer, onMap));
                             await Task.Delay(TimeSpan.FromSeconds(6));
                             await Dispatcher.InvokeAsync(() => main.SaveMapManagerScreenshot(args[shot + 1]));
                         }

@@ -60,9 +60,11 @@ public partial class MainWindow : Window
     private MapManagerWindow? _mapManager;
 
     /// <summary>Diagnostics only: opens the map manager without waiting for it, so a screenshot run can shoot it.</summary>
-    public void OpenMapManagerForScreenshot()
+    public void OpenMapManagerForScreenshot(int layer = 0, string? mapId = null)
     {
-        _mapManager = new MapManagerWindow(_vm.CreateMapManager(), _vm.Cleaning.SelectedMap?.Id) { Owner = this };
+        var vm = _vm.CreateMapManager();
+        vm.LayerIndex = layer;
+        _mapManager = new MapManagerWindow(vm, mapId ?? _vm.Cleaning.SelectedMap?.Id) { Owner = this };
         _mapManager.Show();
     }
 

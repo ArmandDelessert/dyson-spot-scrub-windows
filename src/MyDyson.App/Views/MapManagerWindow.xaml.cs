@@ -1,4 +1,5 @@
 using System.Windows;
+using MyDyson.App.Controls;
 using MyDyson.App.ViewModels;
 
 namespace MyDyson.App.Views;
@@ -23,17 +24,33 @@ public partial class MapManagerWindow : Window
         vm.Confirm = (title, text) =>
             MessageBox.Show(this, text, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         vm.Changed += () => MapsChanged?.Invoke();
-        // The map view owns the picking gesture; the view model only says when it is on.
+        // The map view owns the picking gestures; the view model only says which one is on.
         vm.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(MapManagerViewModel.Splitting)) MapCanvas.IsPickingLine = vm.Splitting;
+            switch (args.PropertyName)
+            {
+                case nameof(MapManagerViewModel.Splitting) or nameof(MapManagerViewModel.AddingZone)
+                    or nameof(MapManagerViewModel.PlacingFurniture) or nameof(MapManagerViewModel.MovingFurniture):
+                    MapCanvas.Picking = vm.Splitting ? MapPick.Line
+                        : vm.AddingZone ? MapPick.Rectangle
+                        : vm.PlacingFurniture || vm.MovingFurniture ? MapPick.Point
+                        : MapPick.None;
+                    break;
+                case nameof(MapManagerViewModel.PlacementShape):
+                    MapCanvas.PlacementShape = vm.PlacementShape;
+                    break;
+            }
         };
 
+        // Every click goes to the view model, which knows which tab it is for.
+        MapCanvas.WorldClicked += vm.MapClickedAt;
         MapCanvas.ZoneClicked += vm.RoomClickedById;
         // Clearing here costs nothing, so it need not wait to see whether a double click follows.
         MapCanvas.DeferEmptySpaceClick = false;
         MapCanvas.EmptySpaceClicked += vm.ClearRoomSelection;
         MapCanvas.LinePicked += (from, to) => _ = vm.SplitAsync(from, to);
+        MapCanvas.RectanglePicked += (a, b) => _ = vm.ZoneDrawnAsync(a, b);
+        MapCanvas.PointPicked += p => _ = vm.FurniturePointPickedAsync(p);
         Loaded += async (_, _) => await vm.LoadAsync(openOnMapId);
     }
 

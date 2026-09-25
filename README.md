@@ -24,8 +24,8 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Modèle d'état typé, corrélation requête-réponse | fonctionne |
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
-| Horaires (création, modification, suppression) | messages identiques aux captures, pas encore essayés depuis cette application |
-| Tests unitaires | 189 tests, exécutés en CI |
+| Horaires, zones de restriction, meubles | messages identiques aux captures, pas encore essayés depuis cette application |
+| Tests unitaires | 215 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -116,8 +116,14 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   renommer (un des trente types du robot, ou un nom libre ; le type s'affiche en petit à côté du
   nom quand il en diffère), diviser en cliquant les deux extrémités du trait de coupe sur la carte,
   et fusionner — un premier clic sur « Fusionner » permet de choisir plusieurs pièces, sur la carte
-  ou dans la liste, un second les fusionne. Un clic dans le vide de la carte efface le choix. Voir
-  « Limites connues » pour ce que le robot ne permet pas.
+  ou dans la liste, un second les fusionne. Un clic dans le vide de la carte efface le choix.
+  Deux autres onglets font de même pour les **zones de restriction** (« Éviter la zone »,
+  « Franchir le seuil », « Lavage uniquement », « Aspirateur uniquement », chacune dans sa couleur
+  sur la carte) : en ajouter une en cliquant deux coins opposés, changer son type, la supprimer ;
+  et pour les **meubles** (les vingt-quatre de l'application mobile) : en poser un d'un clic à la
+  taille que lui donne le téléphone, le déplacer, le tourner d'un quart de tour, le retirer. Un
+  clic sur la carte y choisit une zone ou un meuble plutôt qu'une pièce. Voir « Limites connues »
+  pour ce que le robot ne permet pas.
 - **Horaires** : les nettoyages planifiés de la carte active, dans leur ordre dans la journée, avec
   les jours, les pièces, une durée estimée d'après l'historique et un avertissement quand un horaire
   risque de tomber pendant le précédent (le robot saute alors le second, comme le signale
@@ -143,8 +149,8 @@ connexion revient après une coupure, ce qui couvre le retour de veille de la ma
 consultée et les pièces cochées survivent à un rechargement.
 
 Des options de ligne de commande servent à la vérification sans écran et à la documentation
-(`--manage-maps` photographie la fenêtre « Gérer les cartes », `--edit-schedule` l'éditeur
-d'horaire) :
+(`--manage-maps` photographie la fenêtre « Gérer les cartes », sur l'onglet `--layer 0` à `2` et la
+carte `--map-id` voulus ; `--edit-schedule` l'éditeur d'horaire) :
 
 ```bash
 MyDyson.App.exe --export-map carte.png
@@ -180,12 +186,14 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
   d'état des deux dialectes (dont le tracé `cur_path` et les propriétés jdm de la station), formes
   JSON des réponses REST, préférences de pièces, libellés de pièces et de résultats, grille
   d'occupation, messages exacts de la séquence de démarrage, attente entre deux reconnexions,
-  horaires relus puis réécrits à l'identique des messages capturés.
+  horaires, zones et meubles relus ou écrits à l'identique des messages capturés, géométrie des
+  rectangles.
 - `tests/MyDyson.App.Tests` : géométrie de la scène (bornes, dock sentinelle, pièce sous un point,
   découpage du trajet par action) et les modèles de vue, branchés sur des réponses HTTP simulées :
   texte d'état et compte à rebours de séchage, numérotation des pièces choisies et sa conservation
   au rechargement, pièces d'un nettoyage passé, partage du téléchargement de détail, réglages qui
-  ne renvoient pas au robot ce qu'il vient d'annoncer, éditeur d'horaires et liste retenue.
+  ne renvoient pas au robot ce qu'il vient d'annoncer, éditeur d'horaires et liste retenue, onglets
+  Zones et Meubles de la gestion des cartes.
 
 L'effort de test porte d'abord sur ce qui a été retrouvé par rétro-ingénierie et qu'aucune
 documentation ne permettrait de retrouver : formes exactes des messages, correspondances entre
@@ -267,15 +275,23 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
   droit (`service.split_room`, deux points) et la fusion (`service.arrange_room`), et il recale la
   coupe sur sa propre grille d'occupation : la forme se guide par coupes et fusions successives,
   elle ne se dicte pas. Une division efface en outre le nom des deux moitiés.
-- **Zones de restriction** (éviter, franchir un seuil, lavage seul, aspirateur seul) : le protocole
-  est entièrement décodé, y compris la correspondance avec l'API REST (voir
-  [docs/protocole.md](docs/protocole.md)), mais pas encore exposé dans l'application.
+- **Zones et meubles** : le robot ne reçoit jamais qu'une liste entière (`service.set_virtual_wall`,
+  `service.adjust_furniture`), si bien que chaque changement renvoie toutes les autres zones ou
+  tous les autres meubles. Une zone ou un meuble que l'application ne sait pas décrire (un type
+  jamais observé) serait donc effacé au passage : sa liste entière reste alors en lecture seule.
+  Les zones sont des rectangles droits, comme dans l'application mobile ; un meuble se pose à la
+  taille par défaut du téléphone, sans redimensionnement.
 - **Modifier une carte non active** : volontairement bloqué. Le robot ne modifie que la carte
   active : une carte non active modifiée devient active et prend le nom de la carte qui l'était
   (confirmé par capture le 23 septembre). La fenêtre propose de la définir comme active d'abord.
-- Poser un meuble (`service.adjust_furniture`) et tourner la carte ne sont pas exposés.
+- **Tourner la carte** : pas exposé. La rotation passe par l'API REST (`orientation`, en degrés,
+  dans le sens horaire), dont l'adresse d'écriture n'est pas connue.
+- **Horaires** : le robot ne rend pas le détail des horaires, seulement leur nombre. Ceux créés sur
+  le téléphone ne sont donc pas visibles ici, et le téléphone ne montre vraisemblablement pas ceux
+  créés ici. Un horaire ponctuel (sans répétition) n'est pas proposé : le téléphone ne le fait
+  pas, et le robot n'a jamais été essayé ainsi.
 - Le débordement de la carte à travers les fenêtres vient du lidar du robot, pas du rendu. Une zone
-  « Éviter la zone » posée dessus depuis l'application mobile empêche le robot d'y aller.
+  « Éviter la zone » posée dessus, ici ou depuis l'application mobile, empêche le robot d'y aller.
 - Le réglage utilisé par pièce lors d'un nettoyage passé n'est pas récupérable (voir Historique).
 - Les types de taches autres que `liquid` n'ont jamais été observés : toutes sont dessinées pareil.
 
