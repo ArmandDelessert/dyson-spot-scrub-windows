@@ -237,7 +237,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
     private Task StartCleanAsync()
     {
         var rooms = Zones.Where(z => z.Selected).OrderBy(z => z.Order)
-            .Select(z => new RoomSelection(z.Id, z.SelectedCleanType.Value, z.Order)).ToList();
+            .Select(z => new RoomSelection(z.Id, z.Settings, z.Order)).ToList();
         if (rooms.Count == 0 || SelectedMap is null) { hub.Message = "Sélectionnez au moins une pièce."; return Task.CompletedTask; }
         // Outside RunAsync's try, so a non-numeric id must not throw: that would surface as an
         // unhandled exception in the command dispatch rather than a message.

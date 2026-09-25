@@ -30,6 +30,9 @@ public partial class MainWindow : Window
             SelectTab(1);
         });
         _vm.MapManagerRequested += OpenMapManager;
+        _vm.Schedules.EditSchedule = editor => ScheduleEditorWindow.Ask(this, editor);
+        _vm.Schedules.Confirm = (title, text) =>
+            MessageBox.Show(this, text, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         Loaded += async (_, _) => await _vm.StartAsync();
         Closing += async (_, _) => await _vm.ShutdownAsync();
         Closed += (_, _) => { _notifications.Dispose(); _vm.Dispose(); };
@@ -65,6 +68,23 @@ public partial class MainWindow : Window
 
     /// <summary>Diagnostics only: renders the map manager to a PNG.</summary>
     public void SaveMapManagerScreenshot(string path) => _mapManager?.SaveScreenshot(path);
+
+    private ScheduleEditorWindow? _scheduleEditor;
+
+    /// <summary>
+    /// Diagnostics only: opens the editor of a new schedule, already filled in (Monday and Thursday,
+    /// the first two rooms) so the shot shows the estimate and the settings rows.
+    /// </summary>
+    public void OpenScheduleEditorForScreenshot()
+    {
+        if (_vm.Schedules.NewEditor() is not { } editor) return;
+        editor.Days[0].IsChecked = true;
+        editor.Days[3].IsChecked = true;
+        foreach (var room in editor.Rooms.Take(2)) room.Selected = true;
+        _scheduleEditor = ScheduleEditorWindow.ShowForScreenshot(this, editor);
+    }
+
+    public void SaveScheduleEditorScreenshot(string path) => _scheduleEditor?.SaveScreenshot(path);
 
     /// <summary>Renders the window content to a PNG, for documentation and for checking the layout without a screen.</summary>
     public void SaveScreenshot(string path) => WindowScreenshot.Save(this, path);

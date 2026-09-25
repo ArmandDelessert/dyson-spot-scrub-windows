@@ -68,6 +68,23 @@ public static class CleaningStrategies
         "boost" => CleaningStrategy.Boost,
         _ => CleaningStrategy.Auto,
     };
+
+    /// <summary>Value of index 4 of a jdm room_preference entry, all four confirmed by the schedules captured on 2026-09-26.</summary>
+    public static int ToJdm(this CleaningStrategy s) => s switch
+    {
+        CleaningStrategy.Boost => 1,
+        CleaningStrategy.Quiet => 2,
+        CleaningStrategy.Quick => 3,
+        _ => 0,
+    };
+
+    public static CleaningStrategy FromJdm(int v) => v switch
+    {
+        1 => CleaningStrategy.Boost,
+        2 => CleaningStrategy.Quiet,
+        3 => CleaningStrategy.Quick,
+        _ => CleaningStrategy.Auto,
+    };
 }
 
 /// <summary>
@@ -91,20 +108,71 @@ public static class WaterLevels
         "high" => WaterLevel.High,
         _ => WaterLevel.Low,
     };
+
+    /// <summary>Value of index 5 of a jdm room_preference entry, confirmed by the schedules captured on 2026-09-26.</summary>
+    public static int ToJdm(this WaterLevel w) => w switch
+    {
+        WaterLevel.Medium => 1,
+        WaterLevel.High => 2,
+        _ => 0,
+    };
+
+    public static WaterLevel FromJdm(int v) => v switch
+    {
+        1 => WaterLevel.Medium,
+        2 => WaterLevel.High,
+        _ => WaterLevel.Low,
+    };
+}
+
+/// <summary>
+/// How one room is cleaned: the four choices of the phone app's per-room screen. The robot takes
+/// them as indices 3 to 6 of a room_preference entry (see <see cref="WriteTo"/>).
+/// </summary>
+public sealed record RoomSettings(CleanType CleanType, CleaningStrategy Strategy = CleaningStrategy.Auto, WaterLevel Water = WaterLevel.Low, int MopPasses = 1)
+{
+    public const int IndexCleanType = 3;
+    public const int IndexStrategy = 4;
+    public const int IndexWater = 5;
+    public const int IndexMopPasses = 6;
+
+    public bool Vacuums => CleanType is not CleanType.Mop;
+    public bool Mops => CleanType is not CleanType.Vacuum;
+
+    /// <summary>
+    /// Writes indices 3 to 6. A setting that does not apply to the clean type goes out as 0, as the
+    /// phone sends it: a room that is only mopped has no vacuum power, one only vacuumed no water
+    /// level or passes. Passes are 0 for one, 1 for two.
+    /// </summary>
+    public void WriteTo(JsonArray entry)
+    {
+        entry[IndexCleanType] = CleanType.ToJdm();
+        entry[IndexStrategy] = Vacuums ? Strategy.ToJdm() : 0;
+        entry[IndexWater] = Mops ? Water.ToJdm() : 0;
+        entry[IndexMopPasses] = Mops && MopPasses >= 2 ? 1 : 0;
+    }
+
+    /// <summary>Reads indices 3 to 6 back; missing or non-numeric values count as 0.</summary>
+    public static RoomSettings ReadFrom(JsonArray entry)
+    {
+        int At(int i) => i < entry.Count && entry[i] is JsonValue v && v.TryGetValue<int>(out var n) ? n : 0;
+        return new RoomSettings(CleanTypes.FromJdm(At(IndexCleanType)), CleaningStrategies.FromJdm(At(IndexStrategy)),
+            WaterLevels.FromJdm(At(IndexWater)), At(IndexMopPasses) >= 1 ? 2 : 1);
+    }
 }
 
 /// <summary>One room of a clean request: which zone, how, in which order.</summary>
-public sealed record RoomSelection(string ZoneId, CleanType CleanType, int Order);
+public sealed record RoomSelection(string ZoneId, RoomSettings Settings, int Order);
 
 /// <summary>
 /// The start sequence of the official app, reproduced from captures. Four messages on two topics:
 /// preferences, START, current map, room list. The room_preference arrays are taken from the
-/// robot's own get_preference so unknown indices stay untouched; only the clean type (index 3),
-/// the selection flag (index 8) and the order (index 10) are rewritten.
+/// robot's own get_preference so unknown indices stay untouched; only the room settings (indices 3
+/// to 6, see <see cref="RoomSettings"/>), the selection flag (index 8) and the order (index 10) of
+/// the chosen rooms are rewritten, as the phone does.
 /// </summary>
 public static class CleaningSequence
 {
-    public const int IndexCleanType = 3;
     public const int IndexSelected = 8;
     public const int IndexOrder = 10;
 
@@ -130,7 +198,7 @@ public static class CleaningSequence
             var id = arr[0]?.GetValue<int>().ToString(CultureInfo.InvariantCulture) ?? "";
             if (bySelection.TryGetValue(id, out var sel))
             {
-                arr[IndexCleanType] = sel.CleanType.ToJdm();
+                sel.Settings.WriteTo(arr);
                 arr[IndexSelected] = 1;
                 arr[IndexOrder] = sel.Order;
             }

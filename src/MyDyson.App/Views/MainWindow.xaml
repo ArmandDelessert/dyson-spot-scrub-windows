@@ -120,87 +120,7 @@
                                 </TextBlock>
                             </StackPanel>
 
-                            <ItemsControl ItemsSource="{Binding Zones}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type vm:ZoneItem}">
-                                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,6" Margin="0,0,0,2">
-                                            <StackPanel>
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="22"/>
-                                                        <ColumnDefinition/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding OrderText}" FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
-                                                    <CheckBox Grid.Column="1" IsChecked="{Binding Selected}">
-                                                        <TextBlock TextTrimming="CharacterEllipsis">
-                                                            <Run Text="{Binding DisplayName, Mode=OneWay}"/>
-                                                            <Run Text="{Binding Area, Mode=OneWay, StringFormat='({0:F1} m²)'}" Foreground="{DynamicResource MutedBrush}"/>
-                                                        </TextBlock>
-                                                    </CheckBox>
-                                                    <ToggleButton Grid.Column="2" IsChecked="{Binding IsExpanded}" Width="22" Height="20" Padding="0" Cursor="Hand"
-                                                                  AutomationProperties.Name="{Binding DisplayName, StringFormat='Réglages de {0}'}">
-                                                        <ToggleButton.Style>
-                                                            <Style TargetType="ToggleButton">
-                                                                <Setter Property="Content" Value="▸"/>
-                                                                <Setter Property="Template">
-                                                                    <Setter.Value>
-                                                                        <ControlTemplate TargetType="ToggleButton">
-                                                                            <Border x:Name="Bd" Background="Transparent" CornerRadius="3" BorderThickness="1" BorderBrush="Transparent">
-                                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                                                  TextElement.Foreground="{DynamicResource MutedBrush}"/>
-                                                                            </Border>
-                                                                            <ControlTemplate.Triggers>
-                                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
-                                                                                </Trigger>
-                                                                                <Trigger Property="IsKeyboardFocused" Value="True">
-                                                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                                                                </Trigger>
-                                                                            </ControlTemplate.Triggers>
-                                                                        </ControlTemplate>
-                                                                    </Setter.Value>
-                                                                </Setter>
-                                                                <Style.Triggers>
-                                                                    <Trigger Property="IsChecked" Value="True">
-                                                                        <Setter Property="Content" Value="▾"/>
-                                                                    </Trigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </ToggleButton.Style>
-                                                    </ToggleButton>
-                                                </Grid>
-
-                                                <TextBlock Text="{Binding Summary}" Style="{StaticResource Muted}" FontSize="11" Margin="22,2,0,0"
-                                                           Visibility="{Binding IsExpanded, Converter={StaticResource Collapse}}"/>
-
-                                                <StackPanel Visibility="{Binding IsExpanded, Converter={StaticResource Show}}">
-                                                    <ComboBox ItemsSource="{x:Static vm:ZoneItem.CleanTypeOptions}" SelectedItem="{Binding SelectedCleanType}" FontSize="12" Margin="22,4,0,0">
-                                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
-                                                    </ComboBox>
-                                                    <ComboBox ItemsSource="{x:Static vm:ZoneItem.StrategyOptions}" SelectedItem="{Binding SelectedStrategy}" FontSize="12" Margin="22,4,0,0"
-                                                              Visibility="{Binding HasVacuum, Converter={StaticResource Show}}">
-                                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
-                                                    </ComboBox>
-                                                    <Grid Margin="22,4,0,0" Visibility="{Binding HasMop, Converter={StaticResource Show}}">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition/>
-                                                            <ColumnDefinition Width="8"/>
-                                                            <ColumnDefinition/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <ComboBox ItemsSource="{x:Static vm:ZoneItem.WaterLevelOptions}" SelectedItem="{Binding SelectedWaterLevel}" FontSize="12" Margin="0">
-                                                            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
-                                                        </ComboBox>
-                                                        <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:ZoneItem.MopPassesOptions}" SelectedItem="{Binding SelectedMopPasses}" FontSize="12" Margin="0">
-                                                            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
-                                                        </ComboBox>
-                                                    </Grid>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding Zones}" ItemTemplate="{StaticResource RoomSettingsRow}"/>
                             <!-- Disabled until a room is ticked and the robot can take a job. The
                                  tooltip shows while disabled (WPF hides tooltips there by default),
                                  which is what turns a dead button into an explanation. -->
@@ -343,6 +263,68 @@
                             <controls:MapView x:Name="HistoryCanvas" Scene="{Binding Scene}" AutomationProperties.Name="Trajet du nettoyage sélectionné"/>
                         </DockPanel>
                     </Grid>
+                </TabItem>
+
+                <TabItem Header="Horaires" DataContext="{Binding Schedules}">
+                    <DockPanel Margin="0,8,0,0">
+                        <StackPanel DockPanel.Dock="Top">
+                            <TextBlock Text="{Binding Heading}" Style="{StaticResource Section}"/>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11">
+                                Le robot garde les horaires avec leur carte et n'exécute que ceux de la carte active. Il ne permet pas de les relire :
+                                cette liste montre ceux créés depuis cette application, ceux de l'application mobile n'y apparaissent pas.
+                            </TextBlock>
+                            <TextBlock Text="{Binding RobotCountText}" Margin="0,8,0,0"/>
+                            <Border Background="{DynamicResource CardBrush}" CornerRadius="4" Padding="10,6" Margin="0,8,0,0"
+                                    Visibility="{Binding SyncNotice, Converter={StaticResource Show}}">
+                                <TextBlock Text="{Binding SyncNotice}" TextWrapping="Wrap"/>
+                            </Border>
+                            <WrapPanel Margin="0,10,0,2">
+                                <Button Content="Nouvel horaire…" Command="{Binding NewCommand}" ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="Planifie un nettoyage de la carte active ; le robot doit être connecté."/>
+                            </WrapPanel>
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                            <TextBlock Text="{Binding OtherMapsText}" Style="{StaticResource Muted}"/>
+                            <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Items}" AutomationProperties.Name="Horaires de la carte active">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:ScheduleItem}">
+                                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,8">
+                                            <DockPanel>
+                                                <!-- Checked means the robot will run it; unticking sends the same schedule with enable 0. -->
+                                                <CheckBox DockPanel.Dock="Left" VerticalAlignment="Top" Margin="0,4,10,0"
+                                                          IsChecked="{Binding Enabled, Mode=OneWay}"
+                                                          Command="{Binding DataContext.ToggleCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                          CommandParameter="{Binding}"
+                                                          AutomationProperties.Name="{Binding TimeText, StringFormat='Horaire de {0} activé'}"/>
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                                    <Button Content="Modifier…" Style="{StaticResource Secondary}"
+                                                            Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Content="Supprimer…" Style="{StaticResource Secondary}"
+                                                            Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                                <StackPanel>
+                                                    <TextBlock>
+                                                        <Run Text="{Binding TimeText, Mode=OneWay}" FontSize="17" FontWeight="SemiBold"/>
+                                                        <Run Text="  "/>
+                                                        <Run Text="{Binding DaysText, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding RoomsText}" Style="{StaticResource Muted}"/>
+                                                    <TextBlock Text="{Binding DurationText}" Style="{StaticResource Muted}" FontSize="11"/>
+                                                    <TextBlock Text="{Binding OverlapText}" Foreground="{DynamicResource DangerBrush}" FontSize="11" TextWrapping="Wrap"
+                                                               Visibility="{Binding OverlapText, Converter={StaticResource Show}}"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
                 </TabItem>
 
                 <TabItem Header="Réglages" DataContext="{Binding Settings}">

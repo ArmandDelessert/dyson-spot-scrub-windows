@@ -92,6 +92,18 @@ public partial class ZoneItem : ObservableObject
         _selectedMopPasses = MopPassesOptions.FirstOrDefault(o => o.Value == z.Settings?.MopPasses) ?? MopPassesOptions[0];
     }
 
+    /// <summary>The four choices as the robot takes them, for a clean or a schedule.</summary>
+    public RoomSettings Settings => new(SelectedCleanType.Value, SelectedStrategy.Value, SelectedWaterLevel.Value, SelectedMopPasses.Value);
+
+    /// <summary>Shows settings chosen elsewhere, such as a stored schedule's, instead of the map's own.</summary>
+    public void Apply(RoomSettings s)
+    {
+        SelectedCleanType = CleanTypeOptions.First(o => o.Value == s.CleanType);
+        SelectedStrategy = StrategyOptions.First(o => o.Value == s.Strategy);
+        SelectedWaterLevel = WaterLevelOptions.First(o => o.Value == s.Water);
+        SelectedMopPasses = MopPassesOptions.FirstOrDefault(o => o.Value == s.MopPasses) ?? MopPassesOptions[0];
+    }
+
     /// <summary>The metadata entry with this item's current choices written back, for the REST PUT.</summary>
     public ZoneMetadata ToMetadata() => Metadata with
     {

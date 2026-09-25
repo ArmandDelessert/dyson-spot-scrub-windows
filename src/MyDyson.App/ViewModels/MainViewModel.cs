@@ -11,8 +11,8 @@ namespace MyDyson.App.ViewModels;
 /// The dashboard: connects to the robot, routes what it pushes to the tab view models, and owns
 /// the session's lifetime (refresh timer, logout, expiry, shutdown). The tabs themselves live in
 /// <see cref="StatusViewModel"/>, <see cref="CleaningViewModel"/>, <see cref="HistoryViewModel"/>,
-/// <see cref="SettingsViewModel"/> and <see cref="JournalViewModel"/>, sharing a
-/// <see cref="RobotHub"/>.
+/// <see cref="SchedulesViewModel"/>, <see cref="SettingsViewModel"/> and
+/// <see cref="JournalViewModel"/>, sharing a <see cref="RobotHub"/>.
 /// </summary>
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
@@ -30,6 +30,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public HistoryViewModel History { get; }
     public SettingsViewModel Settings { get; }
     public JournalViewModel Journal { get; }
+    public SchedulesViewModel Schedules { get; }
     /// <summary>What this window draws; unlike the Réglages tab, none of it is sent to the robot.</summary>
     public DisplaySettings Display { get; }
 
@@ -54,6 +55,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         History = new HistoryViewModel(Hub, _maps, Display);
         Settings = new SettingsViewModel(Hub);
         Journal = new JournalViewModel(Hub);
+        Schedules = new SchedulesViewModel(Hub, _maps, ScheduleStore.Load(), () => History.History.Select(c => c.Summary));
 
         _refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _refresh.Tick += async (_, _) => await Hub.RefreshStateAsync();
@@ -97,7 +99,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 Settings.Apply(st);
                 Cleaning.Apply(st);
             });
-            session.Tracker.JdmChanged += jdm => Hub.Post(() => Status.ApplyJdm(jdm));
+            session.Tracker.JdmChanged += jdm => Hub.Post(() =>
+            {
+                Status.ApplyJdm(jdm);
+                Schedules.ApplyJdm(jdm);
+            });
             session.Tracker.CleanPathChanged += path => Hub.Post(() => Cleaning.SetLiveTrail(path));
             session.Tracker.EventReceived += (name, json) => Hub.Post(() =>
             {
@@ -122,6 +128,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _initialLoadDone = true;
             _refresh.Start();
             _ = History.FillDetailsAsync();
+            _ = Schedules.LoadRobotSummaryAsync();
         }
         catch (OperationCanceledException) when (Hub.IsShuttingDown) { }
         catch (Exception ex)
@@ -167,6 +174,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             // otherwise keep showing as they were when first loaded.
             _maps.Invalidate();
             await Task.WhenAll(Hub.RefreshStateAsync(), Hub.RefreshPropertiesAsync(), Cleaning.LoadMapsAsync(), History.LoadAsync());
+            await Schedules.LoadRobotSummaryAsync();
             await History.FillDetailsAsync();
         }
         finally { _reloading = false; }

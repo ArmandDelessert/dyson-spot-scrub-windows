@@ -163,6 +163,12 @@ public sealed class JdmProperties
             ? new DockTimer(type, total, surplus)
             : null;
 
+    /// <summary>
+    /// "order_total": how many schedules the active map has and how many are on, pushed after every
+    /// schedule change and every change of active map.
+    /// </summary>
+    public ScheduleSummary? OrderTotal => ScheduleCommands.ParseSummary(_values.GetValueOrDefault("order_total"));
+
     private bool? GetBool(string name) => GetInt(name) is { } i ? i != 0 : null;
 
     private static int? IntOf(JsonNode? n) => n is JsonValue v && v.TryGetValue<int>(out var i) ? i : null;

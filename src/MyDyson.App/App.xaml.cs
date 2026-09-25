@@ -118,6 +118,13 @@ public partial class App : Application
                             await Task.Delay(TimeSpan.FromSeconds(6));
                             await Dispatcher.InvokeAsync(() => main.SaveMapManagerScreenshot(args[shot + 1]));
                         }
+                        // --edit-schedule, likewise, shoots the editor of a new schedule.
+                        else if (Array.IndexOf(args, "--edit-schedule") >= 0)
+                        {
+                            await Dispatcher.InvokeAsync(() => main.OpenScheduleEditorForScreenshot());
+                            await Task.Delay(TimeSpan.FromSeconds(2));
+                            await Dispatcher.InvokeAsync(() => main.SaveScheduleEditorScreenshot(args[shot + 1]));
+                        }
                         else
                         {
                             await Dispatcher.InvokeAsync(() => main.SaveScreenshot(args[shot + 1]));

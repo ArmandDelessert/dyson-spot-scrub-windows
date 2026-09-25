@@ -46,7 +46,11 @@ public class CleaningSequenceTests
     public async Task PublishesTheFourMessagesOfTheOfficialAppInOrder()
     {
         var robot = new RecordingRobot(PreferenceReply);
-        RoomSelection[] rooms = [new("12", CleanType.Vacuum, Order: 2), new("10", CleanType.VacuumThenMop, Order: 1)];
+        RoomSelection[] rooms =
+        [
+            new("12", new RoomSettings(CleanType.Vacuum), Order: 2),
+            new("10", new RoomSettings(CleanType.VacuumThenMop, CleaningStrategy.Quiet, WaterLevel.High, MopPasses: 2), Order: 1),
+        ];
 
         await CleaningSequence.StartAsync(robot, MapId, rooms);
 
@@ -54,14 +58,14 @@ public class CleaningSequenceTests
             ["service.get_preference", "service.set_preference", "START", "service.set_cur_map", "service.set_room_clean"],
             robot.Sent.Select(m => m.Method));
         AssertJson("""{"map_id":1000000002}""", robot.Sent[0].Payload);
-        // Only indices 3 (clean type), 8 (selected) and 10 (order) change; the twelfth element is
-        // dropped because the app publishes eleven. Couloir keeps its type and order but is
-        // deselected, Pièce1 stays all zeros.
+        // The chosen rooms get their settings (indices 3 to 6), 8 (selected) and 10 (order); the
+        // twelfth element is dropped because the app publishes eleven. Couloir keeps its type and
+        // order but is deselected, Pièce1 stays all zeros.
         AssertJson("""
             {"map_id":1000000002,"prefer_type":1,
              "room_preference":[[12,"Chambre",0,0,0,0,0,0,1,0,2],
                                 [13,"Couloir",0,1,0,0,0,0,0,0,2],
-                                [10,"Cuisine",0,3,0,1,1,0,1,0,1],
+                                [10,"Cuisine",0,3,2,2,1,0,1,0,1],
                                 [15,"Pièce1",0,0,0,0,0,0,0,0,0]],
              "uv_switch":[]}
             """, robot.Sent[1].Payload);
@@ -84,7 +88,7 @@ public class CleaningSequenceTests
               "uv_switch":[[11,1],[14,0]]}}
             """);
 
-        await CleaningSequence.StartAsync(robot, MapId, [new("14", CleanType.Mop, Order: 1)]);
+        await CleaningSequence.StartAsync(robot, MapId, [new("14", new RoomSettings(CleanType.Mop), Order: 1)]);
 
         AssertJson("""
             {"map_id":1000000002,"prefer_type":1,

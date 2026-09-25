@@ -24,7 +24,8 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Modèle d'état typé, corrélation requête-réponse | fonctionne |
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
-| Tests unitaires | 154 tests, exécutés en CI |
+| Horaires (création, modification, suppression) | messages identiques aux captures, pas encore essayés depuis cette application |
+| Tests unitaires | 189 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -78,8 +79,8 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   Une pièce cochée déplie ses réglages : type de nettoyage, mode de l'aspirateur (masqué si le type
   est « Laver » seul), et si le type inclut la serpillière, niveau d'hydratation et nombre de
   passages. Une pièce non cochée reste repliée avec un résumé d'une ligne, et peut être dépliée à la
-  main pour consultation sans être sélectionnée. Le tout est enregistré côté cloud pour que
-  l'application mobile le voie aussi.
+  main pour consultation sans être sélectionnée. Le tout part au robot au lancement, et est
+  enregistré côté cloud pour que l'application mobile le voie aussi.
 - **Station** : « Vider le collecteur » et « Laver et sécher », qui devient l'arrêt de l'action en cours.
 - **Consommables** : durée de vie restante, à remplacer à zéro, comme dans l'application.
 - **Notifications** : une notification Windows à la fin d'un nettoyage, ou si une pièce sélectionnée
@@ -117,6 +118,15 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   et fusionner — un premier clic sur « Fusionner » permet de choisir plusieurs pièces, sur la carte
   ou dans la liste, un second les fusionne. Un clic dans le vide de la carte efface le choix. Voir
   « Limites connues » pour ce que le robot ne permet pas.
+- **Horaires** : les nettoyages planifiés de la carte active, dans leur ordre dans la journée, avec
+  les jours, les pièces, une durée estimée d'après l'historique et un avertissement quand un horaire
+  risque de tomber pendant le précédent (le robot saute alors le second, comme le signale
+  l'application mobile). Créer, modifier, activer ou désactiver d'une case, supprimer. L'éditeur
+  reprend les réglages par pièce du panneau Nettoyage : ordre de passage, type de nettoyage,
+  puissance, eau et passages pour chaque pièce, plus l'heure et les jours. Le robot ne rend jamais
+  le détail d'un horaire, seulement leur nombre : l'onglet ne montre donc que ceux créés depuis
+  cette application (retenus dans `%APPDATA%\MyDyson\schedules.json`), et signale quand le robot en
+  compte davantage, ceux du téléphone.
 - **Réglages** : les mêmes libellés que l'application Android, en trois groupes : lavage, station,
   vocaux. Chaque réglage part au robot dans les deux dialectes.
 - **Journal** : les événements notables du robot et le résultat des commandes envoyées depuis la
@@ -132,11 +142,14 @@ poussées : elles sont chargées au démarrage, sur le bouton « Actualiser », 
 connexion revient après une coupure, ce qui couvre le retour de veille de la machine. La carte
 consultée et les pièces cochées survivent à un rechargement.
 
-Deux options de ligne de commande servent à la vérification sans écran et à la documentation :
+Des options de ligne de commande servent à la vérification sans écran et à la documentation
+(`--manage-maps` photographie la fenêtre « Gérer les cartes », `--edit-schedule` l'éditeur
+d'horaire) :
 
 ```bash
 MyDyson.App.exe --export-map carte.png
 MyDyson.App.exe --screenshot ecran.png --after 15 --tab 0 --theme light --zones 11,13
+MyDyson.App.exe --screenshot editeur.png --after 15 --edit-schedule
 ```
 
 WPF a été préféré à WinUI 3 parce qu'il se compile et se lance sans outillage supplémentaire sur
@@ -158,19 +171,21 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
 - `MyDyson.App` : application WPF. `MapRenderer` dessine la scène pour l'écran et l'export PNG,
   `RobotContext` porte la session. `MainViewModel` connecte le robot et distribue ce qu'il pousse aux
   modèles de vue d'onglet (`StatusViewModel`, `CleaningViewModel`, `HistoryViewModel`,
-  `SettingsViewModel`, `JournalViewModel`), qui partagent un `RobotHub` (session, journal,
-  envoi de commandes, annulation à la fermeture) et un `MapCatalog` (cartes, géométrie, grille).
+  `SchedulesViewModel`, `SettingsViewModel`, `JournalViewModel`), qui partagent un `RobotHub`
+  (session, journal, envoi de commandes, annulation à la fermeture) et un `MapCatalog` (cartes,
+  géométrie, grille). `ScheduleStore` retient les horaires créés, que le robot ne rend pas.
 - `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `maps`, `map`, `live`, `history`,
   `clean`, `send`, `api`, `probe`, `wstest`.
 - `tests/MyDyson.Core.Tests` : casse des requêtes, signature SigV4, nom d'utilisateur MQTT, modèle
   d'état des deux dialectes (dont le tracé `cur_path` et les propriétés jdm de la station), formes
   JSON des réponses REST, préférences de pièces, libellés de pièces et de résultats, grille
-  d'occupation, messages exacts de la séquence de démarrage, attente entre deux reconnexions.
+  d'occupation, messages exacts de la séquence de démarrage, attente entre deux reconnexions,
+  horaires relus puis réécrits à l'identique des messages capturés.
 - `tests/MyDyson.App.Tests` : géométrie de la scène (bornes, dock sentinelle, pièce sous un point,
   découpage du trajet par action) et les modèles de vue, branchés sur des réponses HTTP simulées :
   texte d'état et compte à rebours de séchage, numérotation des pièces choisies et sa conservation
   au rechargement, pièces d'un nettoyage passé, partage du téléchargement de détail, réglages qui
-  ne renvoient pas au robot ce qu'il vient d'annoncer.
+  ne renvoient pas au robot ce qu'il vient d'annoncer, éditeur d'horaires et liste retenue.
 
 L'effort de test porte d'abord sur ce qui a été retrouvé par rétro-ingénierie et qu'aucune
 documentation ne permettrait de retrouver : formes exactes des messages, correspondances entre
