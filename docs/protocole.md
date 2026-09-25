@@ -248,8 +248,11 @@ toutes les valeurs) :
 
 Les indices 7, 9 et 11 sont toujours à 0. Une pièce lavée seulement garde sa puissance à 0, une
 pièce aspirée seulement son eau et ses passages à 0. `uv_switch`, qui accompagne la liste avec une
-paire `[zone, valeur]` par pièce, vaut 0 pour toute pièce où la serpillière passe et 1 pour les
-autres, dans toutes les captures : il se déduit du type de nettoyage.
+paire `[zone, valeur]` par pièce, vaut 0 pour toute pièce où la serpillière passe dans tous les
+horaires capturés, et 1 pour les autres. Ce n'est pourtant pas une simple conséquence du type : au
+démarrage d'un nettoyage le 19 septembre, une pièce aspirée seulement (« Cave », en Silencieux)
+est partie avec 0. C'est vraisemblablement le réglage REST `isUvScanOn` de la pièce, que le
+téléphone coupe quand il lave.
 
 Côté REST, `settings.cleanType` prend `vacuum`, `mop`, `vacuumAndMop`, `vacuumThenMop` ; la
 stratégie `auto`, `quick`, `quiet`, `boost` ; le niveau d'eau `low`, `medium`, `high` (l'application
@@ -726,7 +729,8 @@ Les horaires vivent dans le robot, pas dans le cloud, et **chacun appartient à 
 - `room_count` est le nombre de pièces de la carte, pas celui des pièces retenues ; toutes figurent
   dans `room_preference` (douze éléments chacune, voir `service.get_preference`), les pièces
   retenues d'abord dans leur ordre de passage compté à partir de 0, les autres ensuite. Le nom est
-  envoyé en chaîne simple, l'indice 2 à 0. `uv_switch` accompagne chaque pièce, 0 si elle est lavée.
+  envoyé en chaîne simple, l'indice 2 à 0. `uv_switch` accompagne chaque pièce : 0 si elle est
+  lavée, 1 sinon, dans tous les horaires capturés.
 - `is_global` reste à 0 même quand toutes les pièces sont cochées une à une, sur une carte de six
   pièces comme sur une carte de deux (captures des 25 et 26 septembre) ; l'application Android n'a
   pas de bouton « toute la maison » pour les horaires. `prefer_type` vaut toujours 1 et `areas`
