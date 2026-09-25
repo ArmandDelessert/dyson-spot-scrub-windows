@@ -637,20 +637,50 @@ La réponse reprend dans son second `map_type` le type de la zone ajoutée en de
 
 `furniture_list` est une **chaîne** contenant du JSON (double encodage) :
 `[[index, code, 1, x1, y1, x2, y2, x3, y3, x4, y4], …]`, liste complète à chaque appel, `"[]"` pour
-tout effacer. Pas de `map_id` : l'appel porte sur la carte active. `persistent-maps` restitue les
-meubles sous `furniture`, `{id, type, userDefined, points}`. Correspondances établies par les
-coordonnées le 23 septembre :
+tout effacer. Pas de `map_id` : l'appel porte sur la carte active. L'appel porte aussi
+`timestamp` et `package: [1, 1]`, vraisemblablement le découpage d'une longue liste en plusieurs
+messages (partie, nombre de parties) ; une liste de 22 meubles tient encore dans un seul.
 
-| jdm `code` | REST `type` | Meuble de l'application |
-|---|---|---|
-| 1516 | `refrigerator` | Réfrigérateur |
-| 1524 | `washingMachine` | Laveuse (lave-linge) |
-| 1608 | `cabinetWithStove` | Cuisinière |
+`persistent-maps` restitue les meubles sous `furniture`, `{id, type, userDefined, points}`. L'`id`
+REST est l'`index` jdm, et les points sont les mêmes, dans le même ordre. Correspondances établies
+le 25 septembre en déplaçant un meuble sur une carte qui les porte tous (le téléphone renvoie alors
+la liste complète), complétées par la capture du 23 septembre :
 
-D'autres codes ont été vus sans correspondance établie : 1512, 1525, 1526, 1527, 1528.
+| jdm `code` | REST `type` | Meuble | Dimensions observées (m) |
+|---|---|---|---|
+| 1511 | `diningTableAndChairs` | table et chaises | 1,4 × 2,0 |
+| 1512 | `twoSeaterSofa` | canapé deux places | 1,1 × 1,8 |
+| 1513 | `doubleBed` | lit double | 2,1 × 1,8 |
+| 1514 | `toilet` | toilettes | 0,7 × 0,5 |
+| 1515 | `cabinet` | meuble | 0,9 × 2,1 |
+| 1516 | `refrigerator` | réfrigérateur | 0,8 × 0,8 |
+| 1518 | `squareCoffeeTable` | table basse carrée | 0,5 × 1,1 |
+| 1519 | `bedsideTable` | table de chevet | 0,6 × 0,8 |
+| 1520 | `tvStand` | meuble TV | 0,6 × 2,3 |
+| 1524 | `washingMachine` | lave-linge | 1,0 × 0,9 |
+| 1525 | `threeSeaterSofa` | canapé trois places | 1,1 × 2,5 |
+| 1526 | `lShapedSofaLeft` | canapé d'angle, à gauche | 1,7 × 2,4 |
+| 1527 | `lShapedSofaRight` | canapé d'angle, à droite | 1,8 × 2,4 |
+| 1528 | `singleSeaterSofa` | fauteuil | 1,0 × 0,9 |
+| 1601 | `singleBed` | lit simple | 2,1 × 1,2 |
+| 1602 | `roundCoffeeTable` | table basse ronde | 1,1 × 1,1 |
+| 1603 | `desk` | bureau | 1,4 × 1,6 |
+| 1604 | `storageCabinet` | meuble de rangement | 0,4 × 1,4 |
+| 1605 | `shoeCabinet` | meuble à chaussures | 0,4 × 1,4 |
+| 1606 | `wardrobe` | armoire | 1,0 × 1,8 |
+| 1607 | `bookshelf` | bibliothèque | 0,4 × 1,4 |
+| 1608 | `cabinetWithStove` | meuble avec cuisinière | 0,6 × 0,6 |
+| 1613 | `indoorPlant` | plante | 0,5 × 0,5 |
+| 1614 | `standingMirror` | miroir sur pied | 0,5 × 0,7 |
 
-La rotation de la carte, faite pendant la même capture, n'a produit aucun message MQTT : elle
-passe vraisemblablement par l'API REST, que les captures ne voient pas.
+Les dimensions sont les côtés (point 1 → 2, puis 2 → 3) des meubles tels qu'ils étaient posés :
+celles par défaut du téléphone, sauf si le meuble avait été redimensionné. Les codes forment deux
+séries, 15xx et 16xx, avec des trous (1517, 1521 à 1523, 1609 à 1612) qu'aucun meuble proposé par
+l'application n'occupe. L'application Android contient les noms de trois autres meubles
+(`lShapeCabinetLeft`, `lShapeCabinetRight`, `uShapeCabinet`) sans les proposer ; leurs codes sont
+inconnus, un client ne doit jamais envoyer un code qu'il n'a pas vu.
+
+La rotation de la carte ne passe pas par MQTT : voir « Orientation de la carte » plus bas.
 
 `service.set_cur_map` change la carte active du compte, exactement l'action du sélecteur de carte
 de l'application mobile ; c'est aussi la première étape de tout nettoyage par pièce (voir plus
@@ -663,7 +693,7 @@ modification le robot émet `event.map_change.post` puis le cloud confirme sur `
 
 ## Horaires
 
-Les horaires vivent dans le robot, pas dans le cloud.
+Les horaires vivent dans le robot, pas dans le cloud, et **chacun appartient à une carte**.
 
 ```json
 { "method": "service.add_order", "params": {
@@ -673,9 +703,37 @@ Les horaires vivent dans le robot, pas dans le cloud.
 }}
 ```
 
-`service.del_order` avec `{id}` supprime. `service.get_order` renvoie un résumé
-`order_data_lite` avec `total`, `enable`, `timestamp` et `md5`. `time_zone` est un décalage en
-secondes, calculé par l'application, 3600 correspondant à Londres en heure d'été.
+- `id` est choisi par l'application (un entier aléatoire). Renvoyer `add_order` avec le même `id`
+  **remplace** l'horaire : c'est ainsi que l'application le modifie, et qu'elle l'active ou le
+  désactive (`enable` 1 ou 0, tout le reste renvoyé tel quel). Réponse `{result: 0}`.
+- `service.del_order` `{id}` supprime.
+- `day` : 1, 2, 32 pour des horaires d'un seul jour, 6 pour un horaire de plusieurs jours, ce qui
+  désigne un masque de bits, un bit par jour de la semaine. L'ordre des bits reste à confirmer.
+- `repeat` vaut toujours 1 : l'application Android exige au moins un jour et ne propose pas
+  d'horaire ponctuel. Une valeur 0 n'a jamais été essayée.
+- `room_count` est le nombre de pièces de la carte, pas celui des pièces retenues ; toutes figurent
+  dans `room_preference`, avec les mêmes indices qu'au démarrage d'un nettoyage (3 le mode, 8 la
+  pièce retenue, 10 l'ordre de passage, ici compté à partir de 0). `uv_switch` accompagne chaque
+  pièce.
+- `is_global` reste à 0 même quand toutes les pièces sont cochées une à une (capture du 25
+  septembre) ; l'application Android n'a pas de bouton « toute la maison » pour les horaires.
+  `prefer_type` vaut toujours 1 et `areas` est toujours vide.
+- `time_zone` est un décalage en secondes, calculé par l'application à partir du fuseau du robot :
+  3600 correspond à Londres en heure d'été, le fuseau enregistré côté cloud (voir plus bas).
+
+Après chaque changement le robot publie `prop.post` `order_total {total, enable}` : le nombre
+d'horaires **de la carte active** et le nombre de ceux qui sont activés. Changer de carte active
+publie aussi `order_total` pour la nouvelle carte ; revenir sur la première retrouve ses horaires
+intacts.
+
+**Aucun moyen de relire les horaires eux-mêmes n'a été trouvé.** `service.get_order` `{}` ne
+renvoie que `order_data_lite {total, enable, timestamp, md5}`, y compris quand la carte active
+porte des horaires (capture du 25 septembre, et appel direct le même jour : `total` 3,
+`enable` 2). Le téléphone n'envoie aucune autre requête et affiche pourtant ses horaires : il les
+garde donc de son côté. Le `md5` change avec le contenu (celui d'une liste vide est
+`6a8ad4dbe08d69c27dbb2b53c97da3f8`) mais ne correspond à aucune sérialisation évidente. Côté REST,
+`/v1/unifiedscheduler/{serial}/events` répond 404 et `…/app/schedule.bin` renvoie un fichier
+binaire de 54 octets sans lien apparent avec ces horaires ; ils servent vraisemblablement à d'autres produits Dyson.
 
 ## Fuseau horaire
 
@@ -706,6 +764,16 @@ Tous vérifiés le 19 septembre 2026.
 
 Les batteries de l'historique arrivent en nombres à virgule (`91.0`), pas en entiers. La grille est
 de 320 × 420 cellules de 5 cm pour un logement de 16 m sur 21 m.
+
+### Orientation de la carte
+
+La rotation d'une carte depuis le téléphone ne produit aucun message MQTT (captures du 23 et du 25
+septembre). Elle apparaît dans `persistent-maps/{mapId}` sous `orientation`, en degrés : 0 pour
+toutes les cartes jamais tournées, 90 pour « Test 2 » après un quart de tour le 25 septembre. Le
+sens de rotation que désigne 90 reste à établir, comme les autres valeurs (vraisemblablement 180 et
+270). L'application Android connaît un type `RotationAngleDegree` et un message d'échec
+« rotateMap », mais l'adresse REST qu'elle appelle pour écrire l'orientation n'est pas connue :
+ses échanges HTTPS ne sont pas capturés.
 
 ### Grille d'occupation
 
