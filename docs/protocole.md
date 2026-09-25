@@ -230,26 +230,33 @@ Indice 0 l'identifiant de zone, indice 1 le nom. Ce nom est soit une chaîne sim
 JSON encodé contenant `type` et `name` pour les pièces auxquelles l'utilisateur a attribué un type.
 Tout code lisant ce champ doit gérer les deux formes.
 
-Indices établis en croisant les `set_preference` capturés avec les réglages REST des zones :
+Indices établis en croisant les `set_preference` et les `add_order` capturés avec ce qu'affichait
+l'application (captures des 19 et 25 septembre, dont deux horaires réglés exprès pour couvrir
+toutes les valeurs) :
 
 | Indice | Contenu | Valeurs |
 |---|---|---|
-| 3 | type de nettoyage | 0 aspiration, 1 aspiration et lavage (capturés) ; 2 lavage seul, 3 aspiration puis lavage (d'après ha-dyson-spot-scrub) |
-| 8 | pièce retenue pour ce nettoyage | 0 ou 1 |
-| 10 | ordre de passage | 1, 2, 3… |
+| 0 | identifiant de zone | |
+| 1 | nom | chaîne simple ou objet JSON encodé, voir ci-dessus |
+| 2 | renvoyé par le robot, remis à 0 par l'application | 2 pour une salle de bain, 3 pour une cuisine |
+| 3 | type de nettoyage | 0 aspirer, 1 aspirer et laver, 2 laver, 3 aspirer puis laver |
+| 4 | puissance d'aspiration | 0 Auto, 1 Boost, 2 Silencieux, 3 Rapide |
+| 5 | niveau d'eau | 0 Faible, 1 Moyen, 2 Élevé |
+| 6 | passages de lavage | 0 un passage, 1 deux passages |
+| 8 | pièce retenue | 0 ou 1 |
+| 10 | ordre de passage | 1, 2, 3… au démarrage ; 0, 1, 2… dans un horaire |
 
-L'indice 2 est renvoyé par le robot (2 pour une salle de bain, 3 pour une cuisine) et remis à 0 par
-l'application. Les autres indices portent vraisemblablement le niveau d'eau, le nombre de passages
-et la stratégie, non identifiés. Un client doit réécrire les seuls indices connus et renvoyer le
-reste tel quel.
+Les indices 7, 9 et 11 sont toujours à 0. Une pièce lavée seulement garde sa puissance à 0, une
+pièce aspirée seulement son eau et ses passages à 0. `uv_switch`, qui accompagne la liste avec une
+paire `[zone, valeur]` par pièce, vaut 0 pour toute pièce où la serpillière passe et 1 pour les
+autres, dans toutes les captures : il se déduit du type de nettoyage.
 
-Côté REST, `settings.cleanType` prend `vacuum`, `mop`, `vacuumAndMop`, `vacuumThenMop` ; l'application
-connaît aussi une stratégie (`auto`, `quick`, `quiet`, `boost`), un niveau d'eau (`veryLow`, `low`,
-`medium`, `high`) et un nombre de passages (1 ou 2). `PUT /v2/app/{serial}/persistent-map-metadata/{mapId}`
-avec la liste des zones enregistre ces réglages côté cloud. La stratégie et le niveau d'eau n'ont
-pas d'équivalent connu dans les tableaux `room_preference` du jdm ; seul le type de nettoyage
-(indice 3) y figure. Ce sont donc des réglages purement REST, invisibles pour un client qui n'écoute
-que le MQTT.
+Côté REST, `settings.cleanType` prend `vacuum`, `mop`, `vacuumAndMop`, `vacuumThenMop` ; la
+stratégie `auto`, `quick`, `quiet`, `boost` ; le niveau d'eau `low`, `medium`, `high` (l'application
+connaît aussi `veryLow`, jamais proposé) ; le nombre de passages 1 ou 2.
+`PUT /v2/app/{serial}/persistent-map-metadata/{mapId}` avec la liste des zones enregistre ces
+réglages côté cloud ; le téléphone les recopie aussi dans les indices 3 à 6 du `set_preference`
+qu'il envoie au démarrage d'un nettoyage.
 
 ### Le nom stocké n'est pas toujours le nom affiché
 
@@ -631,7 +638,10 @@ création :
 | 12 | `brushBarOff` | Lavage uniquement | nettoyage sans la brosse |
 | 6 | `noMop` | Aspirateur uniquement | nettoyage sans laver |
 
-La réponse reprend dans son second `map_type` le type de la zone ajoutée en dernier.
+La réponse reprend dans son second `map_type` le type de la zone ajoutée en dernier. Le téléphone
+donne les coins d'un rectangle droit dans l'ordre haut-gauche, bas-gauche, bas-droite, haut-droite
+(y vers le haut), et renvoie les zones existantes telles que `persistent-maps` les restitue : elles
+glissent d'un centimètre ou deux d'un envoi à l'autre, vraisemblablement recalées par le robot.
 
 ### Meubles (`adjust_furniture`)
 
@@ -707,17 +717,20 @@ Les horaires vivent dans le robot, pas dans le cloud, et **chacun appartient à 
   **remplace** l'horaire : c'est ainsi que l'application le modifie, et qu'elle l'active ou le
   désactive (`enable` 1 ou 0, tout le reste renvoyé tel quel). Réponse `{result: 0}`.
 - `service.del_order` `{id}` supprime.
-- `day` : 1, 2, 32 pour des horaires d'un seul jour, 6 pour un horaire de plusieurs jours, ce qui
-  désigne un masque de bits, un bit par jour de la semaine. L'ordre des bits reste à confirmer.
+- `day` est un masque de bits, lundi en premier : lundi 1, mardi 2, mercredi 4, jeudi 8,
+  vendredi 16, samedi 32, dimanche 64. Établi le 26 septembre avec un horaire lundi + jeudi +
+  dimanche (73) ; les autres horaires capturés s'y lisent de même (6 mardi + mercredi, 20
+  mercredi + vendredi, 127 tous les jours).
 - `repeat` vaut toujours 1 : l'application Android exige au moins un jour et ne propose pas
   d'horaire ponctuel. Une valeur 0 n'a jamais été essayée.
 - `room_count` est le nombre de pièces de la carte, pas celui des pièces retenues ; toutes figurent
-  dans `room_preference`, avec les mêmes indices qu'au démarrage d'un nettoyage (3 le mode, 8 la
-  pièce retenue, 10 l'ordre de passage, ici compté à partir de 0). `uv_switch` accompagne chaque
-  pièce.
-- `is_global` reste à 0 même quand toutes les pièces sont cochées une à une (capture du 25
-  septembre) ; l'application Android n'a pas de bouton « toute la maison » pour les horaires.
-  `prefer_type` vaut toujours 1 et `areas` est toujours vide.
+  dans `room_preference` (douze éléments chacune, voir `service.get_preference`), les pièces
+  retenues d'abord dans leur ordre de passage compté à partir de 0, les autres ensuite. Le nom est
+  envoyé en chaîne simple, l'indice 2 à 0. `uv_switch` accompagne chaque pièce, 0 si elle est lavée.
+- `is_global` reste à 0 même quand toutes les pièces sont cochées une à une, sur une carte de six
+  pièces comme sur une carte de deux (captures des 25 et 26 septembre) ; l'application Android n'a
+  pas de bouton « toute la maison » pour les horaires. `prefer_type` vaut toujours 1 et `areas`
+  est toujours vide.
 - `time_zone` est un décalage en secondes, calculé par l'application à partir du fuseau du robot :
   3600 correspond à Londres en heure d'été, le fuseau enregistré côté cloud (voir plus bas).
 
@@ -733,7 +746,18 @@ porte des horaires (capture du 25 septembre, et appel direct le même jour : `to
 garde donc de son côté. Le `md5` change avec le contenu (celui d'une liste vide est
 `6a8ad4dbe08d69c27dbb2b53c97da3f8`) mais ne correspond à aucune sérialisation évidente. Côté REST,
 `/v1/unifiedscheduler/{serial}/events` répond 404 et `…/app/schedule.bin` renvoie un fichier
-binaire de 54 octets sans lien apparent avec ces horaires ; ils servent vraisemblablement à d'autres produits Dyson.
+binaire de 54 octets sans lien apparent avec ces horaires ; ils servent vraisemblablement à
+d'autres produits Dyson.
+
+Quand deux horaires d'une même carte sont proches, l'application Android avertit : « Ce programme
+ne commencera pas si le programme précédent est toujours en cours ». C'est donc le robot qui
+arbitre, et l'application qui estime la durée d'un nettoyage. Elle dispose pour cela de
+`/v2/app/{serial}/persistent-maps/{mapId}/clean-estimation`, qui renvoie `durationMinutes` mais
+refuse un `GET` (405) : il attend un corps décrivant les pièces, dont la forme n'est pas connue.
+
+Reste à vérifier sur le robot lui-même à quelle heure locale part un horaire : l'application
+envoie le décalage de Londres (3600 en été), le fuseau du cloud, alors que le logement des captures
+vit à l'heure d'Europe centrale (7200 en été).
 
 ## Fuseau horaire
 
@@ -769,11 +793,12 @@ de 320 × 420 cellules de 5 cm pour un logement de 16 m sur 21 m.
 
 La rotation d'une carte depuis le téléphone ne produit aucun message MQTT (captures du 23 et du 25
 septembre). Elle apparaît dans `persistent-maps/{mapId}` sous `orientation`, en degrés : 0 pour
-toutes les cartes jamais tournées, 90 pour « Test 2 » après un quart de tour le 25 septembre. Le
-sens de rotation que désigne 90 reste à établir, comme les autres valeurs (vraisemblablement 180 et
-270). L'application Android connaît un type `RotationAngleDegree` et un message d'échec
-« rotateMap », mais l'adresse REST qu'elle appelle pour écrire l'orientation n'est pas connue :
-ses échanges HTTPS ne sont pas capturés.
+toutes les cartes jamais tournées, 90 pour « Test 2 » après un quart de tour le 25 septembre.
+L'application Android n'a qu'un bouton, qui tourne la carte d'un quart de tour **dans le sens des
+aiguilles d'une montre** : 90 est donc un quart de tour horaire, et les valeurs suivantes
+vraisemblablement 180 et 270. L'application Android connaît un type `RotationAngleDegree` et un
+message d'échec « rotateMap », mais l'adresse REST qu'elle appelle pour écrire l'orientation n'est
+pas connue : ses échanges HTTPS ne sont pas capturés.
 
 ### Grille d'occupation
 
