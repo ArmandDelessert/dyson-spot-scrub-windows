@@ -25,7 +25,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Horaires, zones de restriction, meubles | messages identiques aux captures, pas encore essayés depuis cette application |
-| Tests unitaires | 215 tests, exécutés en CI |
+| Tests unitaires | 228 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -117,13 +117,15 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   nom quand il en diffère), diviser en cliquant les deux extrémités du trait de coupe sur la carte,
   et fusionner — un premier clic sur « Fusionner » permet de choisir plusieurs pièces, sur la carte
   ou dans la liste, un second les fusionne. Un clic dans le vide de la carte efface le choix.
-  Deux autres onglets font de même pour les **zones de restriction** (« Éviter la zone »,
-  « Franchir le seuil », « Lavage uniquement », « Aspirateur uniquement », chacune dans sa couleur
-  sur la carte) : en ajouter une en cliquant deux coins opposés, changer son type, la supprimer ;
-  et pour les **meubles** (les vingt-quatre de l'application mobile) : en poser un d'un clic à la
-  taille que lui donne le téléphone, le déplacer, le tourner d'un quart de tour, le retirer. Un
-  clic sur la carte y choisit une zone ou un meuble plutôt qu'une pièce. Voir « Limites connues »
-  pour ce que le robot ne permet pas.
+  Deux autres onglets font de même pour les **zones de restriction** (« Zone à éviter »,
+  « Seuil à franchir », « Lavage uniquement », « Aspirateur uniquement », chacune dans sa couleur
+  sur la carte) : en ajouter une en cliquant deux coins opposés, la faire glisser pour la déplacer,
+  tirer un de ses coins pour la redimensionner, changer son type, la supprimer ; et pour les
+  **meubles** (les vingt-quatre de l'application mobile) : en poser un d'un clic à la taille que
+  lui donne le téléphone, le faire glisser, choisir l'un des quatre sens, le retirer. Un clic sur
+  la carte y choisit une zone ou un meuble plutôt qu'une pièce, et les listes sont triées par nom.
+  Glisser marche à la souris comme au doigt. Voir « Limites connues » pour ce que le robot ne
+  permet pas.
 - **Horaires** : les nettoyages planifiés de la carte active, dans leur ordre dans la journée, avec
   les jours, les pièces, une durée estimée d'après l'historique et un avertissement quand un horaire
   risque de tomber pendant le précédent (le robot saute alors le second, comme le signale
@@ -147,6 +149,11 @@ l'heure « mis à jour » de l'en-tête). Les données REST — cartes, pièces,
 poussées : elles sont chargées au démarrage, sur le bouton « Actualiser », et à chaque fois que la
 connexion revient après une coupure, ce qui couvre le retour de veille de la machine. La carte
 consultée et les pièces cochées survivent à un rechargement.
+
+Lancée sans réseau, l'application attend : une fenêtre réessaie toutes les 10 secondes, et tout de
+suite quand Windows signale le retour du réseau, ou propose de quitter. La première connexion au
+robot est elle aussi réessayée tant qu'elle échoue. Les erreurs inattendues sont consignées, avec
+leur détail, dans `%APPDATA%\MyDyson\erreurs.log`.
 
 Des options de ligne de commande servent à la vérification sans écran et à la documentation
 (`--manage-maps` photographie la fenêtre « Gérer les cartes », sur l'onglet `--layer 0` à `2` et la
@@ -291,7 +298,7 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
   créés ici. Un horaire ponctuel (sans répétition) n'est pas proposé : le téléphone ne le fait
   pas, et le robot n'a jamais été essayé ainsi.
 - Le débordement de la carte à travers les fenêtres vient du lidar du robot, pas du rendu. Une zone
-  « Éviter la zone » posée dessus, ici ou depuis l'application mobile, empêche le robot d'y aller.
+  « Zone à éviter » posée dessus, ici ou depuis l'application mobile, empêche le robot d'y aller.
 - Le réglage utilisé par pièce lors d'un nettoyage passé n'est pas récupérable (voir Historique).
 - Les types de taches autres que `liquid` n'ont jamais été observés : toutes sont dessinées pareil.
 

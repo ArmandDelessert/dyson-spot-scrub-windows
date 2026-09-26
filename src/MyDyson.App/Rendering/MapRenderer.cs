@@ -192,6 +192,7 @@ public static class MapRenderer
             ["noMop"] = RestrictionStyle(RestrictionColor("noMop")),
         };
         public static readonly (Pen Pen, Brush Fill) UnknownRestriction = RestrictionStyle(Color.FromRgb(0x90, 0x90, 0x90));
+        public static readonly Pen HandlePen = Frozen(new Pen(Brushes.Black, 1.5));
         /// <summary>What the map manager has chosen: a thick outline over whatever it is.</summary>
         public static readonly Pen SelectionPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xff, 0xd7, 0x00))), 3) { LineJoin = PenLineJoin.Round });
 
@@ -466,6 +467,13 @@ public static class MapRenderer
         }
         geo.Freeze();
         dc.DrawGeometry(null, Resources.CutPen, geo);
+    }
+
+    /// <summary>Square grips on the corners of a shape that can be resized, in screen points.</summary>
+    public static void DrawHandles(DrawingContext dc, IReadOnlyList<Point> corners)
+    {
+        foreach (var c in corners)
+            dc.DrawRectangle(Brushes.White, Resources.HandlePen, new Rect(c.X - 5, c.Y - 5, 10, 10));
     }
 
     /// <summary>The colour a kind of restriction zone is drawn in (REST behaviour), for the map and its legend.</summary>

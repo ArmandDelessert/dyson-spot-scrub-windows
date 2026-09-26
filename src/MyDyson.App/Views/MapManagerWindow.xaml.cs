@@ -30,17 +30,23 @@ public partial class MapManagerWindow : Window
             switch (args.PropertyName)
             {
                 case nameof(MapManagerViewModel.Splitting) or nameof(MapManagerViewModel.AddingZone)
-                    or nameof(MapManagerViewModel.PlacingFurniture) or nameof(MapManagerViewModel.MovingFurniture):
+                    or nameof(MapManagerViewModel.PlacingFurniture):
                     MapCanvas.Picking = vm.Splitting ? MapPick.Line
                         : vm.AddingZone ? MapPick.Rectangle
-                        : vm.PlacingFurniture || vm.MovingFurniture ? MapPick.Point
+                        : vm.PlacingFurniture ? MapPick.Point
                         : MapPick.None;
                     break;
                 case nameof(MapManagerViewModel.PlacementShape):
                     MapCanvas.PlacementShape = vm.PlacementShape;
                     break;
+                // Raised together, on every change of choice, tab or state that could affect them.
+                case nameof(MapManagerViewModel.EditableShape):
+                    if (!ReferenceEquals(MapCanvas.EditableShape, vm.EditableShape)) MapCanvas.EditableShape = vm.EditableShape;
+                    MapCanvas.EditableShapeResizable = vm.EditableShapeResizable;
+                    break;
             }
         };
+        MapCanvas.ShapeEdited += corners => _ = vm.ShapeDroppedAsync(corners);
 
         // Every click goes to the view model, which knows which tab it is for.
         MapCanvas.WorldClicked += vm.MapClickedAt;

@@ -4,15 +4,17 @@ namespace MyDyson.Core;
 
 /// <summary>
 /// A kind of restriction zone: its jdm type for set_virtual_wall, its REST behaviour in
-/// persistent-maps, and the phone app's words for it. The pairing was established on 2026-09-23 by
-/// matching the coordinates of the same rectangles on both sides.
+/// persistent-maps, and a French name. The pairing was established on 2026-09-23 by matching the
+/// coordinates of the same rectangles on both sides. The names mostly follow the phone app's; two
+/// are reworded as nouns, "Zone à éviter" and "Seuil à franchir" for its "Éviter la zone" and
+/// "Franchir le seuil", so all four read as what the zone is.
 /// </summary>
 public sealed record RestrictionKind(int JdmType, string Behavior, string Label, string Effect)
 {
     public static readonly IReadOnlyList<RestrictionKind> All =
     [
-        new(2, "keepOut", "Éviter la zone", "le robot n'y va pas"),
-        new(13, "climbObstacle", "Franchir le seuil", "le robot tente de franchir les petits obstacles"),
+        new(2, "keepOut", "Zone à éviter", "le robot n'y va pas"),
+        new(13, "climbObstacle", "Seuil à franchir", "le robot tente de franchir les petits obstacles"),
         new(12, "brushBarOff", "Lavage uniquement", "le robot y passe sans la brosse"),
         new(6, "noMop", "Aspirateur uniquement", "le robot y passe sans laver"),
     ];
@@ -94,6 +96,28 @@ public static class MapShapes
     {
         var c = Centre(corners);
         return [.. corners.Select(p => new Point(c.X + (p.Y - c.Y), c.Y - (p.X - c.X)))];
+    }
+
+    /// <summary>
+    /// How many clockwise quarter turns a piece stands at, from the way <see cref="Centred"/> lays
+    /// it out (first side pointing down): 0 to 3, or null when it sits at another angle.
+    /// </summary>
+    public static int? QuarterTurns(IReadOnlyList<Point> corners)
+    {
+        if (corners.Count < 2) return null;
+        var angle = Math.Atan2(corners[1].Y - corners[0].Y, corners[1].X - corners[0].X) * 180 / Math.PI;
+        // Straight down is -90°; each clockwise quarter turn takes another 90° off.
+        var turns = ((-90 - angle) % 360 + 360) % 360 / 90;
+        var nearest = Math.Round(turns);
+        return Math.Abs(turns - nearest) * 90 <= 2 ? (int)nearest % 4 : null;
+    }
+
+    /// <summary>A piece laid out as <see cref="Centred"/> does, then turned clockwise the given number of quarter turns.</summary>
+    public static Point[] Oriented(Point centre, double length, double width, int quarterTurns)
+    {
+        var corners = Centred(centre, length, width);
+        for (var i = 0; i < ((quarterTurns % 4) + 4) % 4; i++) corners = RotateClockwise(corners);
+        return corners;
     }
 
     /// <summary>The lengths of the first two sides, corner 1 to 2 then 2 to 3.</summary>

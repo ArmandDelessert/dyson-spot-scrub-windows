@@ -156,6 +156,32 @@ public class MapObjectsTests
         Assert.Equal([new(1, 2), new(1, 0), new(3, 0), new(3, 2)], MapShapes.Translate(square, 1, 0));
     }
 
+    [Fact]
+    public void APiecesOrientationIsCountedInClockwiseQuarterTurnsFromHowANewOneIsLaidOut()
+    {
+        var laidOut = MapShapes.Centred(new(3, 3), length: 2, width: 1);
+
+        Assert.Equal(0, MapShapes.QuarterTurns(laidOut));
+        Assert.Equal(1, MapShapes.QuarterTurns(MapShapes.RotateClockwise(laidOut)));
+        Assert.Equal(3, MapShapes.QuarterTurns(MapShapes.Oriented(new(3, 3), 2, 1, 3)));
+        Assert.Equal(0, MapShapes.QuarterTurns(MapShapes.Oriented(new(3, 3), 2, 1, 4)));
+        // The captured two-seater sofa: its first side runs right to left, a quarter turn.
+        Assert.Equal(1, MapShapes.QuarterTurns([new(5.68, 0), new(4.58, 0), new(4.58, -1.8), new(5.68, -1.8)]));
+        // At an angle no quarter turn gives.
+        Assert.Null(MapShapes.QuarterTurns([new(0, 0), new(1, -1), new(2, 0), new(1, 1)]));
+    }
+
+    [Fact]
+    public void TurningAPieceKeepsItsCentreAndItsSides()
+    {
+        var turned = MapShapes.Oriented(new(10, 5), 2.1, 1.8, 2);
+
+        Assert.Equal(new Point(10, 5), MapShapes.Centre(turned));
+        var (first, second) = MapShapes.Sides(turned);
+        Assert.Equal(2.1, first, 9);
+        Assert.Equal(1.8, second, 9);
+    }
+
     private static void AssertJson(string expected, JsonNode actual)
     {
         var expectedNode = JsonNode.Parse(expected);

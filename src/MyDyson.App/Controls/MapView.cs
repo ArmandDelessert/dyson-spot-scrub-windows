@@ -28,6 +28,7 @@ public enum MapPick
 /// click/tap resets the zoom instead, so a single click/tap is deferred a short moment to see
 /// whether a second one turns it into a double before clearing the selection — otherwise every
 /// double click/tap meant to reset the zoom would clear the selection as a surprising side effect.
+/// A drag that starts on <see cref="EditableShape"/> moves or resizes that shape instead of the map.
 /// </summary>
 public sealed class MapView : FrameworkElement
 {
@@ -92,6 +93,42 @@ public sealed class MapView : FrameworkElement
     private Point? _lineStart;
     private Point? _linePreview;
 
+    // ---- Moving and resizing a shape (a zone or a piece of furniture) ----------
+
+    /// <summary>
+    /// A shape the user may drag to move it, in world metres — the map manager's chosen zone or
+    /// piece of furniture — or null. Pressing on it and dragging moves it instead of panning; with
+    /// <see cref="EditableShapeResizable"/>, its four corners get handles that resize it.
+    /// </summary>
+    public IReadOnlyList<CorePoint>? EditableShape
+    {
+        get;
+        set
+        {
+            field = value;
+            _shapeGrip = null;
+            _shapePreview = null;
+            InvalidateVisual();
+        }
+    }
+
+    /// <summary>Whether <see cref="EditableShape"/> shows corner handles: an upright rectangle resized from the opposite corner.</summary>
+    public bool EditableShapeResizable
+    {
+        get;
+        set { field = value; InvalidateVisual(); }
+    }
+
+    /// <summary>Raised once per drag of <see cref="EditableShape"/>, when it is dropped, with its new corners.</summary>
+    public event Action<IReadOnlyList<CorePoint>>? ShapeEdited;
+
+    /// <summary>What the drag holds: -1 the shape itself, 0 to 3 one of its corners, null nothing.</summary>
+    private int? _shapeGrip;
+    private Point _shapeGripWorld;
+    private Point _touchGripScreen;
+    private IReadOnlyList<CorePoint>? _shapePreview;
+    private const double HandleReach = 10;
+
     public Matrix WorldToScreen { get; private set; } = Matrix.Identity;
     public double Zoom { get; private set; } = 1;
     private Vector _pan;
@@ -146,7 +183,64 @@ public sealed class MapView : FrameworkElement
             case MapPick.Point when _linePreview is { } at && PlacementShape is { Count: > 2 } shape:
                 MapRenderer.DrawPendingShape(drawingContext, [.. shape.Select(p => m.Transform(new Point(at.X + p.X, at.Y + p.Y)))]);
                 break;
+            case MapPick.None when EditableShape is { Count: 4 } editable:
+                var shown = _shapePreview ?? editable;
+                if (_shapePreview is not null)
+                    MapRenderer.DrawPendingShape(drawingContext, [.. shown.Select(p => m.Transform(new Point(p.X, p.Y)))]);
+                if (EditableShapeResizable)
+                    MapRenderer.DrawHandles(drawingContext, [.. shown.Select(p => m.Transform(new Point(p.X, p.Y)))]);
+                break;
         }
+    }
+
+    /// <summary>What lies under a screen point of the editable shape: a corner handle (0 to 3), the shape itself (-1), or nothing.</summary>
+    private int? ShapeGripAt(Point screen)
+    {
+        if (Picking != MapPick.None || EditableShape is not { Count: 4 } shape) return null;
+        if (EditableShapeResizable)
+            for (var i = 0; i < 4; i++)
+                if ((WorldToScreen.Transform(new Point(shape[i].X, shape[i].Y)) - screen).Length <= HandleReach) return i;
+        return ToWorld(screen) is { } w && MyDyson.Core.MapShapes.Contains(shape, w.X, w.Y) ? -1 : null;
+    }
+
+    private void GripShape(int grip, Point screen)
+    {
+        if (ToWorld(screen) is not { } w) return;
+        _shapeGrip = grip;
+        _shapeGripWorld = w;
+        _shapePreview = null;
+    }
+
+    /// <summary>Where the shape would land with the pointer at <paramref name="screen"/>: moved along, or stretched from the corner opposite the handle.</summary>
+    private void DragShape(Point screen)
+    {
+        if (_shapeGrip is not { } grip || EditableShape is not { Count: 4 } shape || ToWorld(screen) is not { } w) return;
+        _shapePreview = grip < 0
+            ? MyDyson.Core.MapShapes.Translate(shape, w.X - _shapeGripWorld.X, w.Y - _shapeGripWorld.Y)
+            : MyDyson.Core.MapShapes.Rectangle(shape[(grip + 2) % 4], new CorePoint(w.X, w.Y));
+        InvalidateVisual();
+    }
+
+    private void ReleaseShape(bool drop)
+    {
+        var dropped = _shapePreview;
+        _shapeGrip = null;
+        _shapePreview = null;
+        InvalidateVisual();
+        if (drop && dropped is not null) ShapeEdited?.Invoke(dropped);
+    }
+
+    /// <summary>The cursor says what pressing would do: move the shape, pull a corner, or nothing special.</summary>
+    private void UpdateHoverCursor(Point screen)
+    {
+        if (Picking != MapPick.None) return;
+        Cursor = ShapeGripAt(screen) switch
+        {
+            -1 => Cursors.SizeAll,
+            0 or 2 => Cursors.SizeNWSE,
+            1 or 3 => Cursors.SizeNESW,
+            _ => null,
+        };
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
@@ -164,15 +258,28 @@ public sealed class MapView : FrameworkElement
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
         Focus();
-        _dragStart = e.GetPosition(this);
+        var pos = e.GetPosition(this);
+        _dragStart = pos;
         _panAtDragStart = _pan;
         _dragged = false;
+        // Pressing on the editable shape holds it; anywhere else the drag pans the map.
+        if (ShapeGripAt(pos) is { } grip) GripShape(grip, pos);
         CaptureMouse();
         e.Handled = true;
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
+        if (_shapeGrip is not null && _dragStart is { } held && e.LeftButton == MouseButtonState.Pressed)
+        {
+            var pos = e.GetPosition(this);
+            // Same 4 px dead zone as panning, so a click on the shape stays a click.
+            if (!_dragged && (pos - held).Length < 4) return;
+            _dragged = true;
+            DragShape(pos);
+            return;
+        }
+        if (e.LeftButton != MouseButtonState.Pressed) UpdateHoverCursor(e.GetPosition(this));
         if (Picking != MapPick.None)
         {
             var world = ToWorld(e.GetPosition(this));
@@ -197,6 +304,7 @@ public sealed class MapView : FrameworkElement
         ReleaseMouseCapture();
         var wasClick = _dragStart is not null && !_dragged;
         _dragStart = null;
+        if (_shapeGrip is not null) ReleaseShape(drop: !wasClick);
         if (wasClick)
         {
             var pos = e.GetPosition(this);
@@ -220,9 +328,26 @@ public sealed class MapView : FrameworkElement
         e.ManipulationContainer = this;
     }
 
+    /// <summary>A touch that starts on the editable shape drags it rather than the map.</summary>
+    protected override void OnManipulationStarted(ManipulationStartedEventArgs e)
+    {
+        base.OnManipulationStarted(e);
+        if (ShapeGripAt(e.ManipulationOrigin) is { } grip)
+        {
+            GripShape(grip, e.ManipulationOrigin);
+            _touchGripScreen = e.ManipulationOrigin;
+        }
+    }
+
     protected override void OnManipulationDelta(ManipulationDeltaEventArgs e)
     {
         base.OnManipulationDelta(e);
+        if (_shapeGrip is not null)
+        {
+            DragShape(_touchGripScreen + e.CumulativeManipulation.Translation);
+            e.Handled = true;
+            return;
+        }
         var scale = e.DeltaManipulation.Scale.X;
         if (Math.Abs(scale - 1) > 0.0005) ZoomAbout(e.ManipulationOrigin, scale);
         if (e.DeltaManipulation.Translation.Length > 0) _pan += e.DeltaManipulation.Translation;
@@ -234,7 +359,9 @@ public sealed class MapView : FrameworkElement
     {
         base.OnManipulationCompleted(e);
         var total = e.TotalManipulation;
-        if (total.Translation.Length < 6 && Math.Abs(total.Scale.X - 1) < 0.03)
+        var isTap = total.Translation.Length < 6 && Math.Abs(total.Scale.X - 1) < 0.03;
+        if (_shapeGrip is not null) ReleaseShape(drop: !isTap);
+        if (isTap)
         {
             var pos = e.ManipulationOrigin;
             HandleClick(pos, IsDoubleClick(pos));

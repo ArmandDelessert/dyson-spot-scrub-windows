@@ -44,8 +44,9 @@ public class MapManagerObjectsTests
     {
         var vm = await LoadedAsync();
 
-        Assert.Equal(["Éviter la zone", "Aspirateur uniquement"], vm.RestrictionZones.Select(z => z.Label));
-        Assert.Equal("4,0 × 4,0 m", vm.RestrictionZones[0].SizeText.Replace('.', ','));
+        // By name, whatever order the cloud lists them in.
+        Assert.Equal(["Aspirateur uniquement", "Zone à éviter"], vm.RestrictionZones.Select(z => z.Label));
+        Assert.Equal("4,0 × 4,0 m", Zone(vm, "1").SizeText.Replace('.', ','));
         Assert.Equal("", vm.ZonesEmptyText);
         Assert.Equal("", vm.ZonesBlockedReason);
     }
@@ -104,7 +105,7 @@ public class MapManagerObjectsTests
     {
         var vm = await LoadedAsync();
         vm.Layer = MapLayer.Zones;
-        vm.ClickZoneCommand.Execute(vm.RestrictionZones[0]);
+        vm.ClickZoneCommand.Execute(Zone(vm, "1"));
 
         vm.ZoneKind = RestrictionKind.FromBehavior("climbObstacle")!;
 
@@ -136,7 +137,7 @@ public class MapManagerObjectsTests
     {
         var vm = await LoadedAsync();
         vm.Layer = MapLayer.Zones;
-        vm.ClickZoneCommand.Execute(vm.RestrictionZones[1]);
+        vm.ClickZoneCommand.Execute(Zone(vm, "2"));
         string? asked = null;
         vm.Confirm = (_, text) => { asked = text; return false; };
 
@@ -152,7 +153,7 @@ public class MapManagerObjectsTests
         // Resending the list without it would delete it; with it is impossible, its type unknown.
         var vm = await LoadedAsync(Objects.Replace("\"noMop\"", "\"brushBarAndTraction\"", StringComparison.Ordinal));
         vm.Layer = MapLayer.Zones;
-        vm.ClickZoneCommand.Execute(vm.RestrictionZones[0]);
+        vm.ClickZoneCommand.Execute(Zone(vm, "1"));
 
         Assert.Contains("Type inconnu (brushBarAndTraction)", vm.ZonesBlockedReason, StringComparison.Ordinal);
         Assert.False(vm.AddZoneCommand.CanExecute(null));
@@ -166,7 +167,7 @@ public class MapManagerObjectsTests
     {
         var vm = await LoadedAsync(active: false);
         vm.Layer = MapLayer.Zones;
-        vm.ClickZoneCommand.Execute(vm.RestrictionZones[0]);
+        vm.ClickZoneCommand.Execute(Zone(vm, "1"));
 
         Assert.False(vm.AddZoneCommand.CanExecute(null));
         Assert.False(vm.DeleteZoneCommand.CanExecute(null));
@@ -183,24 +184,81 @@ public class MapManagerObjectsTests
         Assert.True(vm.AddZoneCommand.CanExecute(null));
     }
 
+    // ---- Dragging a zone -------------------------------------------------------------------
+
+    [Fact]
+    public async Task TheChosenZoneCanBeDraggedAndResizedButNotBelowTwentyCentimetres()
+    {
+        var vm = await LoadedAsync();
+        vm.Layer = MapLayer.Zones;
+        Assert.Null(vm.EditableShape);
+
+        vm.ClickZoneCommand.Execute(Zone(vm, "2"));
+        Assert.Same(Zone(vm, "2").Corners, vm.EditableShape);
+        Assert.True(vm.EditableShapeResizable);
+
+        await vm.ShapeDroppedAsync(MapShapes.Rectangle(new(1, 1), new(1.1, 3)));
+        Assert.StartsWith("Zone trop étroite", vm.Status, StringComparison.Ordinal);
+
+        await vm.ShapeDroppedAsync(MapShapes.Rectangle(new(5, 5), new(7, 6)));
+        Assert.Equal(NotConnected, vm.Status);
+    }
+
+    [Fact]
+    public async Task NothingCanBeDraggedOnAnotherMapOrWhileDrawing()
+    {
+        var inactive = await LoadedAsync(active: false);
+        inactive.Layer = MapLayer.Zones;
+        inactive.ClickZoneCommand.Execute(Zone(inactive, "1"));
+        Assert.Null(inactive.EditableShape);
+
+        var vm = await LoadedAsync();
+        vm.Layer = MapLayer.Zones;
+        vm.ClickZoneCommand.Execute(Zone(vm, "1"));
+        vm.AddZoneCommand.Execute(null);
+        Assert.Null(vm.EditableShape);
+    }
+
     // ---- Furniture ------------------------------------------------------------------------
 
     [Fact]
-    public async Task FurnitureIsListedAndChosenByClickingIt()
+    public async Task FurnitureIsListedByNameAndChosenByClickingIt()
     {
         var vm = await LoadedAsync();
         vm.Layer = MapLayer.Furniture;
 
-        Assert.Equal(["Réfrigérateur", "Lit double"], vm.FurnitureItems.Select(f => f.Label));
-        Assert.False(vm.RotateFurnitureCommand.CanExecute(null));
+        Assert.Equal(["Lit double", "Réfrigérateur"], vm.FurnitureItems.Select(f => f.Label));
+        Assert.False(vm.CanOrientFurniture);
+        Assert.Null(vm.FurnitureOrientation);
 
         vm.MapClickedAt(new(21, 1));
 
         Assert.Equal("Lit double", vm.SelectedFurniture!.Label);
         Assert.Equal("4", vm.Scene.SelectedFurnitureId);
-        Assert.True(vm.RotateFurnitureCommand.CanExecute(null));
-        Assert.True(vm.MoveFurnitureCommand.CanExecute(null));
+        Assert.True(vm.CanOrientFurniture);
         Assert.True(vm.DeleteFurnitureCommand.CanExecute(null));
+        // Dragged as it stands, never resized.
+        Assert.Same(Piece(vm, "4").Corners, vm.EditableShape);
+        Assert.False(vm.EditableShapeResizable);
+    }
+
+    [Fact]
+    public async Task TheOrientationListShowsHowTheChosenPieceFaces()
+    {
+        // The bed stands as a new piece is laid out; the second one is turned a quarter clockwise.
+        var turned = Objects.Replace(
+            """{"x":20,"y":2.1},{"x":20,"y":0},{"x":21.8,"y":0},{"x":21.8,"y":2.1}""",
+            """{"x":22,"y":1},{"x":20,"y":1},{"x":20,"y":0},{"x":22,"y":0}""", StringComparison.Ordinal);
+        var vm = await LoadedAsync(turned);
+        vm.Layer = MapLayer.Furniture;
+
+        vm.ClickFurnitureCommand.Execute(Piece(vm, "1"));
+        Assert.Equal(0, vm.FurnitureOrientation!.QuarterTurns);
+
+        vm.ClickFurnitureCommand.Execute(Piece(vm, "4"));
+        Assert.Equal(1, vm.FurnitureOrientation!.QuarterTurns);
+        // Showing it sent nothing.
+        Assert.Equal("", vm.Status);
     }
 
     [Fact]
@@ -215,7 +273,7 @@ public class MapManagerObjectsTests
     }
 
     [Fact]
-    public async Task PlacingShowsTheNewPieceAtItsSizeAndMovingShowsTheChosenOne()
+    public async Task PlacingShowsTheNewPieceAtItsSize()
     {
         var vm = await LoadedAsync();
         vm.Layer = MapLayer.Furniture;
@@ -224,12 +282,9 @@ public class MapManagerObjectsTests
         vm.AddFurnitureCommand.Execute(null);
         Assert.Equal((1.0, 1.8), MapShapes.Sides(vm.PlacementShape!));
         Assert.Equal(new MyDyson.Core.Point(0, 0), MapShapes.Centre(vm.PlacementShape!));
+
         vm.CancelCommand.Execute(null);
         Assert.Null(vm.PlacementShape);
-
-        vm.ClickFurnitureCommand.Execute(vm.FurnitureItems[1]);
-        vm.MoveFurnitureCommand.Execute(null);
-        Assert.Equal((2.1, 1.8), MapShapes.Sides(vm.PlacementShape!), new SidesComparer());
     }
 
     [Fact]
@@ -243,10 +298,17 @@ public class MapManagerObjectsTests
         await vm.FurniturePointPickedAsync(new(5, 5));
         Assert.Equal(NotConnected, vm.Status);
 
-        vm.ClickFurnitureCommand.Execute(vm.FurnitureItems[0]);
+        vm.ClickFurnitureCommand.Execute(Piece(vm, "1"));
         vm.Status = "";
-        await vm.RotateFurnitureCommand.ExecuteAsync(null);
+        await vm.ShapeDroppedAsync(MapShapes.Translate(Piece(vm, "1").Corners, 2, 0));
         Assert.Equal(NotConnected, vm.Status);
+
+        vm.Status = "";
+        vm.FurnitureOrientation = vm.Orientations[2];
+        for (var i = 0; i < 50 && vm.Status == ""; i++) await Task.Delay(10);
+        Assert.Equal(NotConnected, vm.Status);
+        // Not sent, so the list shows the piece as it really stands again.
+        Assert.Equal(0, vm.FurnitureOrientation!.QuarterTurns);
 
         vm.Status = "";
         await vm.DeleteFurnitureCommand.ExecuteAsync(null);
@@ -258,17 +320,14 @@ public class MapManagerObjectsTests
     {
         var vm = await LoadedAsync(Objects.Replace("\"doubleBed\"", "\"uShapeCabinet\"", StringComparison.Ordinal));
         vm.Layer = MapLayer.Furniture;
-        vm.ClickFurnitureCommand.Execute(vm.FurnitureItems[0]);
+        vm.ClickFurnitureCommand.Execute(Piece(vm, "1"));
 
         Assert.Contains("Meuble inconnu (uShapeCabinet)", vm.FurnitureBlockedReason, StringComparison.Ordinal);
         Assert.False(vm.AddFurnitureCommand.CanExecute(null));
-        Assert.False(vm.RotateFurnitureCommand.CanExecute(null));
+        Assert.False(vm.CanOrientFurniture);
+        Assert.Null(vm.EditableShape);
     }
 
-    /// <summary>Sides compared to the centimetre: they come out of square roots.</summary>
-    private sealed class SidesComparer : IEqualityComparer<(double, double)>
-    {
-        public bool Equals((double, double) a, (double, double) b) => Math.Abs(a.Item1 - b.Item1) < 0.01 && Math.Abs(a.Item2 - b.Item2) < 0.01;
-        public int GetHashCode((double, double) obj) => 0;
-    }
+    private static ManagedZone Zone(MapManagerViewModel vm, string id) => vm.RestrictionZones.Single(z => z.Id == id);
+    private static ManagedFurniture Piece(MapManagerViewModel vm, string id) => vm.FurnitureItems.Single(f => f.Id == id);
 }

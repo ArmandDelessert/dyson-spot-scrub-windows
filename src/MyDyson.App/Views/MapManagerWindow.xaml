@@ -131,7 +131,7 @@
                             <TextBlock Text="{Binding ZonesBlockedReason}" Foreground="{DynamicResource DangerBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
                                        Visibility="{Binding ZonesBlockedReason, Converter={StaticResource Show}}"/>
                             <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0">
-                                Une zone est un rectangle droit, comme dans l'application mobile. Le robot reçoit toujours la liste entière des zones de la carte.
+                                Une zone est un rectangle droit, comme dans l'application mobile. Faites glisser la zone choisie pour la déplacer, ou tirez un de ses coins pour la redimensionner. Le robot reçoit toujours la liste entière des zones de la carte.
                             </TextBlock>
                         </StackPanel>
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -186,15 +186,21 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                             <Button Content="Ajouter ce meuble…" Command="{Binding AddFurnitureCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
-                            <Button Content="Déplacer le meuble…" Command="{Binding MoveFurnitureCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
-                            <Button Content="Tourner d'un quart de tour" Command="{Binding RotateFurnitureCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <!-- The chosen piece's orientation: picking another turns it at once. -->
+                            <TextBlock Text="Orientation du meuble choisi" Style="{StaticResource Label}" Margin="0,4,0,4"/>
+                            <ComboBox ItemsSource="{Binding Orientations}" SelectedItem="{Binding FurnitureOrientation}"
+                                      IsEnabled="{Binding CanOrientFurniture}" AutomationProperties.Name="Orientation du meuble choisi">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                             <Button Content="Retirer le meuble…" Command="{Binding DeleteFurnitureCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
                             <Button Content="Annuler" Command="{Binding CancelCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
                                     Visibility="{Binding InMode, Converter={StaticResource Show}}"/>
                             <TextBlock Text="{Binding FurnitureBlockedReason}" Foreground="{DynamicResource DangerBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
                                        Visibility="{Binding FurnitureBlockedReason, Converter={StaticResource Show}}"/>
                             <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0">
-                                Un meuble est posé à la taille que lui donne l'application mobile, et tourne dans le sens des aiguilles d'une montre. Le robot reçoit toujours la liste entière des meubles de la carte.
+                                Un meuble est posé à la taille que lui donne l'application mobile. Faites glisser le meuble choisi pour le déplacer. Le robot reçoit toujours la liste entière des meubles de la carte.
                             </TextBlock>
                         </StackPanel>
                         <ScrollViewer VerticalScrollBarVisibility="Auto">

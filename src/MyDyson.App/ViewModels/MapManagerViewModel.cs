@@ -33,9 +33,11 @@ public sealed partial class ManagedRoom(MapZone Zone) : ObservableObject
 public enum MapLayer { Rooms, Zones, Furniture }
 
 /// <summary>One restriction zone of the map being managed.</summary>
-public sealed partial class ManagedZone(Restriction restriction) : ObservableObject
+public sealed partial class ManagedZone(Restriction restriction, int sourceIndex) : ObservableObject
 {
     public Restriction Restriction { get; } = restriction;
+    /// <summary>Its place in the cloud's list: the list on screen is sorted, what goes back to the robot keeps this order.</summary>
+    public int SourceIndex { get; } = sourceIndex;
     public string Id => Restriction.Id ?? "";
     /// <summary>Null for a behaviour this app does not know, which it could not send back.</summary>
     public RestrictionKind? Kind { get; } = RestrictionKind.FromBehavior(restriction.Behavior);
@@ -67,7 +69,23 @@ public sealed partial class ManagedFurniture(FurnitureItem item) : ObservableObj
     public bool CanBeSentBack => Kind is not null && Corners.Count == 4 && Index >= 0;
     public string Label => Kind?.Label ?? $"Meuble inconnu ({Item.Type})";
     public string SizeText => MapManagerViewModel.SizeOf(Corners);
+    /// <summary>Clockwise quarter turns from the way a new piece is laid out, or null at another angle.</summary>
+    public int? QuarterTurns => MapShapes.QuarterTurns(Corners);
     [ObservableProperty] private bool _isChosen;
+}
+
+/// <summary>One of the four ways a piece of furniture can face.</summary>
+public sealed record OrientationOption(int QuarterTurns, string Label)
+{
+    public static readonly IReadOnlyList<OrientationOption> All =
+    [
+        new(0, "0° (comme posé)"),
+        new(1, "90° (quart de tour horaire)"),
+        new(2, "180° (demi-tour)"),
+        new(3, "270° (quart de tour antihoraire)"),
+    ];
+
+    public override string ToString() => Label;
 }
 
 /// <summary>
@@ -123,17 +141,15 @@ public sealed partial class MapManagerViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode))] private bool _addingZone;
     /// <summary>True while the user is choosing where a new piece of furniture goes.</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode)), NotifyPropertyChangedFor(nameof(PlacementShape))] private bool _placingFurniture;
-    /// <summary>True while the user is choosing where the chosen piece of furniture moves to.</summary>
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode)), NotifyPropertyChangedFor(nameof(PlacementShape))] private bool _movingFurniture;
     /// <summary>An edit is being aimed or gathered, which is when there is something to cancel.</summary>
-    public bool InMode => Merging || Splitting || AddingZone || PlacingFurniture || MovingFurniture;
+    public bool InMode => Merging || Splitting || AddingZone || PlacingFurniture;
     /// <summary>What the current mode expects from the user, shown above the map.</summary>
     [ObservableProperty] private string _hint = RoomsHint;
     [ObservableProperty] private string _mergeButtonLabel = "Fusionner des pièces…";
 
     private const string RoomsHint = "Cliquez une pièce pour la choisir, en dehors pour effacer le choix. Molette pour zoomer, glisser pour déplacer.";
-    private const string ZonesHint = "Cliquez une zone pour la choisir, en dehors pour effacer le choix. Molette pour zoomer, glisser pour déplacer.";
-    private const string FurnitureHint = "Cliquez un meuble pour le choisir, en dehors pour effacer le choix. Molette pour zoomer, glisser pour déplacer.";
+    private const string ZonesHint = "Cliquez une zone pour la choisir, puis faites-la glisser pour la déplacer ou tirez un de ses coins pour la redimensionner. Molette pour zoomer, glisser ailleurs pour déplacer la carte.";
+    private const string FurnitureHint = "Cliquez un meuble pour le choisir, puis faites-le glisser pour le déplacer. Molette pour zoomer, glisser ailleurs pour déplacer la carte.";
 
     private string LayerHint => Layer switch
     {
@@ -163,23 +179,46 @@ public sealed partial class MapManagerViewModel : ObservableObject
     public IReadOnlyList<FurnitureKind> FurnitureKinds { get; } = FurnitureKind.All;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(PlacementShape))] private FurnitureKind _furnitureKind = FurnitureKind.All[0];
 
+    /// <summary>The outline to show under the cursor while placing a piece, as corners relative to its centre, at its default size.</summary>
+    public IReadOnlyList<MyDyson.Core.Point>? PlacementShape =>
+        PlacingFurniture ? MapShapes.Centred(new(0, 0), FurnitureKind.Length, FurnitureKind.Width) : null;
+
+    public IReadOnlyList<OrientationOption> Orientations { get; } = OrientationOption.All;
+
     /// <summary>
-    /// The outline to show under the cursor while placing or moving a piece, as corners relative
-    /// to its centre: the new piece at its default size, or the chosen one as it stands.
+    /// How the chosen piece faces. Picking another one turns it at once; set back quietly when
+    /// another piece is chosen or the map reloads, so only the user's picks are sent.
     /// </summary>
-    public IReadOnlyList<MyDyson.Core.Point>? PlacementShape
+    [ObservableProperty] private OrientationOption? _furnitureOrientation;
+    private bool _showingOrientation;
+
+    partial void OnFurnitureOrientationChanged(OrientationOption? value)
     {
-        get
-        {
-            if (PlacingFurniture) return MapShapes.Centred(new(0, 0), FurnitureKind.Length, FurnitureKind.Width);
-            if (MovingFurniture && SelectedFurniture is { } f)
-            {
-                var c = MapShapes.Centre(f.Corners);
-                return MapShapes.Translate(f.Corners, -c.X, -c.Y);
-            }
-            return null;
-        }
+        if (_showingOrientation || value is null || SelectedFurniture is not { } chosen || value.QuarterTurns == chosen.QuarterTurns) return;
+        _ = OrientFurnitureAsync(chosen, value.QuarterTurns);
     }
+
+    private void ShowOrientation(ManagedFurniture? piece)
+    {
+        _showingOrientation = true;
+        FurnitureOrientation = piece?.QuarterTurns is { } turns ? Orientations[turns] : null;
+        _showingOrientation = false;
+    }
+
+    /// <summary>Whether the orientation list can be used: a piece chosen, and the furniture editable.</summary>
+    public bool CanOrientFurniture => HasFurniture();
+
+    /// <summary>
+    /// What the map lets the user drag: the chosen zone (with corner handles) or piece of furniture,
+    /// when it can be changed and nothing else is under way. The window hands it to the map view.
+    /// </summary>
+    public IReadOnlyList<MyDyson.Core.Point>? EditableShape => Layer switch
+    {
+        MapLayer.Zones when SelectedZone is { } z && CanDeleteZone() => z.Corners,
+        MapLayer.Furniture when SelectedFurniture is { } f && HasFurniture() => f.Corners,
+        _ => null,
+    };
+    public bool EditableShapeResizable => Layer == MapLayer.Zones;
 
     /// <summary>Why the zones cannot be changed on this map, or empty when they can.</summary>
     public string ZonesBlockedReason => RestrictionZones.FirstOrDefault(z => !z.CanBeSentBack) is { } odd
@@ -255,11 +294,16 @@ public sealed partial class MapManagerViewModel : ObservableObject
             Rooms.Clear();
             foreach (var z in (map.Zones ?? []).OrderBy(z => RoomTypeLabels.Resolve(z.Type, z.Name, z.Id), StringComparer.CurrentCulture))
                 Rooms.Add(new ManagedRoom(z));
-            // Kept in the cloud's own order, which is also the order they are sent back in.
+            // Listed by name; each remembers its place in the cloud's list, the order they go back in.
+            var byName = StringComparer.Create(CultureInfo.CurrentCulture, ignoreCase: true);
             RestrictionZones.Clear();
-            foreach (var r in map.Restrictions ?? []) RestrictionZones.Add(new ManagedZone(r));
+            foreach (var z in (map.Restrictions ?? []).Select((r, i) => new ManagedZone(r, i))
+                         .OrderBy(z => z.Label, byName).ThenByDescending(z => MapShapes.Area(z.Corners)))
+                RestrictionZones.Add(z);
             FurnitureItems.Clear();
-            foreach (var f in map.Furniture ?? []) FurnitureItems.Add(new ManagedFurniture(f));
+            foreach (var f in (map.Furniture ?? []).Select(f => new ManagedFurniture(f))
+                         .OrderBy(f => f.Label, byName).ThenBy(f => f.Index))
+                FurnitureItems.Add(f);
             OnPropertyChanged(nameof(ZonesBlockedReason));
             OnPropertyChanged(nameof(FurnitureBlockedReason));
             OnPropertyChanged(nameof(ZonesEmptyText));
@@ -397,9 +441,11 @@ public sealed partial class MapManagerViewModel : ObservableObject
         ChangeZoneKindCommand.NotifyCanExecuteChanged();
         DeleteZoneCommand.NotifyCanExecuteChanged();
         AddFurnitureCommand.NotifyCanExecuteChanged();
-        MoveFurnitureCommand.NotifyCanExecuteChanged();
-        RotateFurnitureCommand.NotifyCanExecuteChanged();
         DeleteFurnitureCommand.NotifyCanExecuteChanged();
+        // Not commands, but gated by the same conditions.
+        OnPropertyChanged(nameof(CanOrientFurniture));
+        OnPropertyChanged(nameof(EditableShape));
+        OnPropertyChanged(nameof(EditableShapeResizable));
     }
 
     // ---- Changing tab, and clicks outside the rooms tab --------------------------
@@ -467,8 +513,35 @@ public sealed partial class MapManagerViewModel : ObservableObject
     {
         if (oldValue is not null) oldValue.IsChosen = false;
         if (newValue is not null) newValue.IsChosen = true;
+        ShowOrientation(newValue);
         RebuildScene();
         RefreshCommandStates();
+    }
+
+    /// <summary>
+    /// Called by the window when the chosen zone or piece has been dragged and dropped: moved, or —
+    /// for a zone — resized by a corner. A zone left narrower than <see cref="MinimumZoneSide"/> is
+    /// refused rather than sent.
+    /// </summary>
+    public async Task ShapeDroppedAsync(IReadOnlyList<MyDyson.Core.Point> corners)
+    {
+        if (Busy || InMode || corners.Count != 4) return;
+        if (Layer == MapLayer.Zones && SelectedZone is { } zone && CanDeleteZone())
+        {
+            var (first, second) = MapShapes.Sides(corners);
+            if (first < MinimumZoneSide || second < MinimumZoneSide)
+            {
+                Status = "Zone trop étroite : il faut au moins 20 cm de côté.";
+                return;
+            }
+            var zones = OrderedZones().Select(z => new RestrictionZone(z.Kind!, ReferenceEquals(z, zone) ? corners : z.Corners)).ToList();
+            var resized = Math.Abs(MapShapes.Area(corners) - MapShapes.Area(zone.Corners)) > 1e-6;
+            await SendZonesAsync($"zone « {zone.Label} » {(resized ? "redimensionnée" : "déplacée")}", zones);
+        }
+        else if (Layer == MapLayer.Furniture && SelectedFurniture is { } piece && HasFurniture())
+        {
+            await SendFurnitureAsync($"« {piece.Label} » déplacé", ReplaceCorners(piece, corners));
+        }
     }
 
     // ---- Zone commands -----------------------------------------------------------
@@ -505,7 +578,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     {
         if (SelectedZone is not { } chosen) return;
         var kind = ZoneKind;
-        var zones = RestrictionZones.Select(z => new RestrictionZone(ReferenceEquals(z, chosen) ? kind : z.Kind!, z.Corners)).ToList();
+        var zones = OrderedZones().Select(z => new RestrictionZone(ReferenceEquals(z, chosen) ? kind : z.Kind!, z.Corners)).ToList();
         await SendZonesAsync($"zone changée en « {kind.Label} »", zones);
     }
 
@@ -514,11 +587,14 @@ public sealed partial class MapManagerViewModel : ObservableObject
     {
         if (SelectedZone is not { } chosen) return;
         if (Confirm?.Invoke("Supprimer la zone", $"Supprimer la zone « {chosen.Label} » ({chosen.SizeText}) ?") != true) return;
-        var zones = RestrictionZones.Where(z => !ReferenceEquals(z, chosen)).Select(z => new RestrictionZone(z.Kind!, z.Corners)).ToList();
+        var zones = OrderedZones().Where(z => !ReferenceEquals(z, chosen)).Select(z => new RestrictionZone(z.Kind!, z.Corners)).ToList();
         await SendZonesAsync($"zone « {chosen.Label} » supprimée", zones);
     }
 
-    private List<RestrictionZone> CurrentZones() => [.. RestrictionZones.Select(z => new RestrictionZone(z.Kind!, z.Corners))];
+    /// <summary>The zones in the cloud's order rather than the list's alphabetical one, so a change moves nothing else around.</summary>
+    private IEnumerable<ManagedZone> OrderedZones() => RestrictionZones.OrderBy(z => z.SourceIndex);
+
+    private List<RestrictionZone> CurrentZones() => [.. OrderedZones().Select(z => new RestrictionZone(z.Kind!, z.Corners))];
 
     private async Task SendZonesAsync(string label, IReadOnlyList<RestrictionZone> zones)
     {
@@ -537,40 +613,35 @@ public sealed partial class MapManagerViewModel : ObservableObject
         RefreshCommandStates();
     }
 
-    [RelayCommand(CanExecute = nameof(HasFurniture))]
-    private void MoveFurniture()
-    {
-        MovingFurniture = true;
-        Hint = $"Cliquez le nouvel emplacement de « {SelectedFurniture?.Label} » (son centre). Échap pour annuler.";
-        Status = "";
-        RefreshCommandStates();
-    }
-
-    /// <summary>Called by the window with the point clicked while placing or moving a piece.</summary>
+    /// <summary>Called by the window with the point clicked while placing a piece.</summary>
     public async Task FurniturePointPickedAsync(MyDyson.Core.Point p)
     {
-        var (placing, moving, kind, chosen) = (PlacingFurniture, MovingFurniture, FurnitureKind, SelectedFurniture);
+        var (placing, kind) = (PlacingFurniture, FurnitureKind);
         LeaveModes();
-        if (placing)
-        {
-            var pieces = CurrentFurniture();
-            var index = pieces.Count == 0 ? 1 : pieces.Max(f => f.Index) + 1;
-            pieces.Add(new FurniturePiece(index, kind, MapShapes.Centred(p, kind.Length, kind.Width)));
-            await SendFurnitureAsync($"« {kind.Label} » ajouté", pieces);
-        }
-        else if (moving && chosen is not null)
-        {
-            var c = MapShapes.Centre(chosen.Corners);
-            await SendFurnitureAsync($"« {chosen.Label} » déplacé",
-                ReplaceCorners(chosen, MapShapes.Translate(chosen.Corners, p.X - c.X, p.Y - c.Y)));
-        }
+        if (!placing) return;
+        var pieces = CurrentFurniture();
+        var index = pieces.Count == 0 ? 1 : pieces.Max(f => f.Index) + 1;
+        pieces.Add(new FurniturePiece(index, kind, MapShapes.Centred(p, kind.Length, kind.Width)));
+        await SendFurnitureAsync($"« {kind.Label} » ajouté", pieces);
     }
 
-    [RelayCommand(CanExecute = nameof(HasFurniture))]
-    private async Task RotateFurnitureAsync()
+    /// <summary>
+    /// Turns the chosen piece to face one of the four ways, about its centre and keeping its size.
+    /// Laid out afresh rather than turned from where it stands, so a piece the phone left at an
+    /// odd angle comes back square.
+    /// </summary>
+    private async Task OrientFurnitureAsync(ManagedFurniture chosen, int quarterTurns)
     {
-        if (SelectedFurniture is not { } chosen) return;
-        await SendFurnitureAsync($"« {chosen.Label} » tourné", ReplaceCorners(chosen, MapShapes.RotateClockwise(chosen.Corners)));
+        if (!HasFurniture())
+        {
+            ShowOrientation(chosen);
+            return;
+        }
+        var (length, width) = MapShapes.Sides(chosen.Corners);
+        var corners = MapShapes.Oriented(MapShapes.Centre(chosen.Corners), length, width, quarterTurns);
+        await SendFurnitureAsync($"« {chosen.Label} » tourné à {quarterTurns * 90}°", ReplaceCorners(chosen, corners));
+        // Refused or not sent: the list goes back to how the piece really stands.
+        if (ReferenceEquals(SelectedFurniture, chosen)) ShowOrientation(chosen);
     }
 
     [RelayCommand(CanExecute = nameof(HasFurniture))]
@@ -581,7 +652,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
         await SendFurnitureAsync($"« {chosen.Label} » retiré", CurrentFurniture().Where(f => f.Index != chosen.Index).ToList());
     }
 
-    private List<FurniturePiece> CurrentFurniture() => [.. FurnitureItems.Select(f => new FurniturePiece(f.Index, f.Kind!, f.Corners))];
+    /// <summary>The furniture in index order, the order the cloud lists it in, whatever the list on screen shows.</summary>
+    private List<FurniturePiece> CurrentFurniture() => [.. FurnitureItems.OrderBy(f => f.Index).Select(f => new FurniturePiece(f.Index, f.Kind!, f.Corners))];
 
     private List<FurniturePiece> ReplaceCorners(ManagedFurniture chosen, IReadOnlyList<MyDyson.Core.Point> corners) =>
         [.. CurrentFurniture().Select(f => f.Index == chosen.Index ? f with { Corners = corners } : f)];
@@ -741,7 +813,6 @@ public sealed partial class MapManagerViewModel : ObservableObject
         }
         AddingZone = false;
         PlacingFurniture = false;
-        MovingFurniture = false;
         Hint = LayerHint;
         UpdateMergeLabel();
         RefreshCommandStates();
