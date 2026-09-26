@@ -126,6 +126,8 @@
                             <Button Content="Ajouter une zone…" Command="{Binding AddZoneCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
                             <Button Content="Changer le type de la zone" Command="{Binding ChangeZoneKindCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
                             <Button Content="Supprimer la zone…" Command="{Binding DeleteZoneCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <CheckBox IsChecked="{Binding SnapToGrid}" Content="Caler sur la grille de 5 cm" Margin="0,2,0,4"
+                                      ToolTip="Les zones et les meubles se calent sur la grille du robot quand on les trace, les pose ou les déplace ; la grille s'affiche en zoomant."/>
                             <Button Content="Annuler" Command="{Binding CancelCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
                                     Visibility="{Binding InMode, Converter={StaticResource Show}}"/>
                             <TextBlock Text="{Binding ZonesBlockedReason}" Foreground="{DynamicResource DangerBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
@@ -195,6 +197,8 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                             <Button Content="Retirer le meuble…" Command="{Binding DeleteFurnitureCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                            <CheckBox IsChecked="{Binding SnapToGrid}" Content="Caler sur la grille de 5 cm" Margin="0,2,0,4"
+                                      ToolTip="Les zones et les meubles se calent sur la grille du robot quand on les trace, les pose ou les déplace ; la grille s'affiche en zoomant."/>
                             <Button Content="Annuler" Command="{Binding CancelCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
                                     Visibility="{Binding InMode, Converter={StaticResource Show}}"/>
                             <TextBlock Text="{Binding FurnitureBlockedReason}" Foreground="{DynamicResource DangerBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"

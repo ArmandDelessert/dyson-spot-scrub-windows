@@ -328,6 +328,25 @@ public class MapManagerObjectsTests
         Assert.Null(vm.EditableShape);
     }
 
+    [Fact]
+    public async Task TheGridBoxDecidesForZonesAndFurnitureButACutAlwaysSnaps()
+    {
+        var display = new DisplaySettings();
+        var vm = await LoadedAsync(display: display);
+        Assert.True(vm.SnapToGrid);   // on unless unticked
+        Assert.True(vm.GridActive);
+
+        vm.SnapToGrid = false;
+        Assert.False(display.SnapToGrid);
+        Assert.False(vm.GridActive);
+
+        vm.ClickRoomCommand.Execute(vm.Rooms[0]);
+        vm.StartSplitCommand.Execute(null);
+        Assert.True(vm.GridActive);
+        vm.CancelCommand.Execute(null);
+        Assert.False(vm.GridActive);
+    }
+
     private static ManagedZone Zone(MapManagerViewModel vm, string id) => vm.RestrictionZones.Single(z => z.Id == id);
     private static ManagedFurniture Piece(MapManagerViewModel vm, string id) => vm.FurnitureItems.Single(f => f.Id == id);
 }

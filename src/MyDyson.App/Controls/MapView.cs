@@ -173,7 +173,7 @@ public sealed class MapView : FrameworkElement
         MapRenderer.Render(drawingContext, Scene ?? new MapScene(), size, out var m, Zoom, _pan);
         WorldToScreen = m;
         // The grid under what is being aimed or dragged, and where the pointer lands on it.
-        if (SnapSpec is { } grid && (Picking != MapPick.None || _shapePreview is not null))
+        if (SnapSpec is { } grid && (Picking != MapPick.None || EditableShape is not null))
         {
             MapRenderer.DrawGridLines(drawingContext, m, grid, size);
             if (_pickCursor is { } cursor) MapRenderer.DrawSnapMarker(drawingContext, m.Transform(cursor));
@@ -223,9 +223,10 @@ public sealed class MapView : FrameworkElement
         if (_shapeGrip is not { } grip || EditableShape is not { Count: 4 } shape || ToWorld(screen) is not { } w) return;
         if (grip < 0)
         {
-            // Moved by whole grid steps, so a shape that sat on the grid stays on it.
-            var (dx, dy) = (SnapLength(w.X - _shapeGripWorld.X), SnapLength(w.Y - _shapeGripWorld.Y));
-            _shapePreview = MyDyson.Core.MapShapes.Translate(shape, dx, dy);
+            // Its first corner lands on the grid, so a shape that sat off it is brought back onto it.
+            var moved = new Point(shape[0].X + w.X - _shapeGripWorld.X, shape[0].Y + w.Y - _shapeGripWorld.Y);
+            var snapped = Snap(moved);
+            _shapePreview = MyDyson.Core.MapShapes.Translate(shape, snapped.X - shape[0].X, snapped.Y - shape[0].Y);
         }
         else
         {
@@ -240,10 +241,14 @@ public sealed class MapView : FrameworkElement
 
     /// <summary>
     /// Whether picked points and dragged shapes land on the map's grid — the robot's 5 cm cells —
-    /// and the grid shows while aiming once zoomed in far enough to tell the cells apart. Off on
-    /// the dashboard, where nothing is drawn.
+    /// and the grid shows while aiming or while a shape is chosen, once zoomed in far enough to tell
+    /// the cells apart. Off on the dashboard, where nothing is drawn.
     /// </summary>
-    public bool SnapToGrid { get; set; }
+    public bool SnapToGrid
+    {
+        get;
+        set { field = value; InvalidateVisual(); }
+    }
 
     /// <summary>Where the snapped pointer is while aiming, for its marker.</summary>
     private Point? _pickCursor;
@@ -253,8 +258,6 @@ public sealed class MapView : FrameworkElement
     private Point Snap(Point world) => SnapSpec is { } g
         ? new Point(g.X0 + Math.Round((world.X - g.X0) / g.Step) * g.Step, g.Y0 + Math.Round((world.Y - g.Y0) / g.Step) * g.Step)
         : world;
-
-    private double SnapLength(double d) => SnapSpec is { } g ? Math.Round(d / g.Step) * g.Step : d;
 
     private Point? SnappedWorld(Point screen) => ToWorld(screen) is { } w ? Snap(w) : null;
 

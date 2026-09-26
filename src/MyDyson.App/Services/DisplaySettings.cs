@@ -37,6 +37,9 @@ public sealed partial class DisplaySettings : ObservableObject
     /// </summary>
     [ObservableProperty] private bool _recordMessages;
 
+    /// <summary>Zones and furniture drawn or moved in the map manager land on the robot's 5 cm grid. On by default.</summary>
+    [ObservableProperty] private bool _snapToGrid = true;
+
     /// <summary>Raised after any of the above changes, once they have been written back to disk.</summary>
     public event Action? Changed;
 
@@ -56,6 +59,7 @@ public sealed partial class DisplaySettings : ObservableObject
                 settings.ShowTravelPath = s.ShowTravelPath ?? true;
                 settings.ShowExportButton = s.ShowExportButton ?? true;
                 settings.RecordMessages = s.RecordMessages ?? false;
+                settings.SnapToGrid = s.SnapToGrid ?? true;
                 settings._loading = false;
             }
         }
@@ -76,7 +80,7 @@ public sealed partial class DisplaySettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            File.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages)));
+            File.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -88,7 +92,8 @@ public sealed partial class DisplaySettings : ObservableObject
     partial void OnShowTravelPathChanged(bool value) => Save();
     partial void OnShowExportButtonChanged(bool value) => Save();
     partial void OnRecordMessagesChanged(bool value) => Save();
+    partial void OnSnapToGridChanged(bool value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null);
 }

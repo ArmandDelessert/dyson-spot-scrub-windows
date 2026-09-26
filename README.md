@@ -25,7 +25,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Horaires, zones de restriction, meubles | messages identiques aux captures, pas encore essayés depuis cette application |
-| Tests unitaires | 233 tests, exécutés en CI |
+| Tests unitaires | 234 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -124,10 +124,11 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   **meubles** (les vingt-quatre de l'application mobile) : en poser un d'un clic à la taille que
   lui donne le téléphone, le faire glisser, choisir l'un des quatre sens, le retirer. Un clic sur
   la carte y choisit une zone ou un meuble plutôt qu'une pièce, et les listes sont triées par nom.
-  Glisser marche à la souris comme au doigt. Traits de coupe, coins de zone, meubles posés ou
-  déplacés se calent sur la grille de 5 cm du robot, qui s'affiche en zoomant pendant le tracé.
-  Voir « Limites connues » pour ce que le robot ne
-  permet pas.
+  Glisser marche à la souris comme au doigt. Le trait de coupe se cale toujours sur la grille de
+  5 cm du robot ; les zones et les meubles aussi quand la case « Caler sur la grille de 5 cm » est
+  cochée (retenue d'un lancement à l'autre), y compris un élément glissé qui n'y était pas. La
+  grille s'affiche en zoomant, pendant un tracé ou dès qu'une zone ou un meuble est choisi. Voir
+  « Limites connues » pour ce que le robot ne permet pas.
 - **Horaires** : les nettoyages planifiés de la carte active, dans leur ordre dans la journée, avec
   les jours, les pièces, une durée estimée d'après l'historique et un avertissement quand un horaire
   risque de tomber pendant le précédent (le robot saute alors le second, comme le signale

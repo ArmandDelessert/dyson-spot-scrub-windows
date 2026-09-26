@@ -134,7 +134,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     public IReadOnlyList<RoomTypeOption> RoomTypes { get; }
 
     /// <summary>True while the user is aiming a cut on the map; the view turns clicks into points.</summary>
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode))] private bool _splitting;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode)), NotifyPropertyChangedFor(nameof(GridActive))] private bool _splitting;
     /// <summary>True while clicks gather rooms to merge rather than choose one.</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(InMode))] private bool _merging;
     /// <summary>True while the user is drawing a restriction zone's rectangle on the map.</summary>
@@ -219,6 +219,28 @@ public sealed partial class MapManagerViewModel : ObservableObject
         _ => null,
     };
     public bool EditableShapeResizable => Layer == MapLayer.Zones;
+
+    /// <summary>
+    /// The box of the Zones and Meubles tabs: whether zones and furniture land on the robot's 5 cm
+    /// grid when drawn, placed or dragged, with the grid shown. Kept from one run to the next.
+    /// </summary>
+    public bool SnapToGrid
+    {
+        get => _display.SnapToGrid;
+        set
+        {
+            if (_display.SnapToGrid == value) return;
+            _display.SnapToGrid = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(GridActive));
+        }
+    }
+
+    /// <summary>
+    /// What the map snaps to right now. A cut always does, whatever the box says: the robot redraws
+    /// the boundary along its cells anyway, so the grid only shows where it will fall.
+    /// </summary>
+    public bool GridActive => Splitting || SnapToGrid;
 
     /// <summary>Why the zones cannot be changed on this map, or empty when they can.</summary>
     public string ZonesBlockedReason => RestrictionZones.FirstOrDefault(z => !z.CanBeSentBack) is { } odd
@@ -553,7 +575,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     private void AddZone()
     {
         AddingZone = true;
-        Hint = $"Cliquez deux coins opposés de la zone « {ZoneKind.Label} » ; ils se calent sur la grille de 5 cm, visible en zoomant. Échap pour annuler.";
+        Hint = $"Cliquez deux coins opposés de la zone « {ZoneKind.Label} » ; {(SnapToGrid ? "ils se calent sur la grille de 5 cm, visible en zoomant" : "sans calage sur la grille")}. Échap pour annuler.";
         Status = "";
         RefreshCommandStates();
     }
