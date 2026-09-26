@@ -298,4 +298,26 @@ public class RoomPreferenceTests
         var only = Assert.Single(rooms);
         Assert.Equal(2, only.Id);
     }
+    [Theory]
+    [InlineData("""{"msg":"CURRENT-STATE"}""", "CURRENT-STATE")]
+    [InlineData("""{"method":"prop.post"}""", "prop.post")]
+    [InlineData("""[1,2,3]""", null)]            // not an object: indexing it by name would throw
+    [InlineData("""{"msg":42}""", null)]         // not a string
+    [InlineData("""not json at all""", null)]
+    public void AMessagesKindNeverThrowsWhateverThePayload(string payload, string? kind)
+    {
+        var m = new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status", payload);
+
+        Assert.Equal(kind, m.Kind);
+    }
+
+    [Fact]
+    public void TheTrackerIgnoresMessagesThatAreNotObjectsOrHaveOddFields()
+    {
+        var tracker = new RobotStateTracker();
+
+        Assert.False(tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status", "[1,2]")));
+        Assert.False(tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status", """{"msg":42}""")));
+        Assert.False(tracker.Apply(new RobotMessage(DateTimeOffset.UtcNow, "RB05/S/status/jdm", """{"method":{"x":1}}""")));
+    }
 }

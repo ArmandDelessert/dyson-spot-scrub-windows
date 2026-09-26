@@ -72,7 +72,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var session = await _ctx.ConnectAsync(Hub.Ct);
+            if (await ConnectWithRetryAsync() is not { } session) return;
             Hub.Session = session;
             _lastStatus = session.Status;
             session.ConnectionChanged += (s, d) => Hub.Post(() =>
@@ -135,6 +135,36 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             Hub.Message = ex.Message;
             Hub.AddLog(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// The first connection to the robot, tried again and again until it holds: the network can
+    /// drop between the device list and the broker, or the broker be briefly unreachable. Without
+    /// this the window would stay "Connexion…" for good, since <see cref="RobotSession"/> only
+    /// reconnects a session that once connected. Null when the token is refused (the session-expired
+    /// path takes over) or the window is closing.
+    /// </summary>
+    private async Task<RobotSession?> ConnectWithRetryAsync()
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await _ctx.ConnectAsync(Hub.Ct);
+            }
+            catch (DysonAuthException ex)
+            {
+                await SessionExpiredAsync(ex.Message);
+                return null;
+            }
+            catch (Exception ex) when (!Hub.IsShuttingDown)
+            {
+                var delay = RobotSession.BackoffFor(attempt);
+                Hub.Connection = $"Hors ligne, nouvel essai dans {delay.TotalSeconds:F0} s";
+                Hub.AddLog($"connexion au robot impossible : {ex.Message}");
+                await Task.Delay(delay, Hub.Ct);
+            }
         }
     }
 

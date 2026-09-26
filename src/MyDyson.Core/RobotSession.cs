@@ -68,18 +68,35 @@ public sealed class RobotSession : IAsyncDisposable
         var client = new RobotMqttClient(Serial, TopicPrefix, MqttEndpoint.FromCustomAuthorizerTls(iot));
         client.MessageReceived += OnMessage;
         client.PrefixChanged += p => TopicPrefix = p;
+        client.ListenerFailed += ex => _log?.Invoke($"message non traité : {ex.Message}");
         client.Disconnected += reason => _ = OnDisconnectedAsync(client, reason);
 
-        await client.ConnectAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await client.ConnectAsync(ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            // A client that never connected still holds its socket and timers.
+            await client.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
         _client = client;
         _attempt = 0;
         SetStatus(RobotConnectionStatus.Connected, null);
     }
 
+    /// <summary>
+    /// Runs on the MQTT client's receive loop. One malformed or unexpected message — a field of
+    /// another type than the captures showed, a capture file that can no longer be written — must
+    /// cost that message only, not the loop that brings in every later one.
+    /// </summary>
     private void OnMessage(RobotMessage message)
     {
-        MessageReceived?.Invoke(message);
-        Tracker.Apply(message);
+        try { MessageReceived?.Invoke(message); }
+        catch (Exception ex) { _log?.Invoke($"message {message.Topic} : {ex.Message}"); }
+        try { Tracker.Apply(message); }
+        catch (Exception ex) { _log?.Invoke($"message {message.Topic} ignoré : {ex.Message}"); }
     }
 
     private async Task OnDisconnectedAsync(RobotMqttClient source, string reason)

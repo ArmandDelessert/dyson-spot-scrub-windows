@@ -43,7 +43,20 @@ public sealed partial class JournalViewModel(RobotHub hub) : ObservableObject, I
             topic = m.Topic,
             payload = (object?)m.Json ?? m.Payload,
         });
-        lock (_captureLock) { _captureWriter?.WriteLine(line); }
+        try
+        {
+            lock (_captureLock) { _captureWriter?.WriteLine(line); }
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+        {
+            // Disk full, drive unplugged: the capture ends, the session goes on.
+            hub.Post(() =>
+            {
+                hub.AddLog($"capture interrompue : {ex.Message}");
+                if (IsCapturing) StopCapture();
+            });
+            return;
+        }
         _captureCount++;
         hub.Post(() => CaptureInfo = $"{_captureCount} message(s) → {_captureFileName}");
     }
@@ -77,7 +90,9 @@ public sealed partial class JournalViewModel(RobotHub hub) : ObservableObject, I
     {
         StreamWriter? w;
         lock (_captureLock) { w = _captureWriter; _captureWriter = null; }
-        w?.Dispose();
+        // Closing flushes, which fails the same way the writes did when the disk is the problem.
+        try { w?.Dispose(); }
+        catch (IOException) { }
         IsCapturing = false;
         CaptureButtonLabel = "Capturer tous les messages…";
         CaptureInfo = _captureCount > 0 ? $"Dernière capture : {_captureCount} message(s) dans {_captureFileName}" : "";

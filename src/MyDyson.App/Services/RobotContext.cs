@@ -48,7 +48,16 @@ public sealed class RobotContext : IAsyncDisposable
         if (Robot is null) throw new InvalidOperationException("No robot selected.");
         if (Session is not null) return Session;
         var session = new RobotSession(Api, Robot, m => Log?.Invoke(m));
-        await session.ConnectAsync(ct);
+        try
+        {
+            await session.ConnectAsync(ct);
+        }
+        catch
+        {
+            // Not kept: the next attempt starts a fresh one.
+            await session.DisposeAsync();
+            throw;
+        }
         Session = session;
         return session;
     }

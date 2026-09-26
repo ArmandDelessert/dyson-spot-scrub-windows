@@ -19,8 +19,13 @@ public sealed record RobotMessage(DateTimeOffset ReceivedUtc, string Topic, stri
     /// </summary>
     public JsonNode? Json { get; } = ParseOrNull(Payload);
 
-    /// <summary>"msg" for classic Dyson messages, "method" for the JDM (JSON-RPC-like) layer.</summary>
-    public string? Kind => Json?["msg"]?.GetValue<string>() ?? Json?["method"]?.GetValue<string>();
+    /// <summary>
+    /// "msg" for classic Dyson messages, "method" for the JDM (JSON-RPC-like) layer. Null for
+    /// anything else, including a payload that is not a JSON object or a field that is not a string.
+    /// </summary>
+    public string? Kind => Json is JsonObject o ? StringOf(o["msg"]) ?? StringOf(o["method"]) : null;
+
+    internal static string? StringOf(JsonNode? node) => node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
     private static JsonNode? ParseOrNull(string payload)
     {
@@ -53,6 +58,8 @@ public sealed class RobotMqttClient : IAsyncDisposable, IRobotCommands
 
     public event Action<RobotMessage>? MessageReceived;
     public event Action<string>? Disconnected;
+    /// <summary>A <see cref="MessageReceived"/> listener threw; the message still completed any request waiting for it.</summary>
+    public event Action<Exception>? ListenerFailed;
     public event Action<string>? PrefixChanged;
 
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonObject>> _pendingJdm = new();
@@ -208,8 +215,12 @@ public sealed class RobotMqttClient : IAsyncDisposable, IRobotCommands
         }
 
         var message = new RobotMessage(DateTimeOffset.UtcNow, topic, payload);
-        MessageReceived?.Invoke(message);
-        CompletePendingRequests(message);
+        // A listener that throws must not keep the reply from reaching whoever is waiting for it,
+        // nor surface in MQTTnet's receive loop.
+        try { MessageReceived?.Invoke(message); }
+        catch (Exception ex) { ListenerFailed?.Invoke(ex); }
+        try { CompletePendingRequests(message); }
+        catch (Exception ex) { ListenerFailed?.Invoke(ex); }
         return Task.CompletedTask;
     }
 
@@ -219,12 +230,12 @@ public sealed class RobotMqttClient : IAsyncDisposable, IRobotCommands
 
         if (message.Topic.EndsWith("/status/jdm", StringComparison.Ordinal))
         {
-            var id = json["msgId"]?.GetValue<string>();
+            var id = RobotMessage.StringOf(json["msgId"]);
             if (id is not null && _pendingJdm.TryRemove(id, out var tcs))
                 tcs.TrySetResult(json);
         }
         else if (message.Topic.EndsWith("/status", StringComparison.Ordinal)
-                 && json["msg"]?.GetValue<string>() == "CURRENT-STATE"
+                 && RobotMessage.StringOf(json["msg"]) == "CURRENT-STATE"
                  && RobotState.Parse(message.Payload) is { IsPositionOnly: false } state)
         {
             foreach (var key in _pendingState.Keys)

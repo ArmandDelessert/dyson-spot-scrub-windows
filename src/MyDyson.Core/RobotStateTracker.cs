@@ -55,7 +55,7 @@ public sealed class RobotStateTracker
 
     private bool ApplyClassic(string payload, JsonObject json)
     {
-        switch (json["msg"]?.GetValue<string>())
+        switch (RobotMessage.StringOf(json["msg"]))
         {
             case "CURRENT-STATE":
             case "STATE-CHANGE":
@@ -84,7 +84,7 @@ public sealed class RobotStateTracker
 
     private bool ApplyJdm(JsonObject json)
     {
-        var method = json["method"]?.GetValue<string>();
+        var method = RobotMessage.StringOf(json["method"]);
         switch (method)
         {
             case "prop.post" when json["params"] is JsonObject pushed:

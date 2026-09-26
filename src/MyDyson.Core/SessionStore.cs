@@ -29,14 +29,26 @@ public static class SessionStore
         File.WriteAllBytes(FilePath, cipher);
     }
 
+    /// <summary>
+    /// The stored session, or null when there is none — or when it cannot be read back: a
+    /// truncated file, or one encrypted under another Windows account or machine, which DPAPI
+    /// refuses. Either way the answer is the same, logging in again, not a start-up that fails.
+    /// </summary>
     public static StoredSession? Load()
     {
         if (!Exists) return null;
-        var cipher = File.ReadAllBytes(FilePath);
-        var plain = OperatingSystem.IsWindows()
-            ? ProtectedData.Unprotect(cipher, Entropy, DataProtectionScope.CurrentUser)
-            : cipher;
-        return JsonSerializer.Deserialize<StoredSession>(plain);
+        try
+        {
+            var cipher = File.ReadAllBytes(FilePath);
+            var plain = OperatingSystem.IsWindows()
+                ? ProtectedData.Unprotect(cipher, Entropy, DataProtectionScope.CurrentUser)
+                : cipher;
+            return JsonSerializer.Deserialize<StoredSession>(plain);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or JsonException)
+        {
+            return null;
+        }
     }
 
     public static void Delete()
