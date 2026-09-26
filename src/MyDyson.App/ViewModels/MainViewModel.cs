@@ -54,7 +54,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Cleaning = new CleaningViewModel(Hub, _maps, Display);
         History = new HistoryViewModel(Hub, _maps, Display);
         Settings = new SettingsViewModel(Hub);
-        Journal = new JournalViewModel(Hub);
+        Journal = new JournalViewModel(Hub, Display);
         Schedules = new SchedulesViewModel(Hub, _maps, ScheduleStore.Load(), () => History.History.Select(c => c.Summary));
 
         _refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
@@ -119,7 +119,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
             });
             // Every message on the robot's topics, regardless of whether the tracker recognises it;
-            // only written anywhere once a capture file has been opened (see JournalViewModel).
+            // only written anywhere while recording is on (see JournalViewModel).
             session.MessageReceived += Journal.CaptureMessage;
             Hub.Connected = true;
             Hub.Connection = "Connecté";

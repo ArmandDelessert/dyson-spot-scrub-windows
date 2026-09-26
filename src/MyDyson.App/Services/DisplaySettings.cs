@@ -30,6 +30,13 @@ public sealed partial class DisplaySettings : ObservableObject
     /// <summary>Whether the map toolbar offers the PNG export at all.</summary>
     [ObservableProperty] private bool _showExportButton = true;
 
+    /// <summary>
+    /// Every message exchanged with the robot written to a daily file (see <see cref="MessageLog"/>).
+    /// Not about drawing, but the same kind of preference: this machine's, never sent anywhere.
+    /// Off by default.
+    /// </summary>
+    [ObservableProperty] private bool _recordMessages;
+
     /// <summary>Raised after any of the above changes, once they have been written back to disk.</summary>
     public event Action? Changed;
 
@@ -48,6 +55,7 @@ public sealed partial class DisplaySettings : ObservableObject
                 settings.ShowFurniture = s.ShowFurniture ?? true;
                 settings.ShowTravelPath = s.ShowTravelPath ?? true;
                 settings.ShowExportButton = s.ShowExportButton ?? true;
+                settings.RecordMessages = s.RecordMessages ?? false;
                 settings._loading = false;
             }
         }
@@ -68,7 +76,7 @@ public sealed partial class DisplaySettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            File.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton)));
+            File.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -79,7 +87,8 @@ public sealed partial class DisplaySettings : ObservableObject
     partial void OnShowFurnitureChanged(bool value) => Save();
     partial void OnShowTravelPathChanged(bool value) => Save();
     partial void OnShowExportButtonChanged(bool value) => Save();
+    partial void OnRecordMessagesChanged(bool value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null);
 }

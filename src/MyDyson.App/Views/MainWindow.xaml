@@ -190,7 +190,7 @@
                                      lands on it then only closes the panel (StaysOpen="False"), where it
                                      used to close it and immediately reopen it through the toggle. -->
                                 <ToggleButton x:Name="DisplayOptionsButton" Content="Affichage ▾"
-                                              IsHitTestVisible="{Binding IsOpen, ElementName=DisplayOptionsPopup, Converter={StaticResource Not}}" Margin="0,0,8,8" Padding="10,4" Cursor="Hand"
+                                              IsHitTestVisible="{Binding IsOpen, ElementName=DisplayOptionsPopup, Converter={StaticResource Not}}" Margin="0,0,8,0" Padding="10,4" Cursor="Hand"
                                               AutomationProperties.Name="Options d'affichage de la carte"
                                               Style="{StaticResource ToolbarToggle}"/>
                                 <Popup x:Name="DisplayOptionsPopup" IsOpen="{Binding IsChecked, ElementName=DisplayOptionsButton, Mode=TwoWay}" StaysOpen="False"
@@ -387,11 +387,13 @@
                 <TabItem Header="Journal" DataContext="{Binding Journal}">
                     <DockPanel Margin="0,8,0,0">
                         <TextBlock DockPanel.Dock="Top" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10">
-                            Le journal affiche les événements notables signalés par le robot (fautes, fin de nettoyage, changement de carte…) et le résultat des commandes envoyées depuis cette fenêtre. Il n'enregistre pas chaque message échangé avec le robot : activez la capture ci-dessous pour tout enregistrer dans un fichier, ce qui peut aider à repérer des messages encore non identifiés.
+                            Le journal affiche les événements notables signalés par le robot (fautes, fin de nettoyage, changement de carte…) et le résultat des commandes envoyées depuis cette fenêtre. Il ne montre pas chaque message échangé avec le robot : cochez la case ci-dessous pour tous les enregistrer, un fichier par jour, gardé 30 jours. Cela aide à repérer des messages encore non identifiés.
                         </TextBlock>
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                            <TextBlock DockPanel.Dock="Right" Text="{Binding CaptureInfo}" Style="{StaticResource Muted}" VerticalAlignment="Center"/>
-                            <Button Content="{Binding CaptureButtonLabel}" Command="{Binding ToggleCaptureCommand}" Style="{StaticResource Secondary}" Margin="0,0,10,0"/>
+                            <Button DockPanel.Dock="Right" Content="Ouvrir le dossier" Command="{Binding OpenRecordFolderCommand}" Style="{StaticResource Secondary}"
+                                    Margin="10,0,0,0" ToolTip="{Binding RecordFolder}"/>
+                            <CheckBox IsChecked="{Binding RecordMessages}" Content="Enregistrer tous les messages" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding RecordInfo}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0,0,0" TextTrimming="CharacterEllipsis"/>
                         </DockPanel>
                         <ListBox ItemsSource="{Binding Log}" FontFamily="Consolas" FontSize="12"/>
                     </DockPanel>

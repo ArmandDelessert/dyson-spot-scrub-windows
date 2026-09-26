@@ -1,107 +1,79 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
-using System.Text;
-using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MyDyson.App.Services;
 using MyDyson.Core;
 
 namespace MyDyson.App.ViewModels;
 
 /// <summary>
 /// The Journal tab: the curated log everything writes to through <see cref="RobotHub.AddLog"/>,
-/// and the raw capture of every message on the robot's topics, for finding what the tracker
-/// doesn't know yet.
+/// and, when ticked, the record of every message on the robot's topics in a daily file (see
+/// <see cref="MessageLog"/>), for finding what the tracker doesn't know yet. The tick is kept
+/// from one run to the next.
 /// </summary>
-public sealed partial class JournalViewModel(RobotHub hub) : ObservableObject, IDisposable
+public sealed partial class JournalViewModel(RobotHub hub, DisplaySettings settings, MessageLog? log = null) : ObservableObject, IDisposable
 {
+    private readonly MessageLog _log = log ?? new MessageLog();
+
     public ObservableCollection<string> Log => hub.Log;
 
-    [ObservableProperty] private bool _isCapturing;
-    [ObservableProperty] private string _captureButtonLabel = "Capturer tous les messages…";
-    [ObservableProperty] private string _captureInfo = "";
-    private StreamWriter? _captureWriter;
-    private readonly object _captureLock = new();
-    private string? _captureFileName;
-    private int _captureCount;
+    [ObservableProperty] private string _recordInfo = "";
 
-    /// <summary>
-    /// Writes every message the robot exchanges, one JSON object per line, in the same shape the
-    /// CLI's "watch --log" produces. The Journal tab only ever shows a curated subset (recognised
-    /// events and our own command results); this is the way to see everything, including message
-    /// types nothing in this app understands yet. Called on the MQTT thread.
-    /// </summary>
+    /// <summary>Whether every message is written to the daily file.</summary>
+    public bool RecordMessages
+    {
+        get => settings.RecordMessages;
+        set
+        {
+            if (settings.RecordMessages == value) return;
+            settings.RecordMessages = value;
+            if (!value) _log.Close();
+            OnPropertyChanged();
+            RecordInfo = value ? $"Enregistrement dans {_log.Directory}" : "";
+            hub.AddLog(value ? "enregistrement des messages activé" : "enregistrement des messages arrêté");
+        }
+    }
+
+    public string RecordFolder => _log.Directory;
+
+    /// <summary>Called on the MQTT thread for every message on the robot's topics.</summary>
     public void CaptureMessage(RobotMessage m)
     {
-        StreamWriter? w;
-        lock (_captureLock) { w = _captureWriter; }
-        if (w is null) return;
-
-        var line = JsonSerializer.Serialize(new
-        {
-            time = m.ReceivedUtc,
-            topic = m.Topic,
-            payload = (object?)m.Json ?? m.Payload,
-        });
+        if (!settings.RecordMessages) return;
         try
         {
-            lock (_captureLock) { _captureWriter?.WriteLine(line); }
+            _log.Write(m);
         }
-        catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Disk full, drive unplugged: the capture ends, the session goes on.
+            // Disk full, folder locked: the record stops, the session goes on.
             hub.Post(() =>
             {
-                hub.AddLog($"capture interrompue : {ex.Message}");
-                if (IsCapturing) StopCapture();
+                hub.AddLog($"enregistrement des messages interrompu : {ex.Message}");
+                RecordMessages = false;
             });
             return;
         }
-        _captureCount++;
-        hub.Post(() => CaptureInfo = $"{_captureCount} message(s) → {_captureFileName}");
+        var (count, file) = (_log.Count, Path.GetFileName(_log.CurrentFile));
+        hub.Post(() => RecordInfo = $"{count} message(s) aujourd'hui → {file}");
     }
 
     [RelayCommand]
-    private void ToggleCapture()
+    private void OpenRecordFolder()
     {
-        if (IsCapturing) { StopCapture(); return; }
-
-        var dlg = new Microsoft.Win32.SaveFileDialog
+        try
         {
-            Filter = "JSON Lines (*.jsonl)|*.jsonl",
-            FileName = $"capture-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.jsonl",
-        };
-        if (dlg.ShowDialog() != true) return;
-
-        lock (_captureLock)
-        {
-            // No byte order mark: a BOM at the head of a JSON Lines file breaks standard JSON parsers.
-            _captureWriter = new StreamWriter(dlg.FileName, append: false, new UTF8Encoding(false)) { AutoFlush = true };
-            _captureCount = 0;
+            Directory.CreateDirectory(_log.Directory);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{_log.Directory}\"") { UseShellExecute = true });
         }
-        _captureFileName = Path.GetFileName(dlg.FileName);
-        IsCapturing = true;
-        CaptureButtonLabel = "Arrêter la capture";
-        CaptureInfo = $"0 message(s) → {_captureFileName}";
-        hub.AddLog($"capture démarrée : {dlg.FileName}");
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            hub.AddLog($"dossier des messages : {ex.Message}");
+        }
     }
 
-    private void StopCapture()
-    {
-        StreamWriter? w;
-        lock (_captureLock) { w = _captureWriter; _captureWriter = null; }
-        // Closing flushes, which fails the same way the writes did when the disk is the problem.
-        try { w?.Dispose(); }
-        catch (IOException) { }
-        IsCapturing = false;
-        CaptureButtonLabel = "Capturer tous les messages…";
-        CaptureInfo = _captureCount > 0 ? $"Dernière capture : {_captureCount} message(s) dans {_captureFileName}" : "";
-        hub.AddLog($"capture arrêtée, {_captureCount} message(s) enregistré(s)");
-    }
-
-    /// <summary>Closes the capture file if one is open; safe to call more than once.</summary>
-    public void Dispose()
-    {
-        if (IsCapturing) StopCapture();
-    }
+    public void Dispose() => _log.Dispose();
 }

@@ -25,7 +25,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Horaires, zones de restriction, meubles | messages identiques aux captures, pas encore essayés depuis cette application |
-| Tests unitaires | 228 tests, exécutés en CI |
+| Tests unitaires | 232 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -138,7 +138,8 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 - **Réglages** : les mêmes libellés que l'application Android, en trois groupes : lavage, station,
   vocaux. Chaque réglage part au robot dans les deux dialectes.
 - **Journal** : les événements notables du robot et le résultat des commandes envoyées depuis la
-  fenêtre, pas chaque message MQTT. Un bouton lance une capture complète dans un fichier JSON Lines,
+  fenêtre, pas chaque message MQTT. Une case, retenue d'un lancement à l'autre, enregistre tous
+  les messages dans `%APPDATA%MyDysonmessages`, un fichier JSON Lines par jour gardé 30 jours,
   pour repérer des messages non encore identifiés.
 
 L'en-tête rappelle le numéro de série, le firmware et le compte connecté.
