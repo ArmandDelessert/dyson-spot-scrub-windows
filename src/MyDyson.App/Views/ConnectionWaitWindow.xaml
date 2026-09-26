@@ -15,9 +15,9 @@
             Le réseau n'est peut-être pas encore connecté. L'application réessaie d'elle-même, et tout de suite dès que Windows signale le retour du réseau.
         </TextBlock>
         <TextBlock x:Name="Countdown" Style="{StaticResource Muted}" Margin="0,8,0,0"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="Quitter" IsCancel="True" Style="{StaticResource Secondary}"/>
-            <Button Content="Réessayer maintenant" IsDefault="True" Click="Retry_Click" Margin="0"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,-8">
+            <Button Content="Quitter" IsCancel="True" Style="{StaticResource Secondary}" MinWidth="100"/>
+            <Button Content="Réessayer maintenant" IsDefault="True" Click="Retry_Click" Margin="0,0,0,8" MinWidth="100"/>
         </StackPanel>
     </StackPanel>
 </Window>

@@ -219,9 +219,22 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
         </Style>
+        <!-- Keyboard focus on a tab header, shown only when moving through the window with the
+             keyboard: a click leaves the focus on the tab, and a lasting grey block there looked
+             like a stuck hover. -->
+        <Style x:Key="TabFocusVisual">
+            <Setter Property="Control.Template">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <Rectangle Margin="0,0,4,0" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1" RadiusX="3" RadiusY="3" SnapsToDevicePixels="True"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="TabItem">
             <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
             <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource TabFocusVisual}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
@@ -229,11 +242,10 @@
                             <ContentPresenter ContentSource="Header" TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
+                            <!-- The header's own hover, not the TabItem's: WPF counts the pointer as over
+                                 a tab whenever it is over something in that tab's page, so the selected
+                                 header lit up and went dark as the pointer crossed text and gaps below. -->
+                            <Trigger SourceName="Bd" Property="IsMouseOver" Value="True">
                                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
                             </Trigger>

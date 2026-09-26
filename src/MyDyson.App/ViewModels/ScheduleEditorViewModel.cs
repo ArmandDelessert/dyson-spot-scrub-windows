@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MyDyson.Core;
 
 namespace MyDyson.App.ViewModels;
@@ -75,7 +76,9 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
     /// <summary>At least one day and one room: the phone refuses the same, and the robot has nothing else to go on.</summary>
     [ObservableProperty] private bool _canSave;
     /// <summary>What is still missing, shown beside the disabled button.</summary>
-    [ObservableProperty] private string _missing = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(MissingTip))] private string _missing = "";
+    /// <summary>The same, or null once nothing is missing: an empty tooltip would still show as an empty bubble.</summary>
+    public string? MissingTip => Missing == "" ? null : Missing;
     [ObservableProperty] private string _estimateText = "";
     /// <summary>Another schedule of this map due while this one runs, or running when this one is due.</summary>
     [ObservableProperty] private string _overlapWarning = "";
@@ -100,6 +103,17 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
         }
         if (e.PropertyName is nameof(ZoneItem.Selected) or nameof(ZoneItem.SelectedCleanType) or nameof(ZoneItem.SelectedMopPasses))
             Recompute();
+        if (e.PropertyName == nameof(ZoneItem.Selected)) ClearRoomsCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool AnyRoomTicked() => Rooms.Any(r => r.Selected);
+
+    /// <summary>Unticks every room, to start the choice over.</summary>
+    [RelayCommand(CanExecute = nameof(AnyRoomTicked))]
+    private void ClearRooms()
+    {
+        // Highest order first, so each untick closes no gap before the next.
+        foreach (var r in Rooms.Where(r => r.Selected).OrderByDescending(r => r.Order).ToList()) r.Selected = false;
     }
 
     private ScheduleDays SelectedDays => Days.Where(d => d.IsChecked).Aggregate(ScheduleDays.None, (all, d) => all | d.Day);

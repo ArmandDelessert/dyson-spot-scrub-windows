@@ -228,6 +228,38 @@ public class SchedulesViewModelTests
         Assert.Equal("", editor.OverlapWarning);
     }
 
+    [Fact]
+    public async Task TheSaveButtonsTipOnlyExistsWhileSomethingIsMissing()
+    {
+        var editor = await EditorAsync();
+        Assert.Equal("Choisissez au moins un jour et une pièce.", editor.MissingTip);
+
+        editor.Days[0].IsChecked = true;
+        Room(editor, "10").Selected = true;
+
+        // Null rather than "": an empty tooltip still shows, as an empty bubble.
+        Assert.Null(editor.MissingTip);
+    }
+
+    [Fact]
+    public async Task AllRoomsCanBeUntickedAtOnce()
+    {
+        var editor = await EditorAsync();
+        Assert.False(editor.ClearRoomsCommand.CanExecute(null));
+        Room(editor, "12").Selected = true;
+        Room(editor, "10").Selected = true;
+        Assert.True(editor.ClearRoomsCommand.CanExecute(null));
+
+        editor.ClearRoomsCommand.Execute(null);
+
+        Assert.All(editor.Rooms, r => Assert.False(r.Selected));
+        Assert.All(editor.Rooms, r => Assert.Equal(0, r.Order));
+        Assert.False(editor.ClearRoomsCommand.CanExecute(null));
+        // Ticking again starts the numbering over.
+        Room(editor, "11").Selected = true;
+        Assert.Equal(1, Room(editor, "11").Order);
+    }
+
     private static ZoneItem Room(ScheduleEditorViewModel editor, string id) => editor.Rooms.Single(r => r.Id == id);
 
     // ---- The stored list -----------------------------------------------------------------------
