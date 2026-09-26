@@ -553,7 +553,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     private void AddZone()
     {
         AddingZone = true;
-        Hint = $"Cliquez deux coins opposés de la zone « {ZoneKind.Label} ». Échap pour annuler.";
+        Hint = $"Cliquez deux coins opposés de la zone « {ZoneKind.Label} » ; ils se calent sur la grille de 5 cm, visible en zoomant. Échap pour annuler.";
         Status = "";
         RefreshCommandStates();
     }
@@ -775,7 +775,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     {
         if (SelectedRoom is null) { Status = "Choisissez d'abord la pièce à diviser."; return; }
         Splitting = true;
-        Hint = "Cliquez les deux extrémités du trait de coupe. Échap pour annuler.";
+        Hint = "Cliquez les deux extrémités du trait de coupe ; il se cale sur la grille de 5 cm du robot, visible en zoomant. Échap pour annuler.";
         Status = "";
         RefreshCommandStates();
     }

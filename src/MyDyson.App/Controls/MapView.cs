@@ -172,6 +172,12 @@ public sealed class MapView : FrameworkElement
         var size = new Size(Math.Max(1, ActualWidth), Math.Max(1, ActualHeight));
         MapRenderer.Render(drawingContext, Scene ?? new MapScene(), size, out var m, Zoom, _pan);
         WorldToScreen = m;
+        // The grid under what is being aimed or dragged, and where the pointer lands on it.
+        if (SnapSpec is { } grid && (Picking != MapPick.None || _shapePreview is not null))
+        {
+            MapRenderer.DrawGridLines(drawingContext, m, grid, size);
+            if (_pickCursor is { } cursor) MapRenderer.DrawSnapMarker(drawingContext, m.Transform(cursor));
+        }
         switch (Picking)
         {
             case MapPick.Line when _lineStart is { } start:
@@ -215,9 +221,48 @@ public sealed class MapView : FrameworkElement
     private void DragShape(Point screen)
     {
         if (_shapeGrip is not { } grip || EditableShape is not { Count: 4 } shape || ToWorld(screen) is not { } w) return;
-        _shapePreview = grip < 0
-            ? MyDyson.Core.MapShapes.Translate(shape, w.X - _shapeGripWorld.X, w.Y - _shapeGripWorld.Y)
-            : MyDyson.Core.MapShapes.Rectangle(shape[(grip + 2) % 4], new CorePoint(w.X, w.Y));
+        if (grip < 0)
+        {
+            // Moved by whole grid steps, so a shape that sat on the grid stays on it.
+            var (dx, dy) = (SnapLength(w.X - _shapeGripWorld.X), SnapLength(w.Y - _shapeGripWorld.Y));
+            _shapePreview = MyDyson.Core.MapShapes.Translate(shape, dx, dy);
+        }
+        else
+        {
+            var corner = Snap(w);
+            _shapePreview = MyDyson.Core.MapShapes.Rectangle(shape[(grip + 2) % 4], new CorePoint(corner.X, corner.Y));
+        }
+        _pickCursor = null;
+        InvalidateVisual();
+    }
+
+    // ---- The robot's grid -------------------------------------------------------
+
+    /// <summary>
+    /// Whether picked points and dragged shapes land on the map's grid — the robot's 5 cm cells —
+    /// and the grid shows while aiming once zoomed in far enough to tell the cells apart. Off on
+    /// the dashboard, where nothing is drawn.
+    /// </summary>
+    public bool SnapToGrid { get; set; }
+
+    /// <summary>Where the snapped pointer is while aiming, for its marker.</summary>
+    private Point? _pickCursor;
+
+    private (double X0, double Y0, double Step)? SnapSpec => SnapToGrid ? Scene?.GridSpec : null;
+
+    private Point Snap(Point world) => SnapSpec is { } g
+        ? new Point(g.X0 + Math.Round((world.X - g.X0) / g.Step) * g.Step, g.Y0 + Math.Round((world.Y - g.Y0) / g.Step) * g.Step)
+        : world;
+
+    private double SnapLength(double d) => SnapSpec is { } g ? Math.Round(d / g.Step) * g.Step : d;
+
+    private Point? SnappedWorld(Point screen) => ToWorld(screen) is { } w ? Snap(w) : null;
+
+    protected override void OnMouseLeave(MouseEventArgs e)
+    {
+        base.OnMouseLeave(e);
+        if (_pickCursor is null) return;
+        _pickCursor = null;
         InvalidateVisual();
     }
 
@@ -282,7 +327,9 @@ public sealed class MapView : FrameworkElement
         if (e.LeftButton != MouseButtonState.Pressed) UpdateHoverCursor(e.GetPosition(this));
         if (Picking != MapPick.None)
         {
-            var world = ToWorld(e.GetPosition(this));
+            var world = SnappedWorld(e.GetPosition(this));
+            _pickCursor = world;
+            if (_lineStart is null && Picking != MapPick.Point) InvalidateVisual();   // the snap marker follows
             LinePointMoved?.Invoke(world is { } w ? new CorePoint(w.X, w.Y) : null);
             // A placement follows the cursor from the start; a line or a rectangle once it has a first point.
             if (_lineStart is not null || Picking == MapPick.Point)
@@ -384,7 +431,7 @@ public sealed class MapView : FrameworkElement
     {
         if (Picking != MapPick.None)
         {
-            if (ToWorld(pos) is not { } picked) return;
+            if (SnappedWorld(pos) is not { } picked) return;
             if (Picking == MapPick.Point)
             {
                 PointPicked?.Invoke(new CorePoint(picked.X, picked.Y));

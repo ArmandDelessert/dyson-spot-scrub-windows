@@ -137,6 +137,15 @@ public sealed class MapScene
         return new Rect(new Point(minX - 0.5, minY - 0.5), new Point(maxX + 0.5, maxY + 0.5));
     }
 
+    /// <summary>
+    /// The robot's cell grid, origin and step in metres: from the occupancy grid of the active map,
+    /// else from the stored map's dimensions, which every map has. 5 cm on every map seen so far.
+    /// </summary>
+    public (double X0, double Y0, double Step)? GridSpec =>
+        Grid is { Resolution: > 0 } g ? (g.OffsetX, g.OffsetY, g.Resolution)
+        : Map?.Dimensions is { Resolution: > 0 } d ? (d.OffsetX, d.OffsetY, d.Resolution)
+        : null;
+
     /// <summary>Zone under a world point: from the grid when there is one, else the nearest visited point within 30 cm.</summary>
     public string? ZoneAt(double x, double y)
     {
@@ -175,6 +184,7 @@ public static class MapRenderer
         public readonly Brush LabelBackground;
         public readonly Pen FurniturePen;
         public readonly Brush FurnitureFill;
+        public readonly Pen GridPen;
         public readonly Pen PathPen;
         public readonly Pen[] ActionPens;   // indexed by (int)CleanType, like MapPalette.ActionColors
         private readonly Dictionary<(int Id, bool Dimmed), Brush> _zoneBrushes = [];
@@ -220,6 +230,7 @@ public static class MapRenderer
             LabelBackground = Frozen(new SolidColorBrush(p.LabelBackground));
             FurniturePen = Frozen(new Pen(Frozen(new SolidColorBrush(p.Furniture)), 1));
             FurnitureFill = Frozen(new SolidColorBrush(Color.FromArgb(0x30, p.Furniture.R, p.Furniture.G, p.Furniture.B)));
+            GridPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromArgb(0x38, p.LabelText.R, p.LabelText.G, p.LabelText.B))), 1));
             PathPen = LinePen(p.Path);
             ActionPens = [.. p.ActionColors.Select(LinePen)];
         }
@@ -467,6 +478,48 @@ public static class MapRenderer
         }
         geo.Freeze();
         dc.DrawGeometry(null, Resources.CutPen, geo);
+    }
+
+    /// <summary>
+    /// The robot's cell grid over the visible part of the map, while something is being aimed. Left
+    /// out while the cells are under 6 px apart — at the usual zoom a 5 cm cell is a pixel or two,
+    /// and the lines would only grey the map over.
+    /// </summary>
+    public static void DrawGridLines(DrawingContext dc, Matrix m, (double X0, double Y0, double Step) grid, Size size)
+    {
+        var stepPx = grid.Step * Math.Abs(m.M11);
+        if (stepPx < 6 || !m.HasInverse) return;
+        var inverse = m;
+        inverse.Invert();
+        var a = inverse.Transform(new Point(0, 0));
+        var b = inverse.Transform(new Point(size.Width, size.Height));
+        var (minX, maxX, minY, maxY) = (Math.Min(a.X, b.X), Math.Max(a.X, b.X), Math.Min(a.Y, b.Y), Math.Max(a.Y, b.Y));
+
+        var geo = new StreamGeometry();
+        using (var g = geo.Open())
+        {
+            for (var k = Math.Ceiling((minX - grid.X0) / grid.Step); k <= Math.Floor((maxX - grid.X0) / grid.Step); k++)
+            {
+                var x = m.Transform(new Point(grid.X0 + k * grid.Step, 0)).X;
+                g.BeginFigure(new Point(x, 0), false, false);
+                g.LineTo(new Point(x, size.Height), true, false);
+            }
+            for (var k = Math.Ceiling((minY - grid.Y0) / grid.Step); k <= Math.Floor((maxY - grid.Y0) / grid.Step); k++)
+            {
+                var y = m.Transform(new Point(0, grid.Y0 + k * grid.Step)).Y;
+                g.BeginFigure(new Point(0, y), false, false);
+                g.LineTo(new Point(size.Width, y), true, false);
+            }
+        }
+        geo.Freeze();
+        dc.DrawGeometry(null, Current.GridPen, geo);
+    }
+
+    /// <summary>A small cross where the pointer lands on the grid.</summary>
+    public static void DrawSnapMarker(DrawingContext dc, Point at)
+    {
+        dc.DrawLine(Resources.CutPen, new Point(at.X - 6, at.Y), new Point(at.X + 6, at.Y));
+        dc.DrawLine(Resources.CutPen, new Point(at.X, at.Y - 6), new Point(at.X, at.Y + 6));
     }
 
     /// <summary>Square grips on the corners of a shape that can be resized, in screen points.</summary>

@@ -53,6 +53,8 @@ public partial class MapManagerWindow : Window
         MapCanvas.ZoneClicked += vm.RoomClickedById;
         // Clearing here costs nothing, so it need not wait to see whether a double click follows.
         MapCanvas.DeferEmptySpaceClick = false;
+        // Cuts, zones and furniture land on the robot's 5 cm grid, which shows once zoomed in.
+        MapCanvas.SnapToGrid = true;
         MapCanvas.EmptySpaceClicked += vm.ClearRoomSelection;
         MapCanvas.LinePicked += (from, to) => _ = vm.SplitAsync(from, to);
         MapCanvas.RectanglePicked += (a, b) => _ = vm.ZoneDrawnAsync(a, b);

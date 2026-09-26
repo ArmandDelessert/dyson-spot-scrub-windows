@@ -25,7 +25,7 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Horaires, zones de restriction, meubles | messages identiques aux captures, pas encore essayés depuis cette application |
-| Tests unitaires | 232 tests, exécutés en CI |
+| Tests unitaires | 233 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -124,7 +124,9 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   **meubles** (les vingt-quatre de l'application mobile) : en poser un d'un clic à la taille que
   lui donne le téléphone, le faire glisser, choisir l'un des quatre sens, le retirer. Un clic sur
   la carte y choisit une zone ou un meuble plutôt qu'une pièce, et les listes sont triées par nom.
-  Glisser marche à la souris comme au doigt. Voir « Limites connues » pour ce que le robot ne
+  Glisser marche à la souris comme au doigt. Traits de coupe, coins de zone, meubles posés ou
+  déplacés se calent sur la grille de 5 cm du robot, qui s'affiche en zoomant pendant le tracé.
+  Voir « Limites connues » pour ce que le robot ne
   permet pas.
 - **Horaires** : les nettoyages planifiés de la carte active, dans leur ordre dans la journée, avec
   les jours, les pièces, une durée estimée d'après l'historique et un avertissement quand un horaire
@@ -139,7 +141,7 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   vocaux. Chaque réglage part au robot dans les deux dialectes.
 - **Journal** : les événements notables du robot et le résultat des commandes envoyées depuis la
   fenêtre, pas chaque message MQTT. Une case, retenue d'un lancement à l'autre, enregistre tous
-  les messages dans `%APPDATA%MyDysonmessages`, un fichier JSON Lines par jour gardé 30 jours,
+  les messages dans `%APPDATA%\MyDyson\messages`, un fichier JSON Lines par jour gardé 30 jours,
   pour repérer des messages non encore identifiés.
 
 L'en-tête rappelle le numéro de série, le firmware et le compte connecté.

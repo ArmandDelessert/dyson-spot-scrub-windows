@@ -114,4 +114,15 @@ public class MapSceneTests
         Assert.Equal("11", vector.ZoneAt(0.8, 0.1));
         Assert.Null(vector.ZoneAt(0.5, 0.5)); // more than 30 cm from any visited point
     }
+
+    [Fact]
+    public void TheGridToSnapToComesFromTheOccupancyGridOrElseTheStoredDimensions()
+    {
+        var dims = new MapDimensions(2, 2, 0.05, -5, -9);
+        var map = new PersistentMap("1", 0, dims, [], null, null, null);
+
+        Assert.Equal((-5.0, -9.0, 0.05), new MapScene { Map = map }.GridSpec);
+        Assert.Equal((-1.0, -2.0, 0.1), new MapScene { Map = map, Grid = new MapGrid(new MapDimensions(1, 1, 0.1, -1, -2), [0]) }.GridSpec);
+        Assert.Null(new MapScene().GridSpec);
+    }
 }
