@@ -135,6 +135,66 @@ public sealed record CleaningSchedule(
     }
 }
 
+// ---- The cloud's copy ---------------------------------------------------------------------
+
+/// <summary>
+/// GET /v1/unifiedscheduler/{serial}/events?productType=804: the schedules of the robot's active
+/// map, as the phone reads them. The robot answers get_order with a count only; the cloud keeps the
+/// detail, whoever created the schedule (phone or this app, whose add_order it picks up), and
+/// swaps the list when the active map changes. Read off the APK and checked on 2026-09-28.
+/// </summary>
+public sealed record ScheduleEvents(
+    [property: JsonPropertyName("serial")] string? Serial,
+    [property: JsonPropertyName("enabled")] bool Enabled,
+    [property: JsonPropertyName("events")] List<ScheduleEvent>? Events);
+
+/// <param name="GroupId">The schedule's id, the same the robot's add_order and del_order use.</param>
+/// <param name="Days">0 Sunday, 1 Monday … 6 Saturday.</param>
+/// <param name="StartTime">"HH:mm".</param>
+public sealed record ScheduleEvent(
+    [property: JsonPropertyName("groupId")] long GroupId,
+    [property: JsonPropertyName("days")] List<int>? Days,
+    [property: JsonPropertyName("startTime")] string? StartTime,
+    [property: JsonPropertyName("weeklyRepeat")] bool WeeklyRepeat,
+    [property: JsonPropertyName("enabled")] bool Enabled,
+    [property: JsonPropertyName("settings")] ScheduleEventSettings? Settings)
+{
+    /// <summary>
+    /// The same schedule in this app's terms, or null when it cannot be read (no map, no time).
+    /// The rooms kept are those the event marks selected, in its order; their settings are the REST
+    /// names of the per-room choices.
+    /// </summary>
+    public CleaningSchedule? ToSchedule()
+    {
+        if (Settings is null || !long.TryParse(Settings.PersistentMapId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapId)) return null;
+        if (!TimeOnly.TryParseExact(StartTime, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)) return null;
+        var days = (Days ?? []).Aggregate(ScheduleDays.None, (all, d) => all | DayFromCloud(d));
+        var rooms = (Settings.Zones ?? [])
+            .Where(z => z.IsSelected == true && int.TryParse(z.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            .OrderBy(z => z.Order ?? 0)
+            .Select(z => new ScheduledRoom(int.Parse(z.Id, CultureInfo.InvariantCulture), new RoomSettings(
+                CleanTypes.FromRest(z.Settings?.CleanType),
+                CleaningStrategies.FromRest(z.Settings?.CleaningStrategy),
+                WaterLevels.FromRest(z.Settings?.WaterLevel),
+                z.Settings?.MopPasses is >= 2 ? 2 : 1)))
+            .ToList();
+        return new CleaningSchedule(GroupId, mapId, Enabled, days, time.Hour, time.Minute, rooms);
+    }
+
+    /// <summary>The cloud counts from Sunday = 0, the robot's bits from Monday.</summary>
+    public static ScheduleDays DayFromCloud(int day) => day switch
+    {
+        0 => ScheduleDays.Sunday,
+        >= 1 and <= 6 => (ScheduleDays)(1 << (day - 1)),
+        _ => ScheduleDays.None,
+    };
+}
+
+/// <summary>The RB05's own part of an event: its map and every room of it, as the map metadata lists them.</summary>
+public sealed record ScheduleEventSettings(
+    [property: JsonPropertyName("persistentMapId")] string? PersistentMapId,
+    [property: JsonPropertyName("zones")] List<ZoneMetadata>? Zones);
+
 /// <summary>get_order's whole answer: how many schedules the active map has, how many are on, and a fingerprint of them.</summary>
 public sealed record ScheduleSummary(int Total, int Enabled, string? Md5);
 
@@ -241,12 +301,3 @@ public static class ScheduleDayLabels
     public static string Time(int hour, int minute) => string.Create(CultureInfo.InvariantCulture, $"{hour:00}:{minute:00}");
 }
 
-/// <summary>Stored schedules, as JSON with readable enum names; used by the app's local list.</summary>
-public static class ScheduleJson
-{
-    public static readonly JsonSerializerOptions Options = new()
-    {
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() },
-    };
-}

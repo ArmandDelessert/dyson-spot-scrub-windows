@@ -615,8 +615,8 @@ que la carte active à être modifiée.
 
 **Supprimer une carte** (`del_map`, capturé le 23 septembre) fonctionne sur la carte active : le
 robot en active alors une autre de lui-même, et le `MAP-UPLOAD-STATUS` suivant porte sur cette
-nouvelle carte active. Aucune commande de suppression de *pièce* n'a été observée ; seule la
-fusion fait disparaître une zone.
+nouvelle carte active. Aucune commande jdm de suppression de *pièce* n'a été observée ; le téléphone
+en a une en REST (`remove-zone`, voir « API REST de l'application mobile »).
 
 **Diviser une pièce** envoie la pièce visée (`room_id`) et les deux extrémités du trait de coupe
 (`split_points`, en mètres dans le repère de la carte), pas une forme. Elle efface le nom et le
@@ -743,15 +743,37 @@ d'horaires **de la carte active** et le nombre de ceux qui sont activés. Change
 publie aussi `order_total` pour la nouvelle carte ; revenir sur la première retrouve ses horaires
 intacts.
 
-**Aucun moyen de relire les horaires eux-mêmes n'a été trouvé.** `service.get_order` `{}` ne
-renvoie que `order_data_lite {total, enable, timestamp, md5}`, y compris quand la carte active
-porte des horaires (capture du 25 septembre, et appel direct le même jour : `total` 3,
-`enable` 2). Le téléphone n'envoie aucune autre requête et affiche pourtant ses horaires : il les
-garde donc de son côté. Le `md5` change avec le contenu (celui d'une liste vide est
-`6a8ad4dbe08d69c27dbb2b53c97da3f8`) mais ne correspond à aucune sérialisation évidente. Côté REST,
-`/v1/unifiedscheduler/{serial}/events` répond 404 et `…/app/schedule.bin` renvoie un fichier
-binaire de 54 octets sans lien apparent avec ces horaires ; ils servent vraisemblablement à
-d'autres produits Dyson.
+**Le robot ne rend pas le détail des horaires, le cloud si.** `service.get_order` `{}` ne renvoie
+que `order_data_lite {total, enable, timestamp, md5}`, même quand la carte active porte des
+horaires. Le détail est chez le cloud Dyson, que le téléphone interroge en REST (lu dans l'APK et
+vérifié le 28 septembre) :
+
+```
+GET /v1/unifiedscheduler/{serial}/events?productType=804
+{ "enabled": true, "serial": "…", "events": [
+  { "groupId": 544623979, "days": [0], "startTime": "11:00", "weeklyRepeat": true, "enabled": true,
+    "settings": { "persistentMapId": "1000000002", "zones": [
+      { "id": "11", "name": "Salle de bain", "type": "", "isSelected": true, "order": 0,
+        "settings": { "cleaningStrategy": "auto", "cleanType": "vacuum", "waterLevel": "low",
+                      "mopPasses": 1, "dryPasses": 1, "vacuumPowerMode": 0, "isUvScanOn": false } }, … ] } } ] }
+```
+
+- `productType` est le type d'appareil du manifeste (804 pour le RB05) ; sans lui, 404.
+- `groupId` est l'identifiant de l'horaire, celui de `add_order` et `del_order` : le téléphone a
+  désactivé le 27 septembre, sous le même identifiant, un horaire créé par cette application.
+- `days` compte **à partir du dimanche = 0** (lundi 1 … samedi 6), à l'inverse du masque du robot.
+- `settings.zones` a la forme des pièces de `persistent-map-metadata` : les pièces à nettoyer ont
+  `isSelected`, dans l'ordre de `order`, avec les réglages par pièce sous leurs noms REST.
+- La liste est celle de la **carte active** : vérifié en rendant « Test 2 » active (liste vide)
+  puis « Appartement » à nouveau (ses deux horaires revenus).
+- Le cloud tient cette liste à jour quelle que soit l'origine de l'horaire : ceux envoyés au robot
+  par cette application en `add_order` apparaissent aussi sur le téléphone.
+
+Le téléphone écrit par `PUT` sur la même adresse, avec `{serial, enabled, events, updatedEvents}`
+(la liste entière, et les `groupId` modifiés) ; le cloud relaie ensuite `add_order` ou `del_order`
+au robot. Cette application écrit directement en jdm, ce qui a été vérifié. Le `md5` du résumé
+change avec le contenu (celui d'une liste vide est `6a8ad4dbe08d69c27dbb2b53c97da3f8`) mais ne
+correspond à aucune sérialisation évidente. `…/app/schedule.bin` sert à d'autres produits.
 
 Quand deux horaires d'une même carte sont proches, l'application Android avertit : « Ce programme
 ne commencera pas si le programme précédent est toujours en cours ». C'est donc le robot qui
@@ -775,6 +797,38 @@ Sur le firmware `RB05PR.01.000.0436` le robot refuse les deux, avec `result: 1` 
 HTTP 424 « Failed to update JDM machine timezone … Response code: 1 ». Le refus est le même robot
 au repos ou en phase de séchage. C'est un défaut du firmware, à signaler à Dyson.
 
+## API REST de l'application mobile pour le RB05
+
+Le code du téléphone pour ce robot ne contient **aucun** nom de méthode jdm : il appelle l'API
+REST, et c'est le cloud qui relaie au robot les `service.*` que les captures montrent (leurs
+`msgId` sont ceux du cloud). Cette application parle jdm directement, ce qui marche aussi ; ces
+adresses sont celles qu'emploierait un client qui voudrait faire exactement comme le téléphone.
+
+Relevé le 28 septembre 2026 dans l'interface Retrofit de l'APK 6.4.26360 : les annotations y sont
+renommées (`c82.f` GET, `c82.p` PUT, `c82.b` DELETE, `c82.o` POST, `c82.s` paramètre de chemin,
+`c82.t` paramètre de requête, `c82.a` corps), les champs JSON gardent leurs noms Gson.
+
+| Verbe | Adresse | Corps | Rôle |
+|---|---|---|---|
+| GET | `/v2/app/{serial}/persistent-map-metadata` | | cartes, pièces et réglages |
+| PUT | `/v2/app/{serial}/persistent-map-metadata/{mapId}` | liste des pièces | réglages, sélection, ordre |
+| GET | `/v2/app/{serial}/persistent-maps/{mapId}?isPreview=` | | géométrie |
+| PUT | `/v2/app/{serial}/persistent-maps/{mapId}` | `{name, zone, orientation, isCurrentMap, furniture}` | renommer, activer, tourner (vérifié), meubles |
+| DELETE | `/v2/app/{serial}/persistent-maps/{mapId}` | | supprimer la carte |
+| PUT | `/v2/app/{serial}/zones-definitions/{mapId}/divide-zone` | `{threshold: {zoneId, start, end}, language}` | diviser une pièce |
+| PUT | `/v2/app/{serial}/zones-definitions/{mapId}/merge-zones` | `{zoneIds, language}` | fusionner des pièces |
+| PUT | `/v2/app/{serial}/zones-definitions/{mapId}/remove-zone` | `{isPreview, zoneId}` | **supprimer une pièce** |
+| PUT | `/v2/app/{serial}/restrictions-definitions/{mapId}` | liste de restrictions | zones de restriction |
+| POST | `/v2/app/{serial}/persistent-maps/{mapId}/clean-estimation` | `{spotZones, zones}` | durée estimée |
+| GET/PUT | `/v1/unifiedscheduler/{serial}/events?productType=804` | `{serial, enabled, events, updatedEvents}` | horaires (voir Horaires) |
+
+Dans `zones-definitions`, une « zone » est une **pièce** (le vocabulaire REST des cartes, où les
+pièces sont `zones`) ; les zones de restriction sont les `restrictions`. `remove-zone` supprime donc
+une pièce, ce que le téléphone propose (il a un écran d'erreur « suppression de la pièce »), avec
+`isPreview` qui demande vraisemblablement d'abord un aperçu du résultat. Jamais essayé depuis cette
+application. `divide-zone` et `merge-zones` portent la langue en toutes lettres (`language`) là où
+le jdm porte un code numérique (`lang`, 5 pour le français) : c'est le cloud qui traduit.
+
 ## Endpoints REST en lecture
 
 Tous vérifiés le 19 septembre 2026.
@@ -795,14 +849,19 @@ de 320 × 420 cellules de 5 cm pour un logement de 16 m sur 21 m.
 
 ### Orientation de la carte
 
-La rotation d'une carte depuis le téléphone ne produit aucun message MQTT (captures du 23 et du 25
-septembre). Elle apparaît dans `persistent-maps/{mapId}` sous `orientation`, en degrés : 0 pour
-toutes les cartes jamais tournées, 90 pour « Test 2 » après un quart de tour le 25 septembre.
-L'application Android n'a qu'un bouton, qui tourne la carte d'un quart de tour **dans le sens des
-aiguilles d'une montre** : 90 est donc un quart de tour horaire, et les valeurs suivantes
-vraisemblablement 180 et 270. L'application Android connaît un type `RotationAngleDegree` et un
-message d'échec « rotateMap », mais l'adresse REST qu'elle appelle pour écrire l'orientation n'est
-pas connue : ses échanges HTTPS ne sont pas capturés.
+La rotation d'une carte ne passe pas par le robot : c'est un réglage d'affichage tenu par le cloud.
+`persistent-maps/{mapId}` la rend sous `orientation`, en degrés **dans le sens des aiguilles d'une
+montre** (le téléphone n'a qu'un bouton, un quart de tour horaire à chaque appui). Elle s'écrit
+comme le fait le téléphone (lu dans l'APK, vérifié le 28 septembre sur « Test 2 », active ou non) :
+
+```
+PUT /v2/app/{serial}/persistent-maps/{mapId}
+{ "orientation": 180 }
+```
+
+Seules 0, 90, 180 et 270 sont admises (l'application le vérifie elle-même : « orientationDegrees
+must be 0, 90, 180, or 270 »). Le corps accepte aussi `name`, `zone {id, name, type}`,
+`isCurrentMap` et `furniture`, tous facultatifs.
 
 ### Grille d'occupation
 

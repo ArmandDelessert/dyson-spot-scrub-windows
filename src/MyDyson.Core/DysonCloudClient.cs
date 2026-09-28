@@ -202,6 +202,26 @@ public sealed class DysonCloudClient : IDisposable
     public Task<PersistentMap> GetPersistentMapAsync(string serial, string mapId, CancellationToken ct = default) =>
         SendAsync<PersistentMap>(Request(HttpMethod.Get, Url($"/v2/app/{serial}/persistent-maps/{mapId}", withCountry: false), auth: true), ct);
 
+    /// <summary>
+    /// Turns a stored map, as the phone's rotate button does: PUT on the map with only
+    /// <c>orientation</c> set, in clockwise degrees (0, 90, 180 or 270; the app refuses anything
+    /// else). The call and its body were read off the APK's Retrofit interface on 2026-09-28; the
+    /// body class also carries name, zone, isCurrentMap and furniture, all optional.
+    /// </summary>
+    public Task SetMapOrientationAsync(string serial, string mapId, int degrees, CancellationToken ct = default)
+    {
+        if (degrees is not (0 or 90 or 180 or 270)) throw new ArgumentOutOfRangeException(nameof(degrees), degrees, "0, 90, 180 or 270");
+        return SendAsync<string>(Request(HttpMethod.Put, Url($"/v2/app/{serial}/persistent-maps/{mapId}", withCountry: false), new { orientation = degrees }, auth: true), ct);
+    }
+
+    /// <summary>
+    /// The schedules of the robot's active map, from the cloud's scheduler (see <see cref="ScheduleEvents"/>).
+    /// <paramref name="productType"/> is the device type of the manifest, "804" for the RB05; the
+    /// service answers 404 without it.
+    /// </summary>
+    public Task<ScheduleEvents> GetScheduleEventsAsync(string serial, string productType, CancellationToken ct = default) =>
+        SendAsync<ScheduleEvents>(Request(HttpMethod.Get, Url($"/v1/unifiedscheduler/{serial}/events?productType={Uri.EscapeDataString(productType)}", withCountry: false), auth: true), ct);
+
     /// <summary>The current map with robot position and clean path. Works whether or not the robot is cleaning.</summary>
     public Task<LiveMap> GetLiveCleaningMapAsync(string serial, CancellationToken ct = default) =>
         SendAsync<LiveMap>(Request(HttpMethod.Get, Url($"/v1/app/{serial}/live-maps/cleaning", withCountry: false), auth: true), ct);

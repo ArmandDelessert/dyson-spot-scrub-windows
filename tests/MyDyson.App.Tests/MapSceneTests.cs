@@ -125,4 +125,33 @@ public class MapSceneTests
         Assert.Equal((-1.0, -2.0, 0.1), new MapScene { Map = map, Grid = new MapGrid(new MapDimensions(1, 1, 0.1, -1, -2), [0]) }.GridSpec);
         Assert.Null(new MapScene().GridSpec);
     }
+    [Fact]
+    public void AMapTurnedAQuarterClockwiseHasItsTopOnTheRight()
+    {
+        var world = new System.Windows.Rect(0, 0, 4, 2);
+        var size = new System.Windows.Size(400, 400);
+        var top = new System.Windows.Point(2, 2);
+        var bottom = new System.Windows.Point(2, 0);
+
+        var upright = MapRenderer.FitTransform(world, size);
+        Assert.True(upright.Transform(top).Y < upright.Transform(bottom).Y);
+
+        var turned = MapRenderer.FitTransform(world, size, orientation: 90);
+        Assert.True(turned.Transform(top).X > turned.Transform(bottom).X);
+        // Still fitted: the whole map on screen, the long side now vertical.
+        var corners = new[] { new System.Windows.Point(0, 0), new System.Windows.Point(4, 2) }.Select(turned.Transform).ToList();
+        Assert.All(corners, c => Assert.InRange(c.X, 0, 400));
+        Assert.True(Math.Abs(corners[0].Y - corners[1].Y) > Math.Abs(corners[0].X - corners[1].X));
+    }
+
+    [Fact]
+    public void OnlyTheFourQuarterTurnsAreTakenFromTheMap()
+    {
+        static MapScene With(int? o) => new() { Map = new PersistentMap("1", o, null, [], null, null, null) };
+
+        Assert.Equal(90, With(90).Orientation);
+        Assert.Equal(270, With(270).Orientation);
+        Assert.Equal(0, With(null).Orientation);
+        Assert.Equal(0, With(45).Orientation);
+    }
 }

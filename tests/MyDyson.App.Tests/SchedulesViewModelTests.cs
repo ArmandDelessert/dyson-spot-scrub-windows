@@ -1,79 +1,114 @@
-using System.IO;
+using System.Globalization;
 using System.Text.Json.Nodes;
-using MyDyson.App.Services;
 using MyDyson.App.ViewModels;
 using MyDyson.Core;
 
 namespace MyDyson.App.Tests;
 
 /// <summary>
-/// The Horaires tab and its editor, without a robot: what the list shows for the active map, what
-/// the robot's count says about schedules made elsewhere, what the editor lets through, and that a
-/// refused or unsent change leaves the stored list alone.
+/// The Horaires tab and its editor, without a robot: what the list shows of the cloud's schedules
+/// for the active map, when it reads them again, what the editor lets through, and that nothing is
+/// taken as done when it could not be sent.
 /// </summary>
 public class SchedulesViewModelTests
 {
     private const string ActiveId = "1000000002";
     private const string OtherId = "1000000003";
 
-    private static async Task<(SchedulesViewModel Vm, RobotHub Hub, ScheduleStore Store, MapCatalog Maps)> NewAsync(params CleaningSchedule[] stored)
+    /// <summary>One cloud event: its rooms as (id, selected, order); the settings are the phone's defaults.</summary>
+    private static JsonObject Event(long groupId, int day, string time, bool enabled, string mapId, params (string Id, bool Selected, int Order)[] zones)
     {
-        var hub = TestHub.Create(
+        var rooms = new JsonArray();
+        foreach (var z in zones)
+            rooms.Add(new JsonObject
+            {
+                ["id"] = z.Id, ["name"] = "x", ["type"] = "", ["isSelected"] = z.Selected, ["order"] = z.Order,
+                ["settings"] = new JsonObject { ["cleanType"] = "vacuum", ["cleaningStrategy"] = "auto", ["waterLevel"] = "low", ["mopPasses"] = 1 },
+            });
+        return new JsonObject
+        {
+            ["groupId"] = groupId, ["days"] = new JsonArray(day), ["startTime"] = time, ["weeklyRepeat"] = true, ["enabled"] = enabled,
+            ["settings"] = new JsonObject { ["persistentMapId"] = mapId, ["zones"] = rooms },
+        };
+    }
+
+    private static string Events(params JsonObject[] events) =>
+        new JsonObject { ["enabled"] = true, ["serial"] = "SERIAL", ["events"] = new JsonArray([.. events]) }.ToJsonString();
+
+    private static async Task<(SchedulesViewModel Vm, RobotHub Hub, MapCatalog Maps)> NewAsync(string? events = null) =>
+        await NewAsync(out _, events);
+
+    private static Task<(SchedulesViewModel Vm, RobotHub Hub, MapCatalog Maps)> NewAsync(out TestHub.RouteHandler handler, string? events = null)
+    {
+        var hub = TestHub.Create(out handler,
             ("persistent-map-metadata", "["
                 + TestHub.Map(ActiveId, "Étage", isCurrent: true, ("10", "Cuisine", "kitchen"), ("11", "Bureau", "office"), ("12", "Salon", "livingRoom")) + ","
-                + TestHub.Map(OtherId, "Rez", isCurrent: false, ("20", "Salon", "livingRoom")) + "]"));
-        var store = new ScheduleStore();
-        foreach (var s in stored) store.Save(hub.Serial, s);
+                + TestHub.Map(OtherId, "Rez", isCurrent: false, ("20", "Salon", "livingRoom")) + "]"),
+            ("unifiedscheduler", events ?? Events()));
         var maps = new MapCatalog(hub);
-        var vm = new SchedulesViewModel(hub, maps, store, () => []);
+        var vm = new SchedulesViewModel(hub, maps, () => []) { ReloadDelay = TimeSpan.Zero };
+        return LoadedAsync(vm, hub, maps);
+    }
+
+    private static async Task<(SchedulesViewModel, RobotHub, MapCatalog)> LoadedAsync(SchedulesViewModel vm, RobotHub hub, MapCatalog maps)
+    {
         await maps.LoadAsync();
-        return (vm, hub, store, maps);
+        await vm.LoadAsync();
+        return (vm, hub, maps);
     }
 
     private static CleaningSchedule Schedule(long id, string mapId, int hour, ScheduleDays days = ScheduleDays.Monday, bool enabled = true, params int[] rooms) =>
-        new(id, long.Parse(mapId, System.Globalization.CultureInfo.InvariantCulture), enabled, days, hour, 0,
+        new(id, long.Parse(mapId, CultureInfo.InvariantCulture), enabled, days, hour, 0,
             (rooms.Length == 0 ? [10] : rooms).Select(r => new ScheduledRoom(r, new RoomSettings(CleanType.Vacuum))).ToList());
 
     // ---- The list ------------------------------------------------------------------------
 
     [Fact]
-    public async Task OnlyTheActiveMapsSchedulesAreListedByTimeAndTheOthersAreCounted()
+    public async Task TheCloudsSchedulesOfTheActiveMapAreListedByTime()
     {
-        var (vm, _, _, _) = await NewAsync(
-            Schedule(1, ActiveId, 18, ScheduleDays.Weekend, rooms: [11, 10]),
-            Schedule(2, ActiveId, 9, ScheduleDays.All),
-            Schedule(3, OtherId, 10));
+        var (vm, _, _) = await NewAsync(Events(
+            Event(2, 0, "18:00", true, ActiveId, ("11", true, 0), ("10", true, 1), ("12", false, 2)),
+            Event(1, 1, "09:30", false, ActiveId, ("10", true, 0)),
+            // Another map's, as the cloud may still list it just after a switch: left out.
+            Event(3, 2, "08:00", true, OtherId, ("20", true, 0))));
 
         Assert.Equal("Carte active : Étage", vm.Heading);
-        Assert.Equal(["09:00", "18:00"], vm.Items.Select(i => i.TimeText));
-        Assert.Equal("Tous les jours", vm.Items[0].DaysText);
+        Assert.Equal(["09:30", "18:00"], vm.Items.Select(i => i.TimeText));
+        Assert.Equal(["Le lundi", "Le dimanche"], vm.Items.Select(i => i.DaysText));
         Assert.Equal("Bureau, Cuisine", vm.Items[1].RoomsText);
-        Assert.StartsWith("1 autre horaire créé ici pour d'autres cartes", vm.OtherMapsText, StringComparison.Ordinal);
+        Assert.False(vm.Items[0].Enabled);
+        Assert.Equal("", vm.EmptyText);
     }
 
     [Fact]
-    public async Task TheRobotsCountRevealsSchedulesMadeOnThePhone()
+    public async Task AnEmptyListSaysSo()
     {
-        var (vm, _, _, _) = await NewAsync(Schedule(1, ActiveId, 9));
+        var (vm, _, _) = await NewAsync();
 
-        vm.ApplyJdm(Jdm("""{"order_total":{"total":3,"enable":2}}"""));
-        Assert.Equal("Le robot a 3 horaires pour cette carte, dont 2 activés.", vm.RobotCountText);
-        Assert.StartsWith("2 de ces horaires ont été créés depuis l'application mobile", vm.SyncNotice, StringComparison.Ordinal);
+        Assert.Empty(vm.Items);
+        Assert.Equal("Aucun horaire pour cette carte.", vm.EmptyText);
+    }
+
+    [Fact]
+    public async Task TheRobotReportingAChangeReadsTheCloudAgain()
+    {
+        var (vm, _, _) = await NewAsync(out var handler);
+        vm.ApplyJdm(Jdm("""{"order_total":{"total":0,"enable":0}}"""));   // the first report is only noted
+        var before = handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal));
 
         vm.ApplyJdm(Jdm("""{"order_total":{"total":1,"enable":1}}"""));
-        Assert.Equal("", vm.SyncNotice);
+        for (var i = 0; i < 100 && handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal)) == before; i++) await Task.Delay(10);
 
-        vm.ApplyJdm(Jdm("""{"order_total":{"total":0,"enable":0}}"""));
-        Assert.StartsWith("Le robot compte moins d'horaires", vm.SyncNotice, StringComparison.Ordinal);
+        Assert.Equal(before + 1, handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal)));
     }
 
     [Fact]
     public async Task TwoSchedulesTooCloseAreFlagged()
     {
         // Three rooms of 12.5 m² at the default 1.5 min/m² is about 57 minutes.
-        var (vm, _, _, _) = await NewAsync(
-            Schedule(1, ActiveId, 9, rooms: [10, 11, 12]),
-            Schedule(2, ActiveId, 9, rooms: [10]) with { Minute = 30 });
+        var (vm, _, _) = await NewAsync(Events(
+            Event(1, 1, "09:00", true, ActiveId, ("10", true, 0), ("11", true, 1), ("12", true, 2)),
+            Event(2, 1, "09:30", true, ActiveId, ("10", true, 0))));
 
         Assert.Equal("", vm.Items[0].OverlapText);
         Assert.StartsWith("Risque de ne pas démarrer : l'horaire de 09:00", vm.Items[1].OverlapText, StringComparison.Ordinal);
@@ -82,7 +117,7 @@ public class SchedulesViewModelTests
     [Fact]
     public async Task NothingCanBeChangedWithoutTheRobot()
     {
-        var (vm, hub, _, _) = await NewAsync(Schedule(1, ActiveId, 9));
+        var (vm, hub, _) = await NewAsync(Events(Event(1, 1, "09:00", true, ActiveId, ("10", true, 0))));
 
         Assert.False(vm.NewCommand.CanExecute(null));
         Assert.False(vm.ToggleCommand.CanExecute(vm.Items[0]));
@@ -98,7 +133,7 @@ public class SchedulesViewModelTests
     {
         var hub = TestHub.Create(("persistent-map-metadata", "[" + TestHub.Map(OtherId, "Rez", isCurrent: false, ("20", "Salon", "livingRoom")) + "]"));
         var maps = new MapCatalog(hub);
-        var vm = new SchedulesViewModel(hub, maps, new ScheduleStore(), () => []);
+        var vm = new SchedulesViewModel(hub, maps, () => []);
         await maps.LoadAsync();
         hub.Connected = true;
 
@@ -107,9 +142,9 @@ public class SchedulesViewModelTests
     }
 
     [Fact]
-    public async Task AScheduleThatCouldNotBeSentIsNotStored()
+    public async Task AScheduleThatCouldNotBeSentIsNotListed()
     {
-        var (vm, hub, store, _) = await NewAsync();
+        var (vm, hub, _) = await NewAsync();
         hub.Connected = true;   // the flag says so, but there is no session to send with
         vm.EditSchedule = editor =>
         {
@@ -121,14 +156,13 @@ public class SchedulesViewModelTests
         await vm.NewCommand.ExecuteAsync(null);
 
         Assert.Equal("Robot non connecté.", vm.Status);
-        Assert.Empty(store.For(hub.Serial));
         Assert.Empty(vm.Items);
     }
 
     [Fact]
     public async Task ACancelledEditorSendsNothing()
     {
-        var (vm, hub, _, _) = await NewAsync(Schedule(1, ActiveId, 9));
+        var (vm, hub, _) = await NewAsync(Events(Event(1, 1, "09:00", true, ActiveId, ("10", true, 0))));
         hub.Connected = true;
         vm.EditSchedule = _ => false;
 
@@ -137,11 +171,18 @@ public class SchedulesViewModelTests
         Assert.Equal("", vm.Status);
     }
 
+    private static JdmProperties Jdm(string json)
+    {
+        var jdm = new JdmProperties();
+        jdm.Merge((JsonObject)JsonNode.Parse(json)!);
+        return jdm;
+    }
+
     // ---- The editor ------------------------------------------------------------------------
 
     private static async Task<ScheduleEditorViewModel> EditorAsync(CleaningSchedule? existing = null, params CleaningSchedule[] others)
     {
-        var (_, _, _, maps) = await NewAsync();
+        var (_, _, maps) = await NewAsync();
         return new ScheduleEditorViewModel(maps.Find(ActiveId)!, existing, others, 1.5);
     }
 
@@ -262,45 +303,4 @@ public class SchedulesViewModelTests
 
     private static ZoneItem Room(ScheduleEditorViewModel editor, string id) => editor.Rooms.Single(r => r.Id == id);
 
-    // ---- The stored list -----------------------------------------------------------------------
-
-    [Fact]
-    public void TheStoredListSurvivesARestartAndIsKeptPerRobot()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"mydyson-schedules-{Guid.NewGuid():N}.json");
-        try
-        {
-            var store = ScheduleStore.Load(path);
-            store.Save("SERIAL-A", Schedule(1, ActiveId, 9));
-            store.Save("SERIAL-A", Schedule(1, ActiveId, 10));   // same id: replaced
-            store.Save("SERIAL-B", Schedule(2, OtherId, 11));
-            store.Remove("SERIAL-B", 2);
-
-            var reloaded = ScheduleStore.Load(path);
-
-            Assert.Equal(10, reloaded.For("SERIAL-A").Single().Hour);
-            Assert.Empty(reloaded.For("SERIAL-B"));
-            Assert.Empty(reloaded.For("SERIAL-C"));
-        }
-        finally { File.Delete(path); }
-    }
-
-    [Fact]
-    public void AnUnreadableStoredListStartsEmpty()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"mydyson-schedules-{Guid.NewGuid():N}.json");
-        try
-        {
-            File.WriteAllText(path, "{ not json");
-            Assert.Empty(ScheduleStore.Load(path).For("SERIAL-A"));
-        }
-        finally { File.Delete(path); }
-    }
-
-    private static JdmProperties Jdm(string json)
-    {
-        var jdm = new JdmProperties();
-        jdm.Merge((JsonObject)JsonNode.Parse(json)!);
-        return jdm;
-    }
 }

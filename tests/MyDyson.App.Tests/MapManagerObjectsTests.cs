@@ -347,6 +347,36 @@ public class MapManagerObjectsTests
         Assert.False(vm.GridActive);
     }
 
+    // ---- Orientation -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task PickingAnotherOrientationTurnsTheMapOnTheCloud()
+    {
+        var vm = await LoadedAsync(Objects.Replace("\"id\":\"1000000002\",", "\"id\":\"1000000002\",\"orientation\":90,", StringComparison.Ordinal));
+        Assert.Equal(1, vm.MapOrientation!.QuarterTurns);   // shown as the map stands, nothing sent
+        Assert.Equal("", vm.Status);
+        Assert.True(vm.CanRotateMap);
+        var changed = false;
+        vm.Changed += () => changed = true;
+
+        vm.MapOrientation = vm.MapOrientations[2];
+        for (var i = 0; i < 100 && vm.Status == ""; i++) await Task.Delay(10);
+
+        Assert.Equal("Carte tournée à 180°.", vm.Status);
+        Assert.True(changed);
+        // The canned map still says 90: the list shows what the cloud gives back, not the pick.
+        Assert.Equal(1, vm.MapOrientation!.QuarterTurns);
+    }
+
+    [Fact]
+    public async Task AnInactiveMapCanBeTurnedToo()
+    {
+        var vm = await LoadedAsync(active: false);
+
+        Assert.True(vm.CanRotateMap);
+        Assert.Equal(0, vm.MapOrientation!.QuarterTurns);
+    }
+
     private static ManagedZone Zone(MapManagerViewModel vm, string id) => vm.RestrictionZones.Single(z => z.Id == id);
     private static ManagedFurniture Piece(MapManagerViewModel vm, string id) => vm.FurnitureItems.Single(f => f.Id == id);
 }

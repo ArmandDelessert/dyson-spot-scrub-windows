@@ -30,7 +30,7 @@ dépôt reproduit donc le protocole de [l'application Android MyDyson](https://p
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Horaires, zones de restriction, meubles, pièces | fonctionne, vérifié dans l'application mobile |
-| Tests unitaires | 235 tests, exécutés en CI |
+| Tests unitaires | 244 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -117,7 +117,9 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   pas celle du moment.
 - **Gérer les cartes** : une fenêtre à part, ouverte depuis la carte du panneau Nettoyage. Définir
   la carte active (bouton ou double clic dans la liste), renommer ou supprimer une carte, lancer
-  une cartographie. Pour les pièces :
+  une cartographie, et choisir son orientation (quart de tour par quart de tour, comme le bouton de
+  rotation du téléphone) : la carte s'affiche alors tournée partout, ici comme sur le téléphone.
+  Pour les pièces :
   renommer (un des trente types du robot, ou un nom libre ; le type s'affiche en petit à côté du
   nom quand il en diffère), diviser en cliquant les deux extrémités du trait de coupe sur la carte,
   et fusionner — un premier clic sur « Fusionner » permet de choisir plusieurs pièces, sur la carte
@@ -139,10 +141,9 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   risque de tomber pendant le précédent (le robot saute alors le second, comme le signale
   l'application mobile). Créer, modifier, activer ou désactiver d'une case, supprimer. L'éditeur
   reprend les réglages par pièce du panneau Nettoyage : ordre de passage, type de nettoyage,
-  puissance, eau et passages pour chaque pièce, plus l'heure et les jours. Le robot ne rend jamais
-  le détail d'un horaire, seulement leur nombre : l'onglet ne montre donc que ceux créés depuis
-  cette application (retenus dans `%APPDATA%\MyDyson\schedules.json`), et signale quand le robot en
-  compte davantage, ceux du téléphone.
+  puissance, eau et passages pour chaque pièce, plus l'heure et les jours. La liste est celle que
+  le cloud Dyson garde pour la carte active, la même que l'application mobile : ceux créés ici comme
+  ceux du téléphone, relue dès que le robot signale un changement.
 - **Réglages** : les mêmes libellés que l'application Android, en trois groupes : lavage, station,
   vocaux. Chaque réglage part au robot dans les deux dialectes.
 - **Journal** : les événements notables du robot et le résultat des commandes envoyées depuis la
@@ -195,7 +196,7 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
   modèles de vue d'onglet (`StatusViewModel`, `CleaningViewModel`, `HistoryViewModel`,
   `SchedulesViewModel`, `SettingsViewModel`, `JournalViewModel`), qui partagent un `RobotHub`
   (session, journal, envoi de commandes, annulation à la fermeture) et un `MapCatalog` (cartes,
-  géométrie, grille). `ScheduleStore` retient les horaires créés, que le robot ne rend pas.
+  géométrie, grille).
 - `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `maps`, `map`, `live`, `history`,
   `clean`, `send`, `api`, `probe`, `wstest`.
 - `tests/MyDyson.Core.Tests` : casse des requêtes, signature SigV4, nom d'utilisateur MQTT, modèle
@@ -285,8 +286,14 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
 
 - Pas de nettoyage de toute la maison depuis l'application : seulement par pièces. La commande
   existe dans la bibliothèque (`StartGlobalCleanAsync`) et dans la ligne de commande.
-- **Supprimer une pièce** : n'existe pas. Le découpage appartient au robot ; le seul moyen de faire
-  disparaître une zone est de la fusionner avec sa voisine.
+- **Supprimer une pièce** : pas encore proposé ici. Le téléphone le fait par l'API REST
+  (`PUT …/zones-definitions/{mapId}/remove-zone`, voir [docs/protocole.md](docs/protocole.md)),
+  jamais essayé depuis cette application ; en attendant, fusionner la pièce avec sa voisine la fait
+  disparaître.
+- **Horaires** : comme sur le téléphone, seuls ceux de la carte active existent ; le cloud ne rend
+  que ceux-là et remplace la liste quand la carte active change. Un horaire ponctuel (sans
+  répétition) n'est pas proposé : le téléphone ne le fait pas, et le robot n'a jamais été essayé
+  ainsi.
 - **Dessiner la forme d'une pièce** : impossible. Le robot n'offre que la division par un trait
   droit (`service.split_room`, deux points) et la fusion (`service.arrange_room`), et il recale la
   coupe sur sa propre grille d'occupation : la forme se guide par coupes et fusions successives,
@@ -300,12 +307,6 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
 - **Modifier une carte non active** : volontairement bloqué. Le robot ne modifie que la carte
   active : une carte non active modifiée devient active et prend le nom de la carte qui l'était
   (confirmé par capture le 23 septembre). La fenêtre propose de la définir comme active d'abord.
-- **Tourner la carte** : pas exposé. La rotation passe par l'API REST (`orientation`, en degrés,
-  dans le sens horaire), dont l'adresse d'écriture n'est pas connue.
-- **Horaires** : cette application ne sait pas encore relire les horaires créés sur le téléphone ;
-  `service.get_order` n'en rend que le nombre. Le téléphone, lui, retrouve ceux créés ici : il
-  existe donc un moyen de les lire, pas encore identifié. Un horaire ponctuel (sans répétition)
-  n'est pas proposé : le téléphone ne le fait pas, et le robot n'a jamais été essayé ainsi.
 - Le débordement de la carte à travers les fenêtres vient du lidar du robot, pas du rendu. Une zone
   « Zone à éviter » posée dessus, ici ou depuis l'application mobile, empêche le robot d'y aller.
 - Le réglage utilisé par pièce lors d'un nettoyage passé n'est pas récupérable (voir Historique).

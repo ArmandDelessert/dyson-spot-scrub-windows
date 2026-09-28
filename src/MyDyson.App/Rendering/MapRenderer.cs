@@ -56,6 +56,9 @@ public sealed class MapScene
     /// <summary>The piece of furniture (REST id) the map manager is acting on, outlined.</summary>
     public string? SelectedFurnitureId { get; init; }
 
+    /// <summary>How far the map is turned clockwise on screen: the stored map's orientation, 0 when it has none or an odd one.</summary>
+    public int Orientation => Map?.Orientation is 90 or 180 or 270 ? Map.Orientation.Value : 0;
+
     /// <summary>
     /// The driven path cut into same-action runs, which is what the renderer colours by. Finding
     /// the room under each point is the expensive part (on maps without a grid it is a nearest-
@@ -298,17 +301,28 @@ public static class MapRenderer
         return Color.FromRgb((byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255));
     }
 
-    /// <summary>Uniform world-to-screen transform that fits the bounds into the size with a margin.</summary>
-    public static Matrix FitTransform(Rect world, Size size, double margin = 16)
+    /// <summary>
+    /// Uniform world-to-screen transform that fits the bounds into the size with a margin, the map
+    /// turned <paramref name="orientation"/> degrees clockwise on screen — the map's own
+    /// "orientation", set by the phone's rotate button or the map manager.
+    /// </summary>
+    public static Matrix FitTransform(Rect world, Size size, double margin = 16, int orientation = 0)
     {
-        var sx = (size.Width - 2 * margin) / world.Width;
-        var sy = (size.Height - 2 * margin) / world.Height;
+        // y up in the world, down on screen; then the turn, which with y down is clockwise.
+        var turn = Matrix.Identity;
+        turn.Scale(1, -1);
+        turn.Rotate(orientation);
+        var corners = new[] { world.TopLeft, world.TopRight, world.BottomLeft, world.BottomRight }.Select(turn.Transform).ToList();
+        var (minX, maxX, minY, maxY) = (corners.Min(p => p.X), corners.Max(p => p.X), corners.Min(p => p.Y), corners.Max(p => p.Y));
+
+        var sx = (size.Width - 2 * margin) / (maxX - minX);
+        var sy = (size.Height - 2 * margin) / (maxY - minY);
         var s = Math.Max(1e-6, Math.Min(sx, sy));
-        var ox = margin + (size.Width - 2 * margin - world.Width * s) / 2;
-        var oy = margin + (size.Height - 2 * margin - world.Height * s) / 2;
-        var m = Matrix.Identity;
-        m.Translate(-world.X, -world.Bottom);   // (minX, maxY) to the origin; Rect.Bottom is maxY with y up
-        m.Scale(s, -s);
+        var ox = margin + (size.Width - 2 * margin - (maxX - minX) * s) / 2;
+        var oy = margin + (size.Height - 2 * margin - (maxY - minY) * s) / 2;
+        var m = turn;
+        m.Translate(-minX, -minY);
+        m.Scale(s, s);
         m.Translate(ox, oy);
         return m;
     }
@@ -325,7 +339,7 @@ public static class MapRenderer
             DrawCentredText(dc, "Aucune carte", size);
             return;
         }
-        var m = FitTransform(bounds.Value, size);
+        var m = FitTransform(bounds.Value, size, orientation: scene.Orientation);
         if (zoom != 1 || pan != default)
         {
             m.ScaleAt(zoom, zoom, size.Width / 2, size.Height / 2);
@@ -334,7 +348,7 @@ public static class MapRenderer
         worldToScreen = m;
 
         if (scene.Grid is { } grid)
-            DrawGrid(dc, grid, m, scene.SelectedZoneIds);
+            DrawGrid(dc, grid, m, scene.SelectedZoneIds, scene.Orientation);
         else
             DrawVisitedPoints(dc, scene, m);
 
@@ -487,28 +501,29 @@ public static class MapRenderer
     /// </summary>
     public static void DrawGridLines(DrawingContext dc, Matrix m, (double X0, double Y0, double Step) grid, Size size)
     {
-        var stepPx = grid.Step * Math.Abs(m.M11);
+        // The scale is the length of a world unit on screen, whichever way the map is turned.
+        var stepPx = grid.Step * Math.Sqrt(m.M11 * m.M11 + m.M12 * m.M12);
         if (stepPx < 6 || !m.HasInverse) return;
         var inverse = m;
         inverse.Invert();
-        var a = inverse.Transform(new Point(0, 0));
-        var b = inverse.Transform(new Point(size.Width, size.Height));
-        var (minX, maxX, minY, maxY) = (Math.Min(a.X, b.X), Math.Max(a.X, b.X), Math.Min(a.Y, b.Y), Math.Max(a.Y, b.Y));
+        var seen = new[] { new Point(0, 0), new Point(size.Width, 0), new Point(0, size.Height), new Point(size.Width, size.Height) }.Select(inverse.Transform).ToList();
+        var (minX, maxX, minY, maxY) = (seen.Min(p => p.X), seen.Max(p => p.X), seen.Min(p => p.Y), seen.Max(p => p.Y));
 
+        // World lines, drawn through the transform, so they follow a turned map too.
         var geo = new StreamGeometry();
         using (var g = geo.Open())
         {
             for (var k = Math.Ceiling((minX - grid.X0) / grid.Step); k <= Math.Floor((maxX - grid.X0) / grid.Step); k++)
             {
-                var x = m.Transform(new Point(grid.X0 + k * grid.Step, 0)).X;
-                g.BeginFigure(new Point(x, 0), false, false);
-                g.LineTo(new Point(x, size.Height), true, false);
+                var x = grid.X0 + k * grid.Step;
+                g.BeginFigure(m.Transform(new Point(x, minY)), false, false);
+                g.LineTo(m.Transform(new Point(x, maxY)), true, false);
             }
             for (var k = Math.Ceiling((minY - grid.Y0) / grid.Step); k <= Math.Floor((maxY - grid.Y0) / grid.Step); k++)
             {
-                var y = m.Transform(new Point(0, grid.Y0 + k * grid.Step)).Y;
-                g.BeginFigure(new Point(0, y), false, false);
-                g.LineTo(new Point(size.Width, y), true, false);
+                var y = grid.Y0 + k * grid.Step;
+                g.BeginFigure(m.Transform(new Point(minX, y)), false, false);
+                g.LineTo(m.Transform(new Point(maxX, y)), true, false);
             }
         }
         geo.Freeze();
@@ -597,19 +612,26 @@ public static class MapRenderer
         return a!.SetEquals(b!);
     }
 
-    private static void DrawGrid(DrawingContext dc, MapGrid grid, Matrix m, IReadOnlySet<string>? selected)
+    private static void DrawGrid(DrawingContext dc, MapGrid grid, Matrix m, IReadOnlySet<string>? selected, int orientation = 0)
     {
         var bmp = BuildGridBitmap(grid, selected);
 
         var worldRect = new Rect(new Point(grid.OffsetX, grid.OffsetY),
                                  new Point(grid.OffsetX + grid.Width * grid.Resolution, grid.OffsetY + grid.Height * grid.Resolution));
-        var p0 = m.Transform(new Point(worldRect.Left, worldRect.Bottom));
-        var p1 = m.Transform(new Point(worldRect.Right, worldRect.Top));
+        var c0 = m.Transform(new Point(worldRect.Left, worldRect.Bottom));
+        var c1 = m.Transform(new Point(worldRect.Right, worldRect.Top));
         // A destination rect at a fractional pixel position gets its edges blended against the
         // background regardless of scaling mode; snapping to whole device pixels is what actually
         // keeps cell boundaries crisp instead of a faint blur.
-        p0 = new Point(Math.Round(p0.X), Math.Round(p0.Y));
-        p1 = new Point(Math.Round(p1.X), Math.Round(p1.Y));
+        var onScreen = new Rect(new Point(Math.Round(c0.X), Math.Round(c0.Y)), new Point(Math.Round(c1.X), Math.Round(c1.Y)));
+        // A turned map still covers an upright rectangle on screen, quarter turns being the only
+        // ones there are: the image is drawn unturned, its sides swapped for 90 and 270, and turned
+        // about the centre of that rectangle.
+        var quarter = orientation is 90 or 270;
+        var (w, h) = quarter ? (onScreen.Height, onScreen.Width) : (onScreen.Width, onScreen.Height);
+        var centre = new Point(onScreen.X + onScreen.Width / 2, onScreen.Y + onScreen.Height / 2);
+        var p0 = new Point(centre.X - w / 2, centre.Y - h / 2);
+        var p1 = new Point(centre.X + w / 2, centre.Y + h / 2);
 
         // NearestNeighbor on the bitmap keeps each 5 cm cell a sharp block instead of a smooth
         // gradient, but WPF's compositor still anti-aliases the drawn image's own edges unless told
@@ -619,7 +641,11 @@ public static class MapRenderer
         RenderOptions.SetEdgeMode(group, EdgeMode.Aliased);
         RenderOptions.SetBitmapScalingMode(group, BitmapScalingMode.NearestNeighbor);
         using (var gdc = group.Open())
+        {
+            if (orientation != 0) gdc.PushTransform(new RotateTransform(orientation, centre.X, centre.Y));
             gdc.DrawImage(bmp, new Rect(p0, p1));
+            if (orientation != 0) gdc.Pop();
+        }
         group.Freeze();
         dc.DrawDrawing(group);
     }
@@ -632,7 +658,7 @@ public static class MapRenderer
             if (z.Visited is not { Count: > 0 } pts || !int.TryParse(z.Id, out var id)) continue;
             var dimmed = scene.SelectedZoneIds is { Count: > 0 } sel && !sel.Contains(z.Id);
             var brush = Current.ZoneBrush(id, dimmed);
-            var r = Math.Max(2, 0.12 * m.M11);   // cell-sized dots
+            var r = Math.Max(2, 0.12 * Math.Sqrt(m.M11 * m.M11 + m.M12 * m.M12));   // cell-sized dots, however the map is turned
             foreach (var p in pts)
                 dc.DrawEllipse(brush, null, m.Transform(new Point(p.X, p.Y)), r, r);
         }

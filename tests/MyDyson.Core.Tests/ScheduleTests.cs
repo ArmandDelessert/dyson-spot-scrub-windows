@@ -167,17 +167,55 @@ public class ScheduleTests
         for (var i = 0; i < 100; i++) Assert.InRange(CleaningSchedule.NewId(), 1, int.MaxValue);
     }
 
+    // What the cloud's scheduler answered on 2026-09-28 for two schedules made on the phone
+    // (serial anonymised, rooms trimmed to three).
+    internal const string CloudEvents = """
+        {"enabled":true,"serial":"SERIAL","events":[
+          {"groupId":11634012,"days":[1],"startTime":"10:00","weeklyRepeat":true,"enabled":false,
+           "settings":{"persistentMapId":"1000000002","zones":[
+             {"id":"12","name":"Chambre","type":"","isSelected":true,"order":0,
+              "settings":{"vacuumPowerMode":0,"cleaningStrategy":"auto","cleanType":"vacuumAndMop","waterLevel":"low","mopPasses":1,"dryPasses":1,"isUvScanOn":false}},
+             {"id":"10","name":"Cuisine","type":"","isSelected":false,"order":1,
+              "settings":{"vacuumPowerMode":0,"cleaningStrategy":"auto","cleanType":"vacuum","waterLevel":"low","mopPasses":1,"dryPasses":1,"isUvScanOn":false}}]}},
+          {"groupId":544623979,"days":[0],"startTime":"11:00","weeklyRepeat":true,"enabled":true,
+           "settings":{"persistentMapId":"1000000002","zones":[
+             {"id":"11","name":"Salle de bain","type":"","isSelected":true,"order":0,
+              "settings":{"cleaningStrategy":"boost","cleanType":"vacuumThenMop","waterLevel":"high","mopPasses":2}},
+             {"id":"12","name":"Chambre","type":"","isSelected":true,"order":1,
+              "settings":{"cleaningStrategy":"auto","cleanType":"vacuum","waterLevel":"low","mopPasses":1}}]}}]}
+        """;
+
     [Fact]
-    public void AStoredScheduleSurvivesARoundTripThroughJson()
+    public void TheCloudsEventsReadAsSchedulesWithSundayAsDayZero()
     {
-        var s = CleaningSchedule.FromParams((JsonObject)JsonNode.Parse(ThreeRoomsThreeDays)!)!;
+        var events = JsonSerializer.Deserialize<ScheduleEvents>(CloudEvents)!;
 
-        var json = JsonSerializer.Serialize(s, ScheduleJson.Options);
-        var back = JsonSerializer.Deserialize<CleaningSchedule>(json, ScheduleJson.Options)!;
+        var monday = events.Events![0].ToSchedule()!;
+        Assert.Equal(new CleaningSchedule(11634012, 1000000002, false, ScheduleDays.Monday, 10, 0,
+            [new(12, new RoomSettings(CleanType.VacuumAndMop))]) with { Rooms = [] }, monday with { Rooms = [] });
+        Assert.Equal([12], monday.Rooms.Select(r => r.ZoneId));
 
-        Assert.Contains("\"Monday, Thursday, Sunday\"", json, StringComparison.Ordinal);
-        Assert.Equal(s with { Rooms = [] }, back with { Rooms = [] });
-        Assert.Equal(s.Rooms, back.Rooms);
+        var sunday = events.Events[1].ToSchedule()!;
+        Assert.Equal((ScheduleDays.Sunday, 11, 0, true), (sunday.Days, sunday.Hour, sunday.Minute, sunday.Enabled));
+        // Selected rooms only, in the event's order, with their settings.
+        Assert.Equal([11, 12], sunday.Rooms.Select(r => r.ZoneId));
+        Assert.Equal(new RoomSettings(CleanType.VacuumThenMop, CleaningStrategy.Boost, WaterLevel.High, 2), sunday.Rooms[0].Settings);
+    }
+
+    [Theory]
+    [InlineData(0, ScheduleDays.Sunday)]
+    [InlineData(1, ScheduleDays.Monday)]
+    [InlineData(4, ScheduleDays.Thursday)]
+    [InlineData(6, ScheduleDays.Saturday)]
+    [InlineData(7, ScheduleDays.None)]
+    public void CloudDaysCountFromSunday(int day, ScheduleDays expected) =>
+        Assert.Equal(expected, ScheduleEvent.DayFromCloud(day));
+
+    [Fact]
+    public void AnEventWithoutItsMapOrTimeIsLeftOut()
+    {
+        Assert.Null(new ScheduleEvent(1, [1], "10:00", true, true, null).ToSchedule());
+        Assert.Null(new ScheduleEvent(1, [1], "dix heures", true, true, new ScheduleEventSettings("1000000002", [])).ToSchedule());
     }
 
     // ---- Days and timing -------------------------------------------------------------

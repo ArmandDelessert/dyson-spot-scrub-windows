@@ -36,6 +36,7 @@ internal static class Program
           mydyson send    --serial S --json '{"msg":"..."}'             Envoie un JSON brut sur .../command
           mydyson send    --serial S --jdm service.xxx [--params '{}']  Envoie une requête JDM sur .../command/jdm
           mydyson api     <path>                                        GET authentifié brut (ex: /v3/manifest)
+          mydyson rotate  --serial S --map-id ID --degrees 0|90|180|270   Tourne une carte (orientation, sens horaire)
           mydyson probe   --serial S [--filters a,b] [--topics a,b]     Teste les abonnements et publications autorisés
           mydyson wstest  --serial S [--client-ids a,b]                 Teste CONNECT et PUBLISH en WebSocket brut
 
@@ -71,6 +72,7 @@ internal static class Program
                 "watch" => await WatchAsync(opts, cts.Token),
                 "send" => await SendAsync(opts, cts.Token),
                 "api" => await ApiAsync(opts, cts.Token),
+                "rotate" => await RotateAsync(opts, cts.Token),
                 "probe" => await ProbeAsync(opts, cts.Token),
                 "maps" => await MapsAsync(opts, cts.Token),
                 "map" => await MapAsync(opts, cts.Token),
@@ -395,6 +397,18 @@ internal static class Program
             Console.WriteLine($"  zone {z.Id,-3} {z.Name,-20} statut {z.CleanStatus}  {z.Visited?.Count ?? 0} points");
         if (c.Dirt is { Count: > 0 })
             Console.WriteLine("  saleté: " + Truncate(string.Join(" ", c.Dirt.Select(d => d.ToString())), 300));
+        return 0;
+    }
+
+    private static async Task<int> RotateAsync(Options o, CancellationToken ct)
+    {
+        var serial = RequireSerial(o);
+        var mapId = o.Get("map-id") ?? throw new ArgumentException("--map-id requis");
+        var degrees = o.GetInt("degrees") ?? throw new ArgumentException("--degrees requis (0, 90, 180 ou 270)");
+        using var api = OpenSession();
+        await api.SetMapOrientationAsync(serial, mapId, degrees, ct);
+        var map = await api.GetPersistentMapAsync(serial, mapId, ct);
+        Console.WriteLine($"Carte {mapId} : orientation {map.Orientation}");
         return 0;
     }
 

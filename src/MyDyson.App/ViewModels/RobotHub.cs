@@ -32,6 +32,8 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
     public string Serial => _ctx.Robot?.SerialNumber ?? "";
     /// <summary>The culture chosen at login ("fr-CH"): the language the robot names new rooms in.</summary>
     public string Culture => string.IsNullOrWhiteSpace(_ctx.Stored.Culture) ? "fr-CH" : _ctx.Stored.Culture;
+    /// <summary>The manifest's device type, "804" for the RB05: what the cloud scheduler files its schedules under.</summary>
+    public string ProductType => string.IsNullOrWhiteSpace(_ctx.Robot?.Type) ? "804" : _ctx.Robot.Type;
     /// <summary>Null until <see cref="MainViewModel.StartAsync"/> has connected.</summary>
     public RobotSession? Session { get; internal set; }
     public CancellationToken Ct => _lifetime.Token;

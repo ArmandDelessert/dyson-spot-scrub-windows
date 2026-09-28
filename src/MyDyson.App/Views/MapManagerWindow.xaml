@@ -31,6 +31,14 @@
                     <Button Content="Renommer la carte…" Command="{Binding RenameMapCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
                     <Button Content="Supprimer la carte…" Command="{Binding DeleteMapCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
                     <Button Content="Nouvelle carte (scan)…" Command="{Binding StartMappingCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"/>
+                    <!-- Picking another orientation turns the map at once, here and on the phone. -->
+                    <TextBlock Text="Orientation de la carte" Style="{StaticResource Label}" Margin="0,4,0,4"/>
+                    <ComboBox ItemsSource="{Binding MapOrientations}" SelectedItem="{Binding MapOrientation}" IsEnabled="{Binding CanRotateMap}"
+                              AutomationProperties.Name="Orientation de la carte" Margin="0,0,0,10">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
                 <ListBox ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}" BorderThickness="0"
                          Background="Transparent" Foreground="{DynamicResource TextBrush}"
@@ -71,7 +79,7 @@
                             <Button Content="Annuler" Command="{Binding CancelCommand}" HorizontalAlignment="Stretch" Style="{StaticResource Secondary}"
                                     Visibility="{Binding InMode, Converter={StaticResource Show}}"/>
                             <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0">
-                                Une division suit toujours un trait droit que le robot recale sur sa propre grille, et les deux moitiés perdent leur nom. Il n'existe pas de commande pour supprimer une pièce ; fusionnez-la avec sa voisine.
+                                Une division suit toujours un trait droit que le robot recale sur sa propre grille, et les deux moitiés perdent leur nom. Pour faire disparaître une pièce, fusionnez-la avec sa voisine.
                             </TextBlock>
                         </StackPanel>
                         <!-- Plain clickable rows rather than a ListBox: a click means "choose" or "gather

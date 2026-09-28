@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using MyDyson.App.Services;
 using MyDyson.Core;
 
 namespace MyDyson.App.ViewModels;
@@ -21,42 +20,42 @@ public sealed class ScheduleItem(CleaningSchedule schedule, string roomsText, in
 }
 
 /// <summary>
-/// The Horaires tab. The robot runs the schedules of whichever map is active and never tells them
-/// back — get_order only answers how many there are — so this lists the ones created here (see
-/// <see cref="ScheduleStore"/>) and says when the robot counts more, the phone's own being
-/// invisible. Like the map edits, everything is kept to the active map: a schedule names its map,
-/// but none was ever seen created or changed for another one.
+/// The Horaires tab: the schedules of the active map, read from the cloud's scheduler — the same
+/// list the phone shows, whoever created them. Changes go to the robot (add_order, del_order), which
+/// the cloud picks up; the robot's order_total push after each change, from here or from the
+/// phone, is the cue to read the list again. Like the phone, only the active map's schedules exist
+/// here: the cloud swaps the list when the active map changes.
 /// </summary>
 public sealed partial class SchedulesViewModel : ObservableObject
 {
     private readonly RobotHub _hub;
     private readonly MapCatalog _maps;
-    private readonly ScheduleStore _store;
     private readonly Func<IEnumerable<CleanSummary>> _history;
+    private List<CleaningSchedule> _schedules = [];
     private ScheduleSummary? _robotSummary;
+    private CancellationTokenSource? _pendingReload;
     private string? _robotTimeZone;
     private bool _timeZoneLoaded;
 
-    public SchedulesViewModel(RobotHub hub, MapCatalog maps, ScheduleStore store, Func<IEnumerable<CleanSummary>> history)
+    /// <summary>How long to wait after the robot reports a change before reading the cloud's list again, which trails it a little.</summary>
+    public TimeSpan ReloadDelay { get; set; } = TimeSpan.FromSeconds(2);
+
+    public SchedulesViewModel(RobotHub hub, MapCatalog maps, Func<IEnumerable<CleanSummary>> history)
     {
         _hub = hub;
         _maps = maps;
-        _store = store;
         _history = history;
         // Whatever reloads the maps — start-up, Actualiser, an edit in the map manager — also says
         // which map is active now.
-        maps.Maps.CollectionChanged += (_, _) => Refresh();
+        maps.Maps.CollectionChanged += (_, _) => OnMapsChanged();
         hub.PropertyChanged += OnHubChanged;
     }
 
     public ObservableCollection<ScheduleItem> Items { get; } = new();
     [ObservableProperty] private MapItem? _activeMap;
     [ObservableProperty] private string _heading = "Aucune carte active";
-    [ObservableProperty] private string _robotCountText = "";
-    /// <summary>The robot counts a different number of schedules than this list: some were made or removed on the phone.</summary>
-    [ObservableProperty] private string _syncNotice = "";
-    [ObservableProperty] private string _otherMapsText = "";
     [ObservableProperty] private string _status = "";
+    [ObservableProperty] private string _emptyText = "";
     [ObservableProperty, NotifyCanExecuteChangedFor(nameof(NewCommand), nameof(EditCommand), nameof(DeleteCommand), nameof(ToggleCommand))]
     private bool _busy;
 
@@ -75,14 +74,76 @@ public sealed partial class SchedulesViewModel : ObservableObject
 
     // ---- What is shown ------------------------------------------------------------------
 
-    /// <summary>Rebuilds the list for the map that is active now.</summary>
-    public void Refresh()
+    private void OnMapsChanged()
     {
-        ActiveMap = _maps.Maps.FirstOrDefault(m => m.Metadata.IsCurrentMap);
-        Heading = ActiveMap is { } map ? $"Carte active : {map.Metadata.Name ?? map.Id}" : "Aucune carte active";
+        var active = _maps.Maps.FirstOrDefault(m => m.Metadata.IsCurrentMap);
+        var changed = active?.Id != ActiveMap?.Id;
+        ActiveMap = active;
+        Heading = active is { } map ? $"Carte active : {map.Metadata.Name ?? map.Id}" : "Aucune carte active";
+        NewCommand.NotifyCanExecuteChanged();
+        if (changed) ScheduleReload(TimeSpan.Zero);
+        else Rebuild();   // same map, but its rooms (names, areas) may have changed
+    }
 
-        var all = _store.For(_hub.Serial);
-        var mine = all.Where(s => IsOnActiveMap(s)).OrderBy(s => s.Hour * 60 + s.Minute).ToList();
+    /// <summary>Reads the active map's schedules from the cloud.</summary>
+    public async Task LoadAsync()
+    {
+        if (ActiveMap is not { } map)
+        {
+            _schedules = [];
+            Rebuild();
+            return;
+        }
+        try
+        {
+            var events = await _hub.Api.GetScheduleEventsAsync(_hub.Serial, _hub.ProductType, _hub.Ct);
+            // The list is the active map's; a stray event of another map (the switch not yet seen) is left out.
+            _schedules = (events.Events ?? []).Select(e => e.ToSchedule())
+                .Where(s => s is not null && s.MapId.ToString(CultureInfo.InvariantCulture) == map.Id)
+                .Select(s => s!).ToList();
+            Rebuild();
+        }
+        catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
+        catch (Exception ex)
+        {
+            Status = $"Horaires : {ex.Message}";
+            _hub.AddLog($"horaires: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// order_total, pushed by the robot after every schedule change, whoever made it, and every
+    /// change of active map: the cloud's list is read again a moment later.
+    /// </summary>
+    public void ApplyJdm(JdmProperties jdm)
+    {
+        if (jdm.OrderTotal is not { } total || (total.Total, total.Enabled) == (_robotSummary?.Total, _robotSummary?.Enabled)) return;
+        var first = _robotSummary is null;
+        _robotSummary = total;
+        if (!first) ScheduleReload(ReloadDelay);
+    }
+
+    private void ScheduleReload(TimeSpan delay)
+    {
+        _pendingReload?.Cancel();
+        _pendingReload?.Dispose();
+        var pending = _pendingReload = CancellationTokenSource.CreateLinkedTokenSource(_hub.Ct);
+        _ = ReloadAfterAsync(delay, pending.Token);
+    }
+
+    private async Task ReloadAfterAsync(TimeSpan delay, CancellationToken ct)
+    {
+        try
+        {
+            if (delay > TimeSpan.Zero) await Task.Delay(delay, ct);
+            await LoadAsync();
+        }
+        catch (OperationCanceledException) { }   // superseded by a newer reload, or shutting down
+    }
+
+    private void Rebuild()
+    {
+        var mine = _schedules.OrderBy(s => s.Hour * 60 + s.Minute).ThenBy(s => s.Id).ToList();
         var rate = CleanDurationEstimate.MinutesPerSquareMetre(_history());
         Items.Clear();
         foreach (var s in mine)
@@ -93,62 +154,7 @@ public sealed partial class SchedulesViewModel : ObservableObject
             Items.Add(new ScheduleItem(s, RoomsText(s), minutes,
                 overlap is null ? "" : $"Risque de ne pas démarrer : l'horaire de {ScheduleDayLabels.Time(overlap.Hour, overlap.Minute)} sera sans doute encore en cours."));
         }
-
-        var others = all.Count - mine.Count;
-        OtherMapsText = others == 0 ? ""
-            : $"{others} autre{(others > 1 ? "s" : "")} horaire{(others > 1 ? "s" : "")} créé{(others > 1 ? "s" : "")} ici pour d'autres cartes : "
-              + "ils réapparaissent quand leur carte redevient active.";
-        UpdateRobotCount();
-        NewCommand.NotifyCanExecuteChanged();
-    }
-
-    private bool IsOnActiveMap(CleaningSchedule s) => ActiveMap?.Id == s.MapId.ToString(CultureInfo.InvariantCulture);
-
-    /// <summary>order_total, pushed by the robot after every schedule change and every change of active map.</summary>
-    public void ApplyJdm(JdmProperties jdm)
-    {
-        if (jdm.OrderTotal is { } total && (total.Total, total.Enabled) != (_robotSummary?.Total, _robotSummary?.Enabled))
-        {
-            _robotSummary = total;
-            UpdateRobotCount();
-        }
-    }
-
-    /// <summary>Asks the robot how many schedules the active map has, for the count shown under the heading.</summary>
-    public async Task LoadRobotSummaryAsync()
-    {
-        if (_hub.Session?.Client is not { IsConnected: true } client) return;
-        try
-        {
-            if (await client.GetScheduleSummaryAsync(_hub.Ct) is { } summary)
-            {
-                _robotSummary = summary;
-                UpdateRobotCount();
-            }
-        }
-        catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { _hub.AddLog($"horaires: {ex.Message}"); }
-    }
-
-    private void UpdateRobotCount()
-    {
-        if (_robotSummary is not { } robot || ActiveMap is null)
-        {
-            RobotCountText = "";
-            SyncNotice = "";
-            return;
-        }
-        RobotCountText = robot.Total switch
-        {
-            0 => "Le robot n'a aucun horaire pour cette carte.",
-            1 => $"Le robot a 1 horaire pour cette carte, {(robot.Enabled == 1 ? "activé" : "désactivé")}.",
-            var n => $"Le robot a {n} horaires pour cette carte, dont {robot.Enabled} activé{(robot.Enabled > 1 ? "s" : "")}.",
-        };
-        var known = Items.Count;
-        SyncNotice = robot.Total == known ? ""
-            : robot.Total > known
-                ? $"{robot.Total - known} de ces horaires ont été créés depuis l'application mobile : le robot ne permet pas de les relire, ils ne peuvent donc pas figurer ici."
-                : "Le robot compte moins d'horaires que cette liste : certains ont sans doute été supprimés depuis l'application mobile.";
+        EmptyText = ActiveMap is not null && Items.Count == 0 ? "Aucun horaire pour cette carte." : "";
     }
 
     private string RoomsText(CleaningSchedule s)
@@ -185,7 +191,7 @@ public sealed partial class SchedulesViewModel : ObservableObject
     private async Task EditAsync(ScheduleItem? item)
     {
         if (item is null || ActiveMap is not { } map || EditSchedule is null) return;
-        var editor = new ScheduleEditorViewModel(map, item.Schedule, MineOnActiveMap(), CleanDurationEstimate.MinutesPerSquareMetre(_history()));
+        var editor = new ScheduleEditorViewModel(map, item.Schedule, _schedules, CleanDurationEstimate.MinutesPerSquareMetre(_history()));
         if (!EditSchedule(editor)) return;
         await SaveAsync(editor.Build(item.Schedule.Id), "horaire modifié");
     }
@@ -206,21 +212,14 @@ public sealed partial class SchedulesViewModel : ObservableObject
         if (Confirm?.Invoke("Supprimer l'horaire", $"Supprimer l'horaire de {item.TimeText} ({ScheduleDayLabels.Describe(item.Schedule.Days)}) ?") != true) return;
 
         var done = await SendAsync("horaire supprimé", c => c.DeleteScheduleAsync(item.Schedule.Id, _hub.Ct));
-        // Refused most likely means the robot no longer has it: deleted from the phone, or with its map.
-        if (done == false && Confirm?.Invoke("Supprimer l'horaire",
-                "Le robot a refusé la suppression : il ne connaît sans doute plus cet horaire. Le retirer quand même de cette liste ?") == true)
-            done = true;
-        if (done != true) return;
-        _store.Remove(_hub.Serial, item.Schedule.Id);
-        Refresh();
+        if (done == true) _schedules = [.. _schedules.Where(s => s.Id != item.Schedule.Id)];
+        AfterChange();
     }
 
     /// <summary>An editor for a new schedule of the active map, or null when there is none.</summary>
     public ScheduleEditorViewModel? NewEditor() => ActiveMap is { } map
-        ? new ScheduleEditorViewModel(map, null, MineOnActiveMap(), CleanDurationEstimate.MinutesPerSquareMetre(_history()))
+        ? new ScheduleEditorViewModel(map, null, _schedules, CleanDurationEstimate.MinutesPerSquareMetre(_history()))
         : null;
-
-    private List<CleaningSchedule> MineOnActiveMap() => _store.For(_hub.Serial).Where(IsOnActiveMap).ToList();
 
     private async Task SaveAsync(CleaningSchedule schedule, string label)
     {
@@ -230,9 +229,19 @@ public sealed partial class SchedulesViewModel : ObservableObject
             .Select(z => new MapRoom(int.Parse(z.Id, CultureInfo.InvariantCulture), z.Name ?? ""))
             .ToList();
         var offset = await TimeZoneOffsetAsync();
-        if (await SendAsync(label, c => c.SaveScheduleAsync(schedule, rooms, offset, _hub.Ct)) != true) return;
-        _store.Save(_hub.Serial, schedule);
-        Refresh();
+        if (await SendAsync(label, c => c.SaveScheduleAsync(schedule, rooms, offset, _hub.Ct)) == true)
+            _schedules = [.. _schedules.Where(s => s.Id != schedule.Id), schedule];
+        AfterChange();
+    }
+
+    /// <summary>
+    /// Shows the change at once, then reads the cloud's list again: its copy follows the robot a
+    /// moment later, and a refused change must come back as it really is.
+    /// </summary>
+    private void AfterChange()
+    {
+        Rebuild();
+        ScheduleReload(ReloadDelay);
     }
 
     /// <summary>

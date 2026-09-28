@@ -55,7 +55,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         History = new HistoryViewModel(Hub, _maps, Display);
         Settings = new SettingsViewModel(Hub);
         Journal = new JournalViewModel(Hub, Display);
-        Schedules = new SchedulesViewModel(Hub, _maps, ScheduleStore.Load(), () => History.History.Select(c => c.Summary));
+        Schedules = new SchedulesViewModel(Hub, _maps, () => History.History.Select(c => c.Summary));
 
         _refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _refresh.Tick += async (_, _) => await Hub.RefreshStateAsync();
@@ -128,7 +128,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _initialLoadDone = true;
             _refresh.Start();
             _ = History.FillDetailsAsync();
-            _ = Schedules.LoadRobotSummaryAsync();
+            _ = Schedules.LoadAsync();
         }
         catch (OperationCanceledException) when (Hub.IsShuttingDown) { }
         catch (Exception ex)
@@ -204,7 +204,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             // otherwise keep showing as they were when first loaded.
             _maps.Invalidate();
             await Task.WhenAll(Hub.RefreshStateAsync(), Hub.RefreshPropertiesAsync(), Cleaning.LoadMapsAsync(), History.LoadAsync());
-            await Schedules.LoadRobotSummaryAsync();
+            await Schedules.LoadAsync();
             await History.FillDetailsAsync();
         }
         finally { _reloading = false; }

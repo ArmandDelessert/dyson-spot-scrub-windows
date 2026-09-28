@@ -270,21 +270,17 @@
                         <StackPanel DockPanel.Dock="Top">
                             <TextBlock Text="{Binding Heading}" Style="{StaticResource Section}"/>
                             <TextBlock Style="{StaticResource Muted}" FontSize="11">
-                                Le robot garde les horaires avec leur carte et n'exécute que ceux de la carte active. Il ne permet pas de les relire :
-                                cette liste montre ceux créés depuis cette application, ceux de l'application mobile n'y apparaissent pas.
+                                Les horaires de la carte active, tels que le cloud Dyson les garde : ceux créés ici comme ceux de l'application mobile.
+                                Le robot n'exécute que ceux de la carte active ; ceux des autres cartes réapparaissent quand elle le redevient.
                             </TextBlock>
-                            <TextBlock Text="{Binding RobotCountText}" Margin="0,8,0,0"/>
-                            <Border Background="{DynamicResource CardBrush}" CornerRadius="4" Padding="10,6" Margin="0,8,0,0"
-                                    Visibility="{Binding SyncNotice, Converter={StaticResource Show}}">
-                                <TextBlock Text="{Binding SyncNotice}" TextWrapping="Wrap"/>
-                            </Border>
                             <WrapPanel Margin="0,10,0,2">
                                 <Button Content="Nouvel horaire…" Command="{Binding NewCommand}" ToolTipService.ShowOnDisabled="True"
                                         ToolTip="Planifie un nettoyage de la carte active ; le robot doit être connecté."/>
                             </WrapPanel>
+                            <TextBlock Text="{Binding EmptyText}" Style="{StaticResource Muted}" Margin="0,8,0,0"
+                                       Visibility="{Binding EmptyText, Converter={StaticResource Show}}"/>
                         </StackPanel>
                         <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-                            <TextBlock Text="{Binding OtherMapsText}" Style="{StaticResource Muted}"/>
                             <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
                         </StackPanel>
                         <ScrollViewer VerticalScrollBarVisibility="Auto">

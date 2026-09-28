@@ -290,6 +290,67 @@ public sealed partial class MapManagerViewModel : ObservableObject
         catch (Exception ex) { Status = $"Cartes : {ex.Message}"; }
     }
 
+    // ---- Map orientation ----------------------------------------------------------
+
+    /// <summary>The four ways a map can be shown, clockwise, as the phone's rotate button steps through them.</summary>
+    public IReadOnlyList<OrientationOption> MapOrientations { get; } =
+    [
+        new(0, "0° (d'origine)"),
+        new(1, "90° (quart de tour horaire)"),
+        new(2, "180° (demi-tour)"),
+        new(3, "270° (quart de tour antihoraire)"),
+    ];
+
+    /// <summary>
+    /// How the map on screen is turned. Picking another one saves it on the cloud at once, for this
+    /// app and the phone alike; set back quietly whenever a map is loaded, so only picks are sent.
+    /// Any map can be turned, the active one or not: it is a display setting, the robot is not told.
+    /// </summary>
+    [ObservableProperty] private OrientationOption? _mapOrientation;
+    private bool _showingMapOrientation;
+
+    public bool CanRotateMap => SelectedMap is not null && _map?.Id == SelectedMap.Id && Idle;
+
+    private void ShowMapOrientation()
+    {
+        _showingMapOrientation = true;
+        MapOrientation = _map is null ? null : MapOrientations[(_map.Orientation ?? 0) / 90 % 4];
+        _showingMapOrientation = false;
+    }
+
+    partial void OnMapOrientationChanged(OrientationOption? value)
+    {
+        if (_showingMapOrientation || value is null || SelectedMap is not { } map || _map?.Id != map.Id) return;
+        if (value.QuarterTurns * 90 == (_map.Orientation ?? 0)) return;
+        _ = RotateMapAsync(map, value.QuarterTurns * 90);
+    }
+
+    private async Task RotateMapAsync(MapItem map, int degrees)
+    {
+        Busy = true;
+        Status = "";
+        try
+        {
+            await _hub.Api.SetMapOrientationAsync(_hub.Serial, map.Id, degrees, _hub.Ct);
+            _hub.AddLog($"carte « {map.Metadata.Name} » tournée à {degrees}°");
+            Status = $"Carte tournée à {degrees}°.";
+            await LoadMapAsync(map);
+            Changed?.Invoke();
+        }
+        catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
+        catch (Exception ex)
+        {
+            Status = $"Rotation impossible : {ex.Message}";
+            _hub.AddLog($"rotation de la carte : {ex.Message}");
+        }
+        finally
+        {
+            Busy = false;
+            // Refused or not: the list goes back to how the map really stands.
+            ShowMapOrientation();
+        }
+    }
+
     partial void OnSelectedMapChanged(MapItem? value)
     {
         // Whatever was chosen, gathered or being cut belonged to the map that was on screen.
@@ -331,6 +392,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
             OnPropertyChanged(nameof(ZonesEmptyText));
             OnPropertyChanged(nameof(FurnitureEmptyText));
             _map = map;
+            ShowMapOrientation();
             _grid = grid;
             RefreshCommandStates();
             RebuildScene();
@@ -466,6 +528,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         DeleteFurnitureCommand.NotifyCanExecuteChanged();
         // Not commands, but gated by the same conditions.
         OnPropertyChanged(nameof(CanOrientFurniture));
+        OnPropertyChanged(nameof(CanRotateMap));
         OnPropertyChanged(nameof(EditableShape));
         OnPropertyChanged(nameof(EditableShapeResizable));
     }
