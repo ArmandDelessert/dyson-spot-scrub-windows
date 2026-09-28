@@ -316,7 +316,6 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
 - Projet indépendant, non affilié à Dyson. Dyson, Spot+Scrub et MyDyson sont des marques du
   groupe Dyson.
 - API non officielle, susceptible de changer sans préavis. Usage personnel.
-- Les fichiers APK dans `APK/` servent uniquement à l'analyse et ne sont pas versionnés.
 - Les credentials AWS IoT sont de courte durée (environ 20 minutes) et apparaissent en clair dans les
   réponses de l'API. Évitez de les journaliser.
 
