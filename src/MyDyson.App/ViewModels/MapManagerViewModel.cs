@@ -731,7 +731,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
         Status = "Cartographie lancée ; le robot explore le logement.";
         try
         {
-            await _hub.RunAsync("cartographie lancée", c => c.StartMappingAsync("fr-CH", _hub.Ct));
+            // The map language names the rooms the scan finds: the account's, as the phone sends it.
+            await _hub.RunAsync("cartographie lancée", c => c.StartMappingAsync(_hub.Culture, _hub.Ct));
         }
         finally { Busy = false; }
     }

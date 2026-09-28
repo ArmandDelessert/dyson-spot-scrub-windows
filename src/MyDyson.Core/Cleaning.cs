@@ -195,7 +195,10 @@ public static class CleaningSequence
             for (var i = 0; i < Math.Min(11, entry.Count); i++) arr.Add(entry[i]?.DeepClone());
             while (arr.Count < 11) arr.Add(0);
 
-            var id = arr[0]?.GetValue<int>().ToString(CultureInfo.InvariantCulture) ?? "";
+            // Read as the robot may send it: a number of any width, or its text.
+            var id = arr[0] is JsonValue v && v.TryGetValue<long>(out var n) ? n.ToString(CultureInfo.InvariantCulture)
+                : arr[0] is JsonValue s && s.TryGetValue<string>(out var text) ? text
+                : "";
             if (bySelection.TryGetValue(id, out var sel))
             {
                 sel.Settings.WriteTo(arr);

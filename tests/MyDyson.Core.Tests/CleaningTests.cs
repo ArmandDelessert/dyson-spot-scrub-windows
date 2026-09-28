@@ -98,6 +98,23 @@ public class CleaningSequenceTests
     }
 
     [Fact]
+    public async Task ARoomIdSentAsTextOrAsALargeNumberIsStillRecognised()
+    {
+        var robot = new RecordingRobot("""
+            {"msgId":"1","code":0,"method":"service.get_preference","data":{
+              "room":[["11","Salle de bain",0,0,0,0,0,0,0,0,1],[3000000000,"Salon",0,0,0,0,0,0,0,0,2]]}}
+            """);
+
+        await CleaningSequence.StartAsync(robot, MapId, [new("11", new RoomSettings(CleanType.Mop), Order: 1)]);
+
+        AssertJson("""
+            {"map_id":1000000002,"prefer_type":1,
+             "room_preference":[["11","Salle de bain",0,2,0,0,0,0,1,0,1],[3000000000,"Salon",0,0,0,0,0,0,0,0,2]],
+             "uv_switch":[]}
+            """, robot.Sent[1].Payload);
+    }
+
+    [Fact]
     public async Task RefusesAnEmptySelectionBeforeTalkingToTheRobot()
     {
         var robot = new RecordingRobot(PreferenceReply);

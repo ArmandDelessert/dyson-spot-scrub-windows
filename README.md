@@ -5,8 +5,13 @@
 
 Application Windows non officielle pour contrôler le robot aspirateur **Dyson Spot+Scrub AI** ([en](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai), [fr-CH](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai)) (nom interne RB05).
 
+> **Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson.** Dyson,
+> Spot+Scrub et MyDyson sont des marques du groupe Dyson, citées ici uniquement pour désigner le
+> robot et l'application avec lesquels ce logiciel communique.
+
 Le robot n'expose aucun service sur le réseau local : il n'est joignable que via le cloud Dyson
-(MQTT sur WebSocket vers AWS IoT). Ce dépôt reproduit donc le protocole de [l'application Android MyDyson](https://play.google.com/store/apps/details?id=com.dyson.mobile.android).
+(MQTT direct sur TLS vers AWS IoT, voir « Le transport compte autant que les credentials »). Ce
+dépôt reproduit donc le protocole de [l'application Android MyDyson](https://play.google.com/store/apps/details?id=com.dyson.mobile.android).
 
 ## État du projet
 
@@ -24,8 +29,8 @@ Le robot n'expose aucun service sur le réseau local : il n'est joignable que vi
 | Modèle d'état typé, corrélation requête-réponse | fonctionne |
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
-| Horaires, zones de restriction, meubles | messages identiques aux captures, pas encore essayés depuis cette application |
-| Tests unitaires | 234 tests, exécutés en CI |
+| Horaires, zones de restriction, meubles, pièces | fonctionne, vérifié dans l'application mobile |
+| Tests unitaires | 235 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -297,10 +302,10 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
   (confirmé par capture le 23 septembre). La fenêtre propose de la définir comme active d'abord.
 - **Tourner la carte** : pas exposé. La rotation passe par l'API REST (`orientation`, en degrés,
   dans le sens horaire), dont l'adresse d'écriture n'est pas connue.
-- **Horaires** : le robot ne rend pas le détail des horaires, seulement leur nombre. Ceux créés sur
-  le téléphone ne sont donc pas visibles ici, et le téléphone ne montre vraisemblablement pas ceux
-  créés ici. Un horaire ponctuel (sans répétition) n'est pas proposé : le téléphone ne le fait
-  pas, et le robot n'a jamais été essayé ainsi.
+- **Horaires** : cette application ne sait pas encore relire les horaires créés sur le téléphone ;
+  `service.get_order` n'en rend que le nombre. Le téléphone, lui, retrouve ceux créés ici : il
+  existe donc un moyen de les lire, pas encore identifié. Un horaire ponctuel (sans répétition)
+  n'est pas proposé : le téléphone ne le fait pas, et le robot n'a jamais été essayé ainsi.
 - Le débordement de la carte à travers les fenêtres vient du lidar du robot, pas du rendu. Une zone
   « Zone à éviter » posée dessus, ici ou depuis l'application mobile, empêche le robot d'y aller.
 - Le réglage utilisé par pièce lors d'un nettoyage passé n'est pas récupérable (voir Historique).
@@ -308,6 +313,8 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
 
 ## Avertissements
 
+- Projet indépendant, non affilié à Dyson. Dyson, Spot+Scrub et MyDyson sont des marques du
+  groupe Dyson.
 - API non officielle, susceptible de changer sans préavis. Usage personnel.
 - Les fichiers APK dans `APK/` servent uniquement à l'analyse et ne sont pas versionnés.
 - Les credentials AWS IoT sont de courte durée (environ 20 minutes) et apparaissent en clair dans les

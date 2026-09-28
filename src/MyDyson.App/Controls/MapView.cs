@@ -310,10 +310,25 @@ public sealed class MapView : FrameworkElement
         _dragStart = pos;
         _panAtDragStart = _pan;
         _dragged = false;
-        // Pressing on the editable shape holds it; anywhere else the drag pans the map.
+        // Pressing on the editable shape holds it; anywhere else the drag pans the map. Whatever an
+        // earlier gesture may have left held is let go first, never carried into this one.
+        _shapeGrip = null;
+        _shapePreview = null;
         if (ShapeGripAt(pos) is { } grip) GripShape(grip, pos);
         CaptureMouse();
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// The capture can go mid-gesture — Alt+Tab, a window taking the focus — and then no button-up
+    /// ever comes. A shape being dragged is dropped where it was, unsent: otherwise the next drag,
+    /// meant to pan the map, would carry it along and send it to the robot on release.
+    /// </summary>
+    protected override void OnLostMouseCapture(MouseEventArgs e)
+    {
+        base.OnLostMouseCapture(e);
+        if (_shapeGrip is not null) ReleaseShape(drop: false);
+        _dragStart = null;
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -351,10 +366,12 @@ public sealed class MapView : FrameworkElement
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
-        ReleaseMouseCapture();
         var wasClick = _dragStart is not null && !_dragged;
         _dragStart = null;
         if (_shapeGrip is not null) ReleaseShape(drop: !wasClick);
+        // Released only now: letting go of the capture raises LostMouseCapture at once, which would
+        // otherwise drop the shape unsent before this handler had read the gesture.
+        ReleaseMouseCapture();
         if (wasClick)
         {
             var pos = e.GetPosition(this);

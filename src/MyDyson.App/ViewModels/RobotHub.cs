@@ -30,6 +30,8 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
 
     public DysonCloudClient Api => _ctx.Api;
     public string Serial => _ctx.Robot?.SerialNumber ?? "";
+    /// <summary>The culture chosen at login ("fr-CH"): the language the robot names new rooms in.</summary>
+    public string Culture => string.IsNullOrWhiteSpace(_ctx.Stored.Culture) ? "fr-CH" : _ctx.Stored.Culture;
     /// <summary>Null until <see cref="MainViewModel.StartAsync"/> has connected.</summary>
     public RobotSession? Session { get; internal set; }
     public CancellationToken Ct => _lifetime.Token;
