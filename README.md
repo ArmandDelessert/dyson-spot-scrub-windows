@@ -288,8 +288,7 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
   existe dans la bibliothèque (`StartGlobalCleanAsync`) et dans la ligne de commande.
 - **Supprimer une pièce** : le protocole existe (`service.delete_room`, relayé par le cloud depuis
   `PUT …/zones-definitions/{mapId}/remove-zone`, voir [docs/protocole.md](docs/protocole.md)), mais
-  le robot le refuse sur le firmware `RB05PR.01.000.0436`, pour toutes les pièces essayées. Pour
-  faire disparaître une bavure du lidar, il reste à la fusionner avec sa voisine.
+  le robot le refuse sur le firmware `RB05PR.01.000.0436`, pour toutes les pièces essayées.
 - **Horaires** : comme sur le téléphone, seuls ceux de la carte active existent ; le cloud ne rend
   que ceux-là et remplace la liste quand la carte active change. Un horaire ponctuel (sans
   répétition) n'est pas proposé : le téléphone ne le fait pas, et le robot n'a jamais été essayé
