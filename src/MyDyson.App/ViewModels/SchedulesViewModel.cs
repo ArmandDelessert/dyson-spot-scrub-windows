@@ -143,7 +143,8 @@ public sealed partial class SchedulesViewModel : ObservableObject
 
     private void Rebuild()
     {
-        var mine = _schedules.OrderBy(s => s.Hour * 60 + s.Minute).ThenBy(s => s.Id).ToList();
+        // In week order: by the first day each one runs, Monday first, then by time.
+        var mine = _schedules.OrderBy(s => FirstDay(s.Days)).ThenBy(s => s.Hour * 60 + s.Minute).ThenBy(s => s.Id).ToList();
         var rate = CleanDurationEstimate.MinutesPerSquareMetre(_history());
         Items.Clear();
         foreach (var s in mine)
@@ -155,6 +156,14 @@ public sealed partial class SchedulesViewModel : ObservableObject
                 overlap is null ? "" : $"Risque de ne pas démarrer : l'horaire de {ScheduleDayLabels.Time(overlap.Hour, overlap.Minute)} sera sans doute encore en cours."));
         }
         EmptyText = ActiveMap is not null && Items.Count == 0 ? "Aucun horaire pour cette carte." : "";
+    }
+
+    /// <summary>0 for Monday … 6 for Sunday: the lowest day bit set; 7 when there is none.</summary>
+    internal static int FirstDay(ScheduleDays days)
+    {
+        for (var d = 0; d < 7; d++)
+            if (((int)days & (1 << d)) != 0) return d;
+        return 7;
     }
 
     private string RoomsText(CleaningSchedule s)

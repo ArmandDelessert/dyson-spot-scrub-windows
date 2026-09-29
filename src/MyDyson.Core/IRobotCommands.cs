@@ -124,7 +124,7 @@ public static class RobotCommands
         }, ct: ct).ConfigureAwait(false));
 
     /// <summary>Merges rooms of a map into one; the first id given is the one that survives.</summary>
-    public static async Task<MapEditResult?> MergeRoomsAsync(this IRobotCommands robot, long mapId, IEnumerable<int> roomIds, int lang = 5, CancellationToken ct = default)
+    public static async Task<MapEditResult?> MergeRoomsAsync(this IRobotCommands robot, long mapId, IEnumerable<int> roomIds, int lang = MapLanguage.French, CancellationToken ct = default)
     {
         var ids = new JsonArray();
         foreach (var id in roomIds) ids.Add(id);
@@ -137,12 +137,13 @@ public static class RobotCommands
     }
 
     /// <summary>
-    /// Cuts a room in two along the straight line between two world points. The robot decides where
+    /// Cuts a room in two along the straight line between two world points. <paramref name="lang"/>
+    /// names the two pieces (see <see cref="MapLanguage"/>). The robot decides where
     /// the new boundary actually lands: it snaps the cut to its own occupancy grid, so the result
     /// rarely matches the line exactly. Only a straight cut exists — no command sets a room's
     /// outline, which is why a room cannot be given an arbitrary shape.
     /// </summary>
-    public static async Task<MapEditResult?> SplitRoomAsync(this IRobotCommands robot, long mapId, int roomId, Point from, Point to, int lang = 5, CancellationToken ct = default) =>
+    public static async Task<MapEditResult?> SplitRoomAsync(this IRobotCommands robot, long mapId, int roomId, Point from, Point to, int lang = MapLanguage.French, CancellationToken ct = default) =>
         MapEditResult.From(await robot.RequestJdmAsync("service.split_room", new JsonObject
         {
             ["map_id"] = mapId,

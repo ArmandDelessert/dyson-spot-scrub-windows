@@ -264,6 +264,10 @@ public sealed class DysonCloudClient : IDisposable
     public Task SetTimeZoneAsync(string serial, string ianaTimeZone, CancellationToken ct = default) =>
         SendAsync<string>(Request(HttpMethod.Put, Url($"/v1/machine/{serial}/timezone", withCountry: false), new { timezone = ianaTimeZone }, auth: true), ct);
 
+    /// <summary>Raw authenticated request with an optional JSON body, for trying endpoints read off the APK.</summary>
+    public Task<string> SendRawAsync(HttpMethod method, string path, string? jsonBody, CancellationToken ct = default) =>
+        SendAsync<string>(Request(method, Url(path, withCountry: false), jsonBody is null ? null : System.Text.Json.Nodes.JsonNode.Parse(jsonBody), auth: true), ct);
+
     /// <summary>Raw authenticated GET, for exploring undocumented endpoints.</summary>
     public Task<string> GetRawAsync(string path, CancellationToken ct = default) =>
         SendAsync<string>(Request(HttpMethod.Get, Url(path, withCountry: false), auth: true), ct);

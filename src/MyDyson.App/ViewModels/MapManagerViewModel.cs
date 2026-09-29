@@ -844,7 +844,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
                 $"Fusionner {string.Join(", ", rooms.Select(p => p.DisplayName))} en une seule pièce ?") != true) return;
 
         LeaveModes();
-        await EditAsync($"{rooms.Count} pièces fusionnées", c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), ct: _hub.Ct),
+        await EditAsync($"{rooms.Count} pièces fusionnées", c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
             refused: "Le robot a refusé la fusion : les pièces doivent se toucher.");
     }
 
@@ -875,7 +875,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
 
         // A cut that misses the room, or that the robot will not make, comes back refused.
-        await EditAsync($"pièce {room.DisplayName} divisée", c => c.SplitRoomAsync(mapId, room.NumericId, from, to, ct: _hub.Ct),
+        await EditAsync($"pièce {room.DisplayName} divisée", c => c.SplitRoomAsync(mapId, room.NumericId, from, to, MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
             refused: "Le robot a refusé la division : la pièce est sans doute trop petite à cet endroit, ou le trait ne la traverse pas.");
     }
 

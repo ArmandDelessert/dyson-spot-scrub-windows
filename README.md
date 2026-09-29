@@ -30,7 +30,7 @@ dépôt reproduit donc le protocole de [l'application Android MyDyson](https://p
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Horaires, zones de restriction, meubles, pièces | fonctionne, vérifié dans l'application mobile |
-| Tests unitaires | 244 tests, exécutés en CI |
+| Tests unitaires | 257 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -286,10 +286,10 @@ politique de renommage, d'où `PropertyNamingPolicy = null` dans `DysonCloudClie
 
 - Pas de nettoyage de toute la maison depuis l'application : seulement par pièces. La commande
   existe dans la bibliothèque (`StartGlobalCleanAsync`) et dans la ligne de commande.
-- **Supprimer une pièce** : pas encore proposé ici. Le téléphone le fait par l'API REST
-  (`PUT …/zones-definitions/{mapId}/remove-zone`, voir [docs/protocole.md](docs/protocole.md)),
-  jamais essayé depuis cette application ; en attendant, fusionner la pièce avec sa voisine la fait
-  disparaître.
+- **Supprimer une pièce** : le protocole existe (`service.delete_room`, relayé par le cloud depuis
+  `PUT …/zones-definitions/{mapId}/remove-zone`, voir [docs/protocole.md](docs/protocole.md)), mais
+  le robot le refuse sur le firmware `RB05PR.01.000.0436`, pour toutes les pièces essayées. Pour
+  faire disparaître une bavure du lidar, il reste à la fusionner avec sa voisine.
 - **Horaires** : comme sur le téléphone, seuls ceux de la carte active existent ; le cloud ne rend
   que ceux-là et remplace la liste quand la carte active change. Un horaire ponctuel (sans
   répétition) n'est pas proposé : le téléphone ne le fait pas, et le robot n'a jamais été essayé

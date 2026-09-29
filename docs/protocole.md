@@ -646,6 +646,32 @@ donne les coins d'un rectangle droit dans l'ordre haut-gauche, bas-gauche, bas-d
 (y vers le haut), et renvoie les zones existantes telles que `persistent-maps` les restitue : elles
 glissent d'un centimètre ou deux d'un envoi à l'autre, vraisemblablement recalées par le robot.
 
+
+### Langue des noms de pièces (`lang`)
+
+`split_room` et `arrange_room` portent un `lang` : la langue dans laquelle le robot nomme les pièces
+qu'il crée, en devinant au passage un type (« Pièce3 », « Chambre6 »). Établi le 29 septembre en
+divisant la même pièce de « Test 1 » avec chaque valeur de 0 à 20, puis en relisant les noms :
+
+| `lang` | Langue | Noms obtenus |
+|---|---|---|
+| 0, 1 | chinois simplifié | 房间3, 卧室6 |
+| 2 | anglais | Room3, Bedroom6 |
+| 3 | espagnol | Habitación3, Dormitorio6 |
+| 4 | allemand | Raum3, Schlafzimmer6 |
+| 5 | français | Pièce3, Chambre6 |
+| 6 | polonais | Pomieszczenie3, Bedroom6 |
+| 7 | italien | Stanza3, Camera da letto6 |
+| 8 | russe | Комната3, Bedroom6 |
+| 9, 14 | chinois traditionnel | 房間3, Bedroom6 |
+| 10 | thaï | ห้อง3, Bedroom6 |
+| 11 | coréen | 방3, Bedroom6 |
+| 13 | portugais | Room3, Quarto6 |
+| 12, 15 à 20 | (anglais par défaut) | Room3, Bedroom6 |
+
+Plusieurs langues ne sont que partiellement traduites. Une fusion nomme la pièce restante de la
+même façon (« Chambre2 » en français). Pas de japonais, ni de néerlandais ou de langues nordiques,
+dans les valeurs essayées. Cette application envoie le code de la langue choisie à la connexion.
 ### Meubles (`adjust_furniture`)
 
 `furniture_list` est une **chaîne** contenant du JSON (double encodage) :
@@ -698,7 +724,7 @@ La rotation de la carte ne passe pas par MQTT : voir « Orientation de la carte 
 `service.set_cur_map` change la carte active du compte, exactement l'action du sélecteur de carte
 de l'application mobile ; c'est aussi la première étape de tout nettoyage par pièce (voir plus
 haut, `CleaningSequence.StartAsync`), puisqu'on ne peut lancer un nettoyage que sur la carte active.
-`service.arrange_room` fusionne les pièces listées. `lang` vaut 5 pour le français.
+`service.arrange_room` fusionne les pièces listées. `lang` choisit la langue des noms, voir « Langue des noms de pièces ».
 
 `room_name` suit la double forme décrite plus haut, chaîne simple ou objet JSON encodé avec `type`
 et `name`. `furniture_list` est une chaîne contenant un tableau JSON, pas un tableau. Après chaque
@@ -824,10 +850,18 @@ renommées (`c82.f` GET, `c82.p` PUT, `c82.b` DELETE, `c82.o` POST, `c82.s` para
 
 Dans `zones-definitions`, une « zone » est une **pièce** (le vocabulaire REST des cartes, où les
 pièces sont `zones`) ; les zones de restriction sont les `restrictions`. `remove-zone` supprime donc
-une pièce, ce que le téléphone propose (il a un écran d'erreur « suppression de la pièce »), avec
-`isPreview` qui demande vraisemblablement d'abord un aperçu du résultat. Jamais essayé depuis cette
-application. `divide-zone` et `merge-zones` portent la langue en toutes lettres (`language`) là où
-le jdm porte un code numérique (`lang`, 5 pour le français) : c'est le cloud qui traduit.
+une pièce. Essayé le 29 septembre sur une bavure du lidar de « Test 1 », carte active : le cloud
+relaie au robot une méthode jdm jamais vue jusque-là,
+
+```json
+{ "method": "service.delete_room", "params": { "map_id": 1000000002, "room_id": 12, "is_preview": 1 } }
+```
+
+et le robot la **refuse** (`{result: 1}`), aperçu (`is_preview` 1) comme suppression réelle (0) ;
+le cloud traduit ce refus en HTTP 500. Le même aperçu envoyé directement en jdm sur deux autres
+pièces est refusé aussi : le firmware `RB05PR.01.000.0436` ne semble pas encore supprimer de pièce.
+`divide-zone` et `merge-zones` portent la langue en toutes lettres (`language`) là où le jdm porte
+un code numérique (`lang`, voir « Langue des noms de pièces ») : c'est le cloud qui traduit.
 
 ## Endpoints REST en lecture
 

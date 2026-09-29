@@ -36,6 +36,7 @@ internal static class Program
           mydyson send    --serial S --json '{"msg":"..."}'             Envoie un JSON brut sur .../command
           mydyson send    --serial S --jdm service.xxx [--params '{}']  Envoie une requête JDM sur .../command/jdm
           mydyson api     <path>                                        GET authentifié brut (ex: /v3/manifest)
+          mydyson rest    <path> --method PUT [--body '{..}']            Requête REST brute avec corps JSON
           mydyson rotate  --serial S --map-id ID --degrees 0|90|180|270   Tourne une carte (orientation, sens horaire)
           mydyson probe   --serial S [--filters a,b] [--topics a,b]     Teste les abonnements et publications autorisés
           mydyson wstest  --serial S [--client-ids a,b]                 Teste CONNECT et PUBLISH en WebSocket brut
@@ -73,6 +74,7 @@ internal static class Program
                 "send" => await SendAsync(opts, cts.Token),
                 "api" => await ApiAsync(opts, cts.Token),
                 "rotate" => await RotateAsync(opts, cts.Token),
+                "rest" => await RestAsync(opts, cts.Token),
                 "probe" => await ProbeAsync(opts, cts.Token),
                 "maps" => await MapsAsync(opts, cts.Token),
                 "map" => await MapAsync(opts, cts.Token),
@@ -409,6 +411,16 @@ internal static class Program
         await api.SetMapOrientationAsync(serial, mapId, degrees, ct);
         var map = await api.GetPersistentMapAsync(serial, mapId, ct);
         Console.WriteLine($"Carte {mapId} : orientation {map.Orientation}");
+        return 0;
+    }
+
+    private static async Task<int> RestAsync(Options o, CancellationToken ct)
+    {
+        var path = o.Positionals.FirstOrDefault() ?? throw new ArgumentException("chemin requis");
+        var method = new HttpMethod((o.Get("method") ?? "GET").ToUpperInvariant());
+        using var api = OpenSession();
+        var text = await api.SendRawAsync(method, path, o.Get("body"), ct);
+        Console.WriteLine(string.IsNullOrWhiteSpace(text) ? "(réponse vide)" : Pretty(text));
         return 0;
     }
 

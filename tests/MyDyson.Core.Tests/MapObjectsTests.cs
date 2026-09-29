@@ -202,3 +202,22 @@ public class MapObjectsTests
         public Task PublishCommandAsync(JsonObject payload, CancellationToken ct = default) => throw new NotSupportedException();
     }
 }
+
+public class MapLanguageTests
+{
+    [Theory]
+    [InlineData("fr-CH", 5)]
+    [InlineData("fr-FR", 5)]
+    [InlineData("en-GB", 2)]
+    [InlineData("de-CH", 4)]
+    [InlineData("it-CH", 7)]
+    [InlineData("es-ES", 3)]
+    [InlineData("pt-BR", 13)]
+    [InlineData("zh-CN", 1)]
+    [InlineData("zh-TW", 9)]
+    [InlineData("zh-HK", 14)]
+    [InlineData("ja-JP", 2)]   // no Japanese names on the robot: English, as it does itself
+    [InlineData(null, 2)]
+    public void TheAccountCultureGivesTheRobotsLanguageCode(string? culture, int expected) =>
+        Assert.Equal(expected, MapLanguage.FromCulture(culture));
+}

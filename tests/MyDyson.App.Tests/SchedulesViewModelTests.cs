@@ -81,6 +81,18 @@ public class SchedulesViewModelTests
     }
 
     [Fact]
+    public async Task TheListFollowsTheWeekThenTheTime()
+    {
+        var (vm, _, _) = await NewAsync(Events(
+            Event(1, 2, "08:00", true, ActiveId, ("10", true, 0)),    // Tuesday
+            Event(2, 1, "20:00", true, ActiveId, ("10", true, 0)),    // Monday
+            Event(3, 1, "07:00", true, ActiveId, ("10", true, 0)),    // Monday
+            Event(4, 0, "06:00", true, ActiveId, ("10", true, 0))));  // Sunday, last of the week
+
+        Assert.Equal(["07:00", "20:00", "08:00", "06:00"], vm.Items.Select(i => i.TimeText));
+    }
+
+    [Fact]
     public async Task AnEmptyListSaysSo()
     {
         var (vm, _, _) = await NewAsync();
