@@ -26,6 +26,7 @@ public partial class MainWindow : Window
         // Drawing a zone to clean: the map picks two corners while the view model says so, and
         // once drawn the zone can be dragged or stretched from its corners like a restricted zone.
         MapCanvas.EditableShapeResizable = true;
+        MapCanvas.MinimumShapeSide = CleaningViewModel.MinimumSpotSide;
         _vm.Cleaning.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(CleaningViewModel.DrawingSpot))

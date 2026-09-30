@@ -614,7 +614,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         if (Layer == MapLayer.Zones && SelectedZone is { } zone && CanDeleteZone())
         {
             var (first, second) = MapShapes.Sides(corners);
-            if (first < MinimumZoneSide || second < MinimumZoneSide)
+            if (first < MinimumZoneSide - MapShapes.Tolerance || second < MinimumZoneSide - MapShapes.Tolerance)
             {
                 Status = "Zone trop étroite : il faut au moins 20 cm de côté.";
                 return;
@@ -632,7 +632,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     // ---- Zone commands -----------------------------------------------------------
 
     /// <summary>The smallest zone side accepted; a narrower one would be a slip of the mouse rather than a zone.</summary>
-    private const double MinimumZoneSide = 0.2;
+    public const double MinimumZoneSide = 0.2;
 
     [RelayCommand(CanExecute = nameof(CanAddZone))]
     private void AddZone()
@@ -648,7 +648,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     {
         var kind = ZoneKind;
         LeaveModes();
-        if (Math.Abs(a.X - b.X) < MinimumZoneSide || Math.Abs(a.Y - b.Y) < MinimumZoneSide)
+        if (Math.Abs(a.X - b.X) < MinimumZoneSide - MapShapes.Tolerance || Math.Abs(a.Y - b.Y) < MinimumZoneSide - MapShapes.Tolerance)
         {
             Status = "Zone trop étroite : il faut au moins 20 cm de côté.";
             return;

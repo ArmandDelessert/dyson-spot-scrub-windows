@@ -259,7 +259,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
     // ---- Cleaning a zone drawn on the map --------------------------------------
 
     /// <summary>A zone narrower than this is a slip of the mouse rather than something to clean.</summary>
-    private const double MinimumSpotSide = 0.3;
+    public const double MinimumSpotSide = 0.3;
 
     /// <summary>True while the user is drawing the zone's rectangle on the map; the view turns clicks into corners.</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(DrawSpotLabel))] private bool _drawingSpot;
@@ -315,7 +315,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
     public void SpotDrawn(MyDyson.Core.Point a, MyDyson.Core.Point b)
     {
         DrawingSpot = false;
-        if (Math.Abs(a.X - b.X) < MinimumSpotSide || Math.Abs(a.Y - b.Y) < MinimumSpotSide)
+        if (Math.Abs(a.X - b.X) < MinimumSpotSide - MapShapes.Tolerance || Math.Abs(a.Y - b.Y) < MinimumSpotSide - MapShapes.Tolerance)
         {
             hub.Message = "Zone trop étroite : il faut au moins 30 cm de côté.";
             return;
@@ -332,7 +332,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
     {
         if (corners.Count != 4 || SpotCorners is null) return;
         var (a, b) = (corners[0], corners[2]);
-        if (Math.Abs(a.X - b.X) < MinimumSpotSide || Math.Abs(a.Y - b.Y) < MinimumSpotSide)
+        if (Math.Abs(a.X - b.X) < MinimumSpotSide - MapShapes.Tolerance || Math.Abs(a.Y - b.Y) < MinimumSpotSide - MapShapes.Tolerance)
         {
             hub.Message = "Zone trop étroite : il faut au moins 30 cm de côté.";
             SpotCorners = [.. SpotCorners];   // a new list, so the map drops its preview and shows the zone as it was

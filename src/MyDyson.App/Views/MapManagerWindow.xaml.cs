@@ -56,6 +56,8 @@ public partial class MapManagerWindow : Window
         MapCanvas.ZoneClicked += vm.RoomClickedById;
         // Clearing here costs nothing, so it need not wait to see whether a double click follows.
         MapCanvas.DeferEmptySpaceClick = false;
+        // Zones, drawn or resized, never shrink below what the view model accepts.
+        MapCanvas.MinimumShapeSide = MapManagerViewModel.MinimumZoneSide;
         // Cuts, and zones and furniture when the box says so, land on the robot's 5 cm grid.
         MapCanvas.SnapToGrid = vm.GridActive;
         MapCanvas.EmptySpaceClicked += vm.ClearRoomSelection;

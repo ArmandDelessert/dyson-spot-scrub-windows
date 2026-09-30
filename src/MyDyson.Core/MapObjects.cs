@@ -71,6 +71,9 @@ public sealed record FurnitureKind(int Code, string RestType, string Label, stri
 /// <summary>Plane geometry for the rectangles zones and furniture are made of, in world metres.</summary>
 public static class MapShapes
 {
+    /// <summary>Slack when comparing lengths, so a side worked out as 0.2999999 m still counts as 0.3 m.</summary>
+    public const double Tolerance = 1e-6;
+
     /// <summary>
     /// The four corners of the upright rectangle spanned by two opposite corners, in the order the
     /// phone sends them: top-left, bottom-left, bottom-right, top-right, with y pointing up.
@@ -79,6 +82,24 @@ public static class MapShapes
     {
         double left = Math.Min(a.X, b.X), right = Math.Max(a.X, b.X), bottom = Math.Min(a.Y, b.Y), top = Math.Max(a.Y, b.Y);
         return [new(left, top), new(left, bottom), new(right, bottom), new(right, top)];
+    }
+
+    /// <summary>
+    /// <paramref name="corner"/>, pushed away from <paramref name="anchor"/> along each axis until
+    /// the rectangle they span is at least <paramref name="minimum"/> wide, so a rectangle being
+    /// drawn or resized stops at the smallest size accepted instead of shrinking below it. Each
+    /// axis keeps the side of <paramref name="side"/> when given (a resize never flips the shape),
+    /// or else the side the corner is on (a drawing follows the pointer).
+    /// </summary>
+    public static Point KeepMinimum(Point anchor, Point corner, double minimum, Point? side = null)
+    {
+        if (minimum <= 0) return corner;
+        double Axis(double a, double c, double? s)
+        {
+            var direction = (s ?? c) - a < 0 ? -1 : 1;
+            return (c - a) * direction >= minimum ? c : a + direction * minimum;
+        }
+        return new Point(Axis(anchor.X, corner.X, side?.X), Axis(anchor.Y, corner.Y, side?.Y));
     }
 
     /// <summary>An upright rectangle centred on a point, <paramref name="length"/> along the first side (vertical) and <paramref name="width"/> along the second.</summary>

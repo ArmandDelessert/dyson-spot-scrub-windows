@@ -154,4 +154,15 @@ public class MapSceneTests
         Assert.Equal(0, With(null).Orientation);
         Assert.Equal(0, With(45).Orientation);
     }
+
+    [Fact]
+    public void TheResizeArrowFollowsTheCornerAsItSitsOnScreen()
+    {
+        // Screen y points down. Top-right of its opposite, as in a map drawn with y up: ↗↙.
+        Assert.False(MyDyson.App.Controls.MapView.PullsAlongMainDiagonal(new(100, 20), new(20, 100)));
+        Assert.False(MyDyson.App.Controls.MapView.PullsAlongMainDiagonal(new(20, 100), new(100, 20)));
+        // Bottom-right or top-left: ↖↘.
+        Assert.True(MyDyson.App.Controls.MapView.PullsAlongMainDiagonal(new(100, 100), new(20, 20)));
+        Assert.True(MyDyson.App.Controls.MapView.PullsAlongMainDiagonal(new(20, 20), new(100, 100)));
+    }
 }

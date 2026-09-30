@@ -122,6 +122,20 @@ public sealed class MapView : FrameworkElement
     /// <summary>Raised once per drag of <see cref="EditableShape"/>, when it is dropped, with its new corners.</summary>
     public event Action<IReadOnlyList<CorePoint>>? ShapeEdited;
 
+    /// <summary>
+    /// The shortest side a rectangle may have, in metres, while it is drawn or resized: the corner
+    /// being pulled stops that far from the opposite one instead of letting the shape shrink below
+    /// what will be accepted. Zero lets it shrink freely.
+    /// </summary>
+    public double MinimumShapeSide { get; set; }
+
+    private Point KeepMinimum(Point anchor, Point corner, Point? side = null)
+    {
+        var kept = MyDyson.Core.MapShapes.KeepMinimum(new CorePoint(anchor.X, anchor.Y), new CorePoint(corner.X, corner.Y),
+            MinimumShapeSide, side is { } s ? new CorePoint(s.X, s.Y) : null);
+        return new Point(kept.X, kept.Y);
+    }
+
     /// <summary>What the drag holds: -1 the shape itself, 0 to 3 one of its corners, null nothing.</summary>
     private int? _shapeGrip;
     private Point _shapeGripWorld;
@@ -230,8 +244,10 @@ public sealed class MapView : FrameworkElement
         }
         else
         {
-            var corner = Snap(w);
-            _shapePreview = MyDyson.Core.MapShapes.Rectangle(shape[(grip + 2) % 4], new CorePoint(corner.X, corner.Y));
+            var opposite = shape[(grip + 2) % 4];
+            var anchor = new Point(opposite.X, opposite.Y);
+            var corner = KeepMinimum(anchor, Snap(w), new Point(shape[grip].X, shape[grip].Y));
+            _shapePreview = MyDyson.Core.MapShapes.Rectangle(opposite, new CorePoint(corner.X, corner.Y));
         }
         _pickCursor = null;
         InvalidateVisual();
@@ -285,11 +301,25 @@ public sealed class MapView : FrameworkElement
         Cursor = ShapeGripAt(screen) switch
         {
             -1 => Cursors.SizeAll,
-            0 or 2 => Cursors.SizeNWSE,
-            1 or 3 => Cursors.SizeNESW,
+            { } corner => CornerCursor(corner),
             _ => null,
         };
     }
+
+    /// <summary>
+    /// The diagonal arrow along the corner's bisector, as the corner sits on screen: the map is
+    /// drawn with y up and possibly turned, so which corner is where cannot be told from its index.
+    /// </summary>
+    private Cursor CornerCursor(int corner)
+    {
+        if (EditableShape is not { Count: 4 } shape) return Cursors.SizeAll;
+        var at = WorldToScreen.Transform(new Point(shape[corner].X, shape[corner].Y));
+        var opposite = WorldToScreen.Transform(new Point(shape[(corner + 2) % 4].X, shape[(corner + 2) % 4].Y));
+        return PullsAlongMainDiagonal(at, opposite) ? Cursors.SizeNWSE : Cursors.SizeNESW;
+    }
+
+    /// <summary>Whether a corner at <paramref name="at"/> on screen pulls along ↖↘ rather than ↗↙: screen y points down, so it does when it sits down-right or up-left of its opposite.</summary>
+    public static bool PullsAlongMainDiagonal(Point at, Point opposite) => (at.X - opposite.X) * (at.Y - opposite.Y) > 0;
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
     {
@@ -352,7 +382,7 @@ public sealed class MapView : FrameworkElement
             // A placement follows the cursor from the start; a line or a rectangle once it has a first point.
             if (_lineStart is not null || Picking == MapPick.Point)
             {
-                _linePreview = world;
+                _linePreview = Picking == MapPick.Rectangle && _lineStart is { } first && world is { } other ? KeepMinimum(first, other) : world;
                 InvalidateVisual();
             }
         }
@@ -474,6 +504,7 @@ public sealed class MapView : FrameworkElement
             _lineStart = null;
             _linePreview = null;
             InvalidateVisual();
+            if (Picking == MapPick.Rectangle) picked = KeepMinimum(start, picked);
             var (a, b) = (new CorePoint(start.X, start.Y), new CorePoint(picked.X, picked.Y));
             if (Picking == MapPick.Rectangle) RectanglePicked?.Invoke(a, b);
             else LinePicked?.Invoke(a, b);

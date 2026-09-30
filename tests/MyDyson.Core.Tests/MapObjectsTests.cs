@@ -126,6 +126,19 @@ public class MapObjectsTests
     }
 
     [Fact]
+    public void ACornerPulledTooCloseStopsAtTheMinimumOnItsOwnSide()
+    {
+        // Drawing: the corner follows the pointer's side, and stays 30 cm from the first one.
+        Assert.Equal(new Point(1.3, 0.7), MapShapes.KeepMinimum(new(1, 1), new(1.1, 0.9), 0.3));
+        Assert.Equal(new Point(2, 1.3), MapShapes.KeepMinimum(new(1, 1), new(2, 1), 0.3));
+        // Resizing: the corner never crosses to the other side, however far the pointer goes.
+        Assert.Equal(new Point(1.2, 3), MapShapes.KeepMinimum(new(1, 1), new(0, 3), 0.2, side: new(2, 2)));
+        // Wide enough already, or no minimum: left alone.
+        Assert.Equal(new Point(0, 3), MapShapes.KeepMinimum(new(1, 1), new(0, 3), 0.2));
+        Assert.Equal(new Point(1.1, 1), MapShapes.KeepMinimum(new(1, 1), new(1.1, 1), 0));
+    }
+
+    [Fact]
     public void ANewPieceIsCentredWithItsLengthUpright()
     {
         var corners = MapShapes.Centred(new(0, 0), length: 2, width: 1);
