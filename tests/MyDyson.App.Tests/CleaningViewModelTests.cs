@@ -105,6 +105,66 @@ public class CleaningViewModelTests
     }
 
     [Fact]
+    public async Task ADrawnZoneUnticksTheRoomsAndKeepsThemOutOfReach()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        vm.Apply(Docked);
+        vm.ToggleZone("10");
+        Assert.True(vm.RoomsEnabled);
+        Assert.True(vm.CanStart);
+
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+
+        Assert.False(vm.RoomsEnabled);
+        Assert.False(Room(vm, "10").Selected);
+        Assert.False(vm.CanStart);
+        vm.ToggleZone("12");   // a click on a room of the map
+        Assert.False(Room(vm, "12").Selected);
+
+        vm.ClearSpotCommand.Execute(null);
+        Assert.True(vm.RoomsEnabled);
+        vm.ToggleZone("12");
+        Assert.True(Room(vm, "12").Selected);
+    }
+
+    [Fact]
+    public async Task AClickInEmptySpaceErasesTheZoneUnlessItLandsOnTheZone()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+
+        // The zone sticks out past the walls: a click on that part keeps it.
+        vm.MapClickedAt(new(0.5, 0.5));
+        vm.ClearSelection();
+        Assert.True(vm.HasSpot);
+
+        vm.MapClickedAt(new(3, 3));
+        vm.ClearSelection();
+        Assert.False(vm.HasSpot);
+    }
+
+    [Fact]
+    public async Task AMovedOrStretchedZoneIsPutBackInThePhonesOrder()
+    {
+        var vm = New(out var hub);
+        await vm.LoadMapsAsync();
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+
+        // Stretched from a corner, the map hands the corners back in its own order.
+        vm.SpotEdited([new(0, 0), new(0, 2), new(3, 2), new(3, 0)]);
+        Assert.Equal([new(3, 2), new(0, 2), new(0, 0), new(3, 0)], vm.SpotCorners!);
+        Assert.Same(vm.SpotCorners, vm.Scene.SpotZone);
+
+        var before = vm.SpotCorners;
+        vm.SpotEdited([new(0, 0), new(0, 2), new(0.1, 2), new(0.1, 0)]);
+        Assert.StartsWith("Zone trop étroite", hub.Message, StringComparison.Ordinal);
+        Assert.Equal(before, vm.SpotCorners!);
+        Assert.NotSame(before, vm.SpotCorners);   // a fresh list, so the map redraws the zone where it was
+    }
+
+    [Fact]
     public async Task RoomsAreListedByNameWithTheTypesOwnLabel()
     {
         var vm = New(out _);

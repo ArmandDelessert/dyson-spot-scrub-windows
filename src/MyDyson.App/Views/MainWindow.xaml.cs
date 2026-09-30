@@ -22,13 +22,19 @@ public partial class MainWindow : Window
         DataContext = _vm;
         MapCanvas.ZoneClicked += _vm.Cleaning.ToggleZone;
         MapCanvas.EmptySpaceClicked += _vm.Cleaning.ClearSelection;
-        // Drawing a zone to clean: the map picks two corners while the view model says so.
+        MapCanvas.WorldClicked += _vm.Cleaning.MapClickedAt;
+        // Drawing a zone to clean: the map picks two corners while the view model says so, and
+        // once drawn the zone can be dragged or stretched from its corners like a restricted zone.
+        MapCanvas.EditableShapeResizable = true;
         _vm.Cleaning.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(CleaningViewModel.DrawingSpot))
                 MapCanvas.Picking = _vm.Cleaning.DrawingSpot ? MapPick.Rectangle : MapPick.None;
+            else if (e.PropertyName == nameof(CleaningViewModel.SpotCorners))
+                MapCanvas.EditableShape = _vm.Cleaning.SpotCorners;
         };
         MapCanvas.RectanglePicked += _vm.Cleaning.SpotDrawn;
+        MapCanvas.ShapeEdited += _vm.Cleaning.SpotEdited;
         _vm.LoggedOut += () => { LoggedOut?.Invoke(); Close(); };
         _vm.NotifyRequested += (title, text) => _notifications.Show(title, text, onClick: () =>
         {

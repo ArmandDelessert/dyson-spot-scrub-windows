@@ -49,7 +49,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
     /// </summary>
     private void UpdateCanStart()
     {
-        CanStart = _robotReady && Zones.Any(z => z.Selected);
+        CanStart = _robotReady && !HasSpot && Zones.Any(z => z.Selected);
         CanStartSpot = _robotReady && SpotCorners is not null && SelectedMap is not null;
     }
 
@@ -143,18 +143,35 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
         }
     }
 
-    /// <summary>Called by the map view when a room is clicked.</summary>
+    /// <summary>Called by the map view when a room is clicked. Ignored while a zone is drawn: the zone replaces the rooms.</summary>
     public void ToggleZone(string zoneId)
     {
+        if (HasSpot) return;
         var z = Zones.FirstOrDefault(z => z.Id == zoneId);
         if (z is not null) z.Selected = !z.Selected;
     }
 
-    /// <summary>Called by the map view when the user clicks/taps empty map space.</summary>
+    /// <summary>
+    /// Called by the map view when the user clicks/taps empty map space. With a zone drawn, it
+    /// erases the zone instead — unless the click landed on the zone itself, which may well stick
+    /// out past the walls into empty space.
+    /// </summary>
     public void ClearSelection()
     {
+        if (HasSpot)
+        {
+            if (!_lastClickInSpot) SpotCorners = null;
+            return;
+        }
         foreach (var z in Zones) z.Selected = false;
     }
+
+    /// <summary>Whether the last click on the map fell inside the drawn zone; see <see cref="MapClickedAt"/>.</summary>
+    private bool _lastClickInSpot;
+
+    /// <summary>Called by the map view for every click, before <see cref="ToggleZone"/> or <see cref="ClearSelection"/>.</summary>
+    public void MapClickedAt(MyDyson.Core.Point at) =>
+        _lastClickInSpot = SpotCorners is { } corners && MapShapes.Contains(corners, at.X, at.Y);
 
     private async Task LoadMapGeometryAsync(string mapId)
     {
@@ -272,10 +289,16 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
 
     partial void OnSpotCornersChanged(IReadOnlyList<MyDyson.Core.Point>? value)
     {
+        // A zone replaces the rooms: they are unticked, and stay out of reach until it is erased.
+        if (value is not null) foreach (var z in Zones) z.Selected = false;
         OnPropertyChanged(nameof(DrawSpotLabel));
+        OnPropertyChanged(nameof(RoomsEnabled));
         UpdateCanStart();
         RebuildScene();
     }
+
+    /// <summary>Whether rooms can be ticked: not while a zone is drawn, which is cleaned instead.</summary>
+    public bool RoomsEnabled => !HasSpot;
 
     /// <summary>First press: draw a zone by clicking two opposite corners on the map. Pressed again while drawing: give up.</summary>
     [RelayCommand]
@@ -295,6 +318,24 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
         if (Math.Abs(a.X - b.X) < MinimumSpotSide || Math.Abs(a.Y - b.Y) < MinimumSpotSide)
         {
             hub.Message = "Zone trop étroite : il faut au moins 30 cm de côté.";
+            return;
+        }
+        hub.Message = "";
+        SpotCorners = SpotCleanSequence.Corners(a, b);
+    }
+
+    /// <summary>
+    /// Called by the window when the zone has been dragged or stretched on the map. The corners are
+    /// put back in the phone's order; a zone squeezed below the minimum keeps its former size.
+    /// </summary>
+    public void SpotEdited(IReadOnlyList<MyDyson.Core.Point> corners)
+    {
+        if (corners.Count != 4 || SpotCorners is null) return;
+        var (a, b) = (corners[0], corners[2]);
+        if (Math.Abs(a.X - b.X) < MinimumSpotSide || Math.Abs(a.Y - b.Y) < MinimumSpotSide)
+        {
+            hub.Message = "Zone trop étroite : il faut au moins 30 cm de côté.";
+            SpotCorners = [.. SpotCorners];   // a new list, so the map drops its preview and shows the zone as it was
             return;
         }
         hub.Message = "";

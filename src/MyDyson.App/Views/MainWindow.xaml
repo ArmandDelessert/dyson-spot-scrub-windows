@@ -120,7 +120,7 @@
                                 </TextBlock>
                             </StackPanel>
 
-                            <ItemsControl ItemsSource="{Binding Zones}" ItemTemplate="{StaticResource RoomSettingsRow}"/>
+                            <ItemsControl ItemsSource="{Binding Zones}" ItemTemplate="{StaticResource RoomSettingsRow}" IsEnabled="{Binding RoomsEnabled}"/>
                             <!-- Disabled until a room is ticked and the robot can take a job. The
                                  tooltip shows while disabled (WPF hides tooltips there by default),
                                  which is what turns a dead button into an explanation. -->
@@ -131,7 +131,7 @@
                                         <Setter Property="ToolTip" Value="Lance le nettoyage des pièces cochées, dans l'ordre indiqué."/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding CanStart}" Value="False">
-                                                <Setter Property="ToolTip" Value="Cochez au moins une pièce ; le robot doit aussi être disponible."/>
+                                                <Setter Property="ToolTip" Value="Cochez au moins une pièce, sans zone tracée ; le robot doit aussi être disponible."/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -141,7 +141,7 @@
                             <!-- A rectangle drawn on the map instead of whole rooms, as the phone's zone clean. -->
                             <TextBlock Text="Nettoyer une zone" Style="{StaticResource Section}" Margin="0,16,0,4"/>
                             <TextBlock Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap">
-                                Tracez un rectangle sur la carte en cliquant deux coins opposés, choisissez comment le nettoyer, puis lancez : le robot ne nettoie que cette zone.
+                                Tracez un rectangle sur la carte en cliquant deux coins opposés, choisissez comment le nettoyer, puis lancez : le robot ne nettoie que cette zone. Faites-la glisser pour la déplacer, tirez ses coins pour la redimensionner ; un clic dans le vide de la carte l'efface. Tant qu'une zone est tracée, les pièces ne peuvent pas être cochées.
                             </TextBlock>
                             <WrapPanel Margin="0,6,0,0">
                                 <Button Content="{Binding DrawSpotLabel}" Command="{Binding DrawSpotCommand}" Style="{StaticResource Secondary}"/>
