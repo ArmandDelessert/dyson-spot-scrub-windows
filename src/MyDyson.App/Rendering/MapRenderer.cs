@@ -56,6 +56,9 @@ public sealed class MapScene
     /// <summary>The piece of furniture (REST id) the map manager is acting on, outlined.</summary>
     public string? SelectedFurnitureId { get; init; }
 
+    /// <summary>The zone drawn for a zone clean, not yet started: outlined over the map.</summary>
+    public IReadOnlyList<CorePoint>? SpotZone { get; init; }
+
     /// <summary>How far the map is turned clockwise on screen: the stored map's orientation, 0 when it has none or an odd one.</summary>
     public int Orientation => Map?.Orientation is 90 or 180 or 270 ? Map.Orientation.Value : 0;
 
@@ -206,6 +209,7 @@ public static class MapRenderer
         };
         public static readonly (Pen Pen, Brush Fill) UnknownRestriction = RestrictionStyle(Color.FromRgb(0x90, 0x90, 0x90));
         public static readonly Pen HandlePen = Frozen(new Pen(Brushes.Black, 1.5));
+        public static readonly Brush SpotFill = Frozen(new SolidColorBrush(Color.FromArgb(0x40, 0xff, 0xd7, 0x00)));
         /// <summary>What the map manager has chosen: a thick outline over whatever it is.</summary>
         public static readonly Pen SelectionPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xff, 0xd7, 0x00))), 3) { LineJoin = PenLineJoin.Round });
 
@@ -360,6 +364,11 @@ public static class MapRenderer
             var (pen, fill) = r.Behavior is { } b && Resources.Restrictions.TryGetValue(b, out var style) ? style : Resources.UnknownRestriction;
             DrawPolygon(dc, r.Points, m, r.Id == scene.SelectedRestrictionId ? Resources.SelectionPen : pen, fill);
         }
+
+        // The zone about to be cleaned: the selection yellow over a light wash, so it reads as a
+        // choice rather than as map data.
+        if (scene.SpotZone is { Count: > 2 } spot)
+            DrawPolygon(dc, [.. spot], m, Resources.SelectionPen, Resources.SpotFill);
 
         if (scene.Path is { Count: > 1 } path)
             DrawActionPath(dc, res, scene, path, m);

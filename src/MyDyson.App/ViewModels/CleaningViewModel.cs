@@ -47,7 +47,11 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
     /// ticked. Clicking it with nothing selected used to be answered by a red message, which is a
     /// worse way to say "not yet" than a button that plainly cannot be pressed.
     /// </summary>
-    private void UpdateCanStart() => CanStart = _robotReady && Zones.Any(z => z.Selected);
+    private void UpdateCanStart()
+    {
+        CanStart = _robotReady && Zones.Any(z => z.Selected);
+        CanStartSpot = _robotReady && SpotCorners is not null && SelectedMap is not null;
+    }
 
     public void SetLiveTrail(IReadOnlyList<RobotPosition> path)
     {
@@ -78,6 +82,9 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
 
     partial void OnSelectedMapChanged(MapItem? value)
     {
+        // A zone drawn on one map means nothing on another.
+        DrawingSpot = false;
+        SpotCorners = null;
         if (value is null) return;
         _ = LoadZonesAsync(value);
     }
@@ -187,6 +194,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
             ZoneOrder = Zones.Where(z => z.Selected).ToDictionary(z => z.Id, z => z.Order),
             ShowFurniture = display.ShowFurniture,
             ShowTravelPath = display.ShowTravelPath,
+            SpotZone = SpotCorners,
         };
     }
 
@@ -229,6 +237,82 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
         }
         catch (OperationCanceledException) when (pending.IsCancellationRequested) { } // superseded, or shutting down
         catch (Exception ex) { hub.AddLog($"réglages des pièces: {ex.Message}"); }
+    }
+
+    // ---- Cleaning a zone drawn on the map --------------------------------------
+
+    /// <summary>A zone narrower than this is a slip of the mouse rather than something to clean.</summary>
+    private const double MinimumSpotSide = 0.3;
+
+    /// <summary>True while the user is drawing the zone's rectangle on the map; the view turns clicks into corners.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(DrawSpotLabel))] private bool _drawingSpot;
+    /// <summary>The drawn zone, in the order the phone sends it; null until one is drawn.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasSpot)), NotifyPropertyChangedFor(nameof(SpotSizeText))]
+    private IReadOnlyList<MyDyson.Core.Point>? _spotCorners;
+    [ObservableProperty] private bool _canStartSpot;
+
+    public bool HasSpot => SpotCorners is not null;
+    public string DrawSpotLabel => DrawingSpot ? "Annuler le tracé" : HasSpot ? "Tracer une autre zone…" : "Tracer une zone…";
+    public string SpotSizeText => SpotCorners is { } c
+        ? string.Create(CultureInfo.CurrentCulture, $"Zone de {MapShapes.Sides(c).First:0.0} × {MapShapes.Sides(c).Second:0.0} m")
+        : "";
+
+    // The same four choices as a room, from the same lists.
+    public IReadOnlyList<CleanTypeOption> SpotCleanTypes { get; } = ZoneItem.CleanTypeOptions;
+    public IReadOnlyList<StrategyOption> SpotStrategies { get; } = ZoneItem.StrategyOptions;
+    public IReadOnlyList<WaterLevelOption> SpotWaterLevels { get; } = ZoneItem.WaterLevelOptions;
+    public IReadOnlyList<MopPassesOption> SpotMopPasses { get; } = ZoneItem.MopPassesOptions;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SpotHasVacuum)), NotifyPropertyChangedFor(nameof(SpotHasMop))]
+    private CleanTypeOption _spotCleanType = ZoneItem.CleanTypeOptions[0];
+    [ObservableProperty] private StrategyOption _spotStrategy = ZoneItem.StrategyOptions[0];
+    [ObservableProperty] private WaterLevelOption _spotWaterLevel = ZoneItem.WaterLevelOptions[0];
+    [ObservableProperty] private MopPassesOption _spotMopPass = ZoneItem.MopPassesOptions[0];
+    public bool SpotHasVacuum => SpotCleanType.Value is not CleanType.Mop;
+    public bool SpotHasMop => SpotCleanType.Value is not CleanType.Vacuum;
+
+    partial void OnSpotCornersChanged(IReadOnlyList<MyDyson.Core.Point>? value)
+    {
+        OnPropertyChanged(nameof(DrawSpotLabel));
+        UpdateCanStart();
+        RebuildScene();
+    }
+
+    /// <summary>First press: draw a zone by clicking two opposite corners on the map. Pressed again while drawing: give up.</summary>
+    [RelayCommand]
+    private void DrawSpot() => DrawingSpot = !DrawingSpot && SelectedMap is not null;
+
+    [RelayCommand]
+    private void ClearSpot()
+    {
+        DrawingSpot = false;
+        SpotCorners = null;
+    }
+
+    /// <summary>Called by the window once both corners have been clicked on the map.</summary>
+    public void SpotDrawn(MyDyson.Core.Point a, MyDyson.Core.Point b)
+    {
+        DrawingSpot = false;
+        if (Math.Abs(a.X - b.X) < MinimumSpotSide || Math.Abs(a.Y - b.Y) < MinimumSpotSide)
+        {
+            hub.Message = "Zone trop étroite : il faut au moins 30 cm de côté.";
+            return;
+        }
+        hub.Message = "";
+        SpotCorners = SpotCleanSequence.Corners(a, b);
+    }
+
+    [RelayCommand]
+    private Task StartSpotCleanAsync()
+    {
+        if (SpotCorners is not { } corners || SelectedMap is null) return Task.CompletedTask;
+        if (!long.TryParse(SelectedMap.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapId))
+        {
+            hub.Message = $"Identifiant de carte inattendu : {SelectedMap.Id}";
+            return Task.CompletedTask;
+        }
+        var settings = new RoomSettings(SpotCleanType.Value, SpotStrategy.Value, SpotWaterLevel.Value, SpotMopPass.Value);
+        return hub.RunAsync($"nettoyage de la zone ({SpotSizeText.ToLower(CultureInfo.CurrentCulture)})",
+            c => SpotCleanSequence.StartAsync(c, mapId, corners, settings, ct: hub.Ct));
     }
 
     // ---- Commands ------------------------------------------------------------

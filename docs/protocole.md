@@ -399,6 +399,29 @@ messages du client Windows de ceux du téléphone (les deux ont pu être utilis�
 la cause exacte de la double annonce reste donc non confirmée, à isoler avec une capture n'impliquant
 que l'application Windows.
 
+### Nettoyage d'une zone dessinée
+
+L'application Android permet aussi de nettoyer un rectangle tracé sur la carte plutôt que des
+pièces entières. Capturé le 30 septembre (aspiration seule, mode silencieux) :
+
+```
+-> command       START { cleaningMode: "spotZoneConfigured", fullCleanType: "immediate", mode-reason: "RAPP",
+                   cleaningProgramme: { persistentMapId, spotZones: [{ id: <uuid>, points: [4 coins] }],
+                     defaultSpotZoneSettings: { cleaningStrategy: "quiet", cleanType: "vacuum",
+                                                waterLevel: "low", mopPasses: 1, dryPasses: 1 } } }
+-> command/jdm   service.set_cur_map      { map_id }
+-> command/jdm   service.set_areas_start  { ctrl_value: 1, zone_points: [[x1, y1 … x4, y4]], mode: 0, wind: 2,
+                                            water: 0, clean_count: 0, dry_clean_count: 0, action: 0, uv_switch: 0 }
+<- status/jdm    event.startClean.post, puis state FULL_CLEAN_RUNNING
+<- status/jdm    service.set_areas_start  { result: 1 }
+```
+
+Les coins vont dans l'ordre haut-droite, haut-gauche, bas-gauche, bas-droite (y vers le haut), les
+mêmes dans les deux messages. `mode`, `wind`, `water` et `clean_count` sont les codes des indices
+3 à 6 d'une pièce (voir `service.get_preference`) : type de nettoyage, puissance, eau, passages.
+Le robot démarre sur le `START` ; `set_areas_start` répond `result: 1` deux secondes plus tard,
+le nettoyage étant déjà lancé. Cette application envoie les trois messages dans cet ordre.
+
 ### Arrêt d'une action du dock
 
 Le séchage de la serpillière dure plusieurs heures après chaque nettoyage. L'application l'interrompt

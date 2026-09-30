@@ -30,7 +30,7 @@ dépôt reproduit donc le protocole de [l'application Android MyDyson](https://p
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Horaires, zones de restriction, meubles, pièces | fonctionne, vérifié dans l'application mobile |
-| Tests unitaires | 257 tests, exécutés en CI |
+| Tests unitaires | 263 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -86,6 +86,9 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   passages. Une pièce non cochée reste repliée avec un résumé d'une ligne, et peut être dépliée à la
   main pour consultation sans être sélectionnée. Le tout part au robot au lancement, et est
   enregistré côté cloud pour que l'application mobile le voie aussi.
+- **Nettoyer une zone** : comme sur le téléphone, un rectangle tracé sur la carte en cliquant deux
+  coins opposés, nettoyé avec le type, la puissance, l'eau et les passages choisis, sans toucher au
+  reste des pièces.
 - **Station** : « Vider le collecteur » et « Laver et sécher », qui devient l'arrêt de l'action en cours.
 - **Consommables** : durée de vie restante, à remplacer à zéro, comme dans l'application.
 - **Notifications** : une notification Windows à la fin d'un nettoyage, ou si une pièce sélectionnée

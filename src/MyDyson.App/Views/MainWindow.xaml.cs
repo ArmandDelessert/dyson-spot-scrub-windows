@@ -1,4 +1,5 @@
 using System.Windows;
+using MyDyson.App.Controls;
 using MyDyson.App.Services;
 using MyDyson.App.ViewModels;
 
@@ -21,6 +22,13 @@ public partial class MainWindow : Window
         DataContext = _vm;
         MapCanvas.ZoneClicked += _vm.Cleaning.ToggleZone;
         MapCanvas.EmptySpaceClicked += _vm.Cleaning.ClearSelection;
+        // Drawing a zone to clean: the map picks two corners while the view model says so.
+        _vm.Cleaning.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(CleaningViewModel.DrawingSpot))
+                MapCanvas.Picking = _vm.Cleaning.DrawingSpot ? MapPick.Rectangle : MapPick.None;
+        };
+        MapCanvas.RectanglePicked += _vm.Cleaning.SpotDrawn;
         _vm.LoggedOut += () => { LoggedOut?.Invoke(); Close(); };
         _vm.NotifyRequested += (title, text) => _notifications.Show(title, text, onClick: () =>
         {

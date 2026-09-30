@@ -218,3 +218,75 @@ public static class CleaningSequence
         await robot.SetRoomCleanAsync(rooms.OrderBy(r => r.Order).Select(r => int.Parse(r.ZoneId, CultureInfo.InvariantCulture)), ct: ct).ConfigureAwait(false);
     }
 }
+
+/// <summary>
+/// Cleaning a rectangle drawn on the map rather than whole rooms, the phone's "zone" clean. Three
+/// messages, as captured on 2026-09-30: the classic START in spotZoneConfigured mode with the
+/// rectangle and its settings, set_cur_map, then service.set_areas_start with the same corners and
+/// the settings coded like a room's. The robot starts on the START; set_areas_start answered
+/// result 1 two seconds later in the capture, the clean being under way already.
+/// </summary>
+public static class SpotCleanSequence
+{
+    /// <summary>
+    /// The four corners of the upright rectangle spanned by two opposite corners, in the order the
+    /// phone sends a spot zone: top-right, top-left, bottom-left, bottom-right (y pointing up).
+    /// </summary>
+    public static Point[] Corners(Point a, Point b)
+    {
+        double left = Math.Min(a.X, b.X), right = Math.Max(a.X, b.X), bottom = Math.Min(a.Y, b.Y), top = Math.Max(a.Y, b.Y);
+        return [new(right, top), new(left, top), new(left, bottom), new(right, bottom)];
+    }
+
+    public static async Task StartAsync(IRobotCommands robot, long mapId, IReadOnlyList<Point> corners, RoomSettings settings, string? zoneId = null, CancellationToken ct = default)
+    {
+        if (corners.Count != 4) throw new ArgumentException("A zone has exactly four corners.", nameof(corners));
+
+        var points = new JsonArray();
+        foreach (var p in corners) points.Add(new JsonObject { ["x"] = p.X, ["y"] = p.Y });
+        await robot.PublishCommandAsync(new JsonObject
+        {
+            ["cleaningProgramme"] = new JsonObject
+            {
+                ["persistentMapId"] = mapId.ToString(CultureInfo.InvariantCulture),
+                ["spotZones"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = zoneId ?? Guid.NewGuid().ToString(),
+                    ["points"] = points,
+                }),
+                ["defaultSpotZoneSettings"] = new JsonObject
+                {
+                    ["cleaningStrategy"] = settings.Strategy.ToRest(),
+                    ["cleanType"] = settings.CleanType.ToRest(),
+                    ["waterLevel"] = settings.Water.ToRest(),
+                    ["mopPasses"] = settings.MopPasses,
+                    ["dryPasses"] = 1,
+                },
+            },
+            ["cleaningMode"] = "spotZoneConfigured",
+            ["fullCleanType"] = "immediate",
+            ["mode-reason"] = "RAPP",
+            ["msg"] = "START",
+        }, ct).ConfigureAwait(false);
+
+        await robot.SetCurrentMapAsync(mapId, ct).ConfigureAwait(false);
+
+        // The same room-setting codes as room_preference (indices 3 to 6), zeroed where they do not apply.
+        var coded = new JsonArray(0, 0, 0, 0, 0, 0, 0);
+        settings.WriteTo(coded);
+        var flat = new JsonArray();
+        foreach (var p in corners) { flat.Add(p.X); flat.Add(p.Y); }
+        await robot.PublishJdmAsync("service.set_areas_start", new JsonObject
+        {
+            ["ctrl_value"] = 1,
+            ["zone_points"] = new JsonArray(flat),
+            ["mode"] = coded[RoomSettings.IndexCleanType]!.GetValue<int>(),
+            ["wind"] = coded[RoomSettings.IndexStrategy]!.GetValue<int>(),
+            ["water"] = coded[RoomSettings.IndexWater]!.GetValue<int>(),
+            ["clean_count"] = coded[RoomSettings.IndexMopPasses]!.GetValue<int>(),
+            ["dry_clean_count"] = 0,
+            ["action"] = 0,
+            ["uv_switch"] = 0,
+        }, ct).ConfigureAwait(false);
+    }
+}

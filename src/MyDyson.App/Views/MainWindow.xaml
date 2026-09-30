@@ -137,6 +137,46 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
+
+                            <!-- A rectangle drawn on the map instead of whole rooms, as the phone's zone clean. -->
+                            <TextBlock Text="Nettoyer une zone" Style="{StaticResource Section}" Margin="0,16,0,4"/>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap">
+                                Tracez un rectangle sur la carte en cliquant deux coins opposés, choisissez comment le nettoyer, puis lancez : le robot ne nettoie que cette zone.
+                            </TextBlock>
+                            <WrapPanel Margin="0,6,0,0">
+                                <Button Content="{Binding DrawSpotLabel}" Command="{Binding DrawSpotCommand}" Style="{StaticResource Secondary}"/>
+                                <Button Content="Effacer la zone" Command="{Binding ClearSpotCommand}" Style="{StaticResource Secondary}"
+                                        Visibility="{Binding HasSpot, Converter={StaticResource Show}}"/>
+                            </WrapPanel>
+                            <StackPanel Visibility="{Binding HasSpot, Converter={StaticResource Show}}">
+                                <TextBlock Text="{Binding SpotSizeText}" Style="{StaticResource Muted}"/>
+                                <ComboBox ItemsSource="{Binding SpotCleanTypes}" SelectedItem="{Binding SpotCleanType}" FontSize="12" Margin="0,4,0,0"
+                                          AutomationProperties.Name="Type de nettoyage de la zone">
+                                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <ComboBox ItemsSource="{Binding SpotStrategies}" SelectedItem="{Binding SpotStrategy}" FontSize="12" Margin="0,4,0,0"
+                                          Visibility="{Binding SpotHasVacuum, Converter={StaticResource Show}}" AutomationProperties.Name="Mode d'aspiration de la zone">
+                                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Grid Margin="0,4,0,0" Visibility="{Binding SpotHasMop, Converter={StaticResource Show}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox ItemsSource="{Binding SpotWaterLevels}" SelectedItem="{Binding SpotWaterLevel}" FontSize="12" Margin="0"
+                                              AutomationProperties.Name="Niveau d'eau de la zone">
+                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <ComboBox Grid.Column="2" ItemsSource="{Binding SpotMopPasses}" SelectedItem="{Binding SpotMopPass}" FontSize="12" Margin="0"
+                                              AutomationProperties.Name="Passages de lavage de la zone">
+                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                <Button Content="▶ Nettoyer la zone" Command="{Binding StartSpotCleanCommand}" IsEnabled="{Binding CanStartSpot}"
+                                        Margin="0,10,0,0" HorizontalAlignment="Left" ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="Le robot doit être disponible (sur sa station ou à l'arrêt)."/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 

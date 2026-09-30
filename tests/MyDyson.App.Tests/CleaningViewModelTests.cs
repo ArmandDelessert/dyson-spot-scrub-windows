@@ -29,6 +29,81 @@ public class CleaningViewModelTests
 
     private static ZoneItem Room(CleaningViewModel vm, string id) => vm.Zones.First(z => z.Id == id);
 
+    // ---- Cleaning a zone drawn on the map ------------------------------------------------------
+
+    private static readonly RobotState Docked = RobotState.Parse("""{"msg":"CURRENT-STATE","state":"INACTIVE_CHARGING","dockState":"IDLE"}""")!;
+
+    [Fact]
+    public async Task AZoneIsDrawnWithTwoCornersAndShownOnTheMap()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        Assert.False(vm.HasSpot);
+
+        vm.DrawSpotCommand.Execute(null);
+        Assert.True(vm.DrawingSpot);
+        Assert.Equal("Annuler le tracé", vm.DrawSpotLabel);
+
+        vm.SpotDrawn(new(2, 1), new(0, 0));
+
+        Assert.False(vm.DrawingSpot);
+        Assert.True(vm.HasSpot);
+        // The phone's corner order: top-right, top-left, bottom-left, bottom-right.
+        Assert.Equal([new(2, 1), new(0, 1), new(0, 0), new(2, 0)], vm.SpotCorners!);
+        Assert.Same(vm.SpotCorners, vm.Scene.SpotZone);
+        Assert.Equal("Tracer une autre zone…", vm.DrawSpotLabel);
+    }
+
+    [Fact]
+    public async Task ATooNarrowZoneIsRefused()
+    {
+        var vm = New(out var hub);
+        await vm.LoadMapsAsync();
+        vm.DrawSpotCommand.Execute(null);
+
+        vm.SpotDrawn(new(0, 0), new(0.1, 2));
+
+        Assert.False(vm.HasSpot);
+        Assert.StartsWith("Zone trop étroite", hub.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AZoneCleanNeedsTheZoneAndARobotThatCanTakeIt()
+    {
+        var vm = New(out var hub);
+        await vm.LoadMapsAsync();
+        vm.Apply(Docked);
+        Assert.False(vm.CanStartSpot);
+
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+        Assert.True(vm.CanStartSpot);
+
+        vm.Apply(RobotState.Parse("""{"msg":"CURRENT-STATE","state":"FULL_CLEAN_RUNNING"}""")!);
+        Assert.False(vm.CanStartSpot);
+
+        vm.Apply(Docked);
+        await vm.StartSpotCleanCommand.ExecuteAsync(null);
+        Assert.Equal("Robot non connecté.", hub.Message);   // got as far as the robot
+    }
+
+    [Fact]
+    public async Task TheZoneSettingsFollowTheCleanTypeAndClearingForgetsTheZone()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+
+        Assert.True(vm.SpotHasVacuum);
+        Assert.False(vm.SpotHasMop);
+        vm.SpotCleanType = vm.SpotCleanTypes.Single(o => o.Value == CleanType.Mop);
+        Assert.False(vm.SpotHasVacuum);
+        Assert.True(vm.SpotHasMop);
+
+        vm.ClearSpotCommand.Execute(null);
+        Assert.False(vm.HasSpot);
+        Assert.Null(vm.Scene.SpotZone);
+    }
+
     [Fact]
     public async Task RoomsAreListedByNameWithTheTypesOwnLabel()
     {
