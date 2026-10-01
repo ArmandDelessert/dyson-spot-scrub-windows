@@ -117,10 +117,10 @@ public static class RobotMarkers
         dc.PushTransform(new MatrixTransform(frame));
         dc.DrawEllipse(Palette.Body, Palette.Rim, default, 16, 16);
         dc.PushClip(BodyClip);
-        dc.DrawRoundedRectangle(Palette.WaterTank, null, new Rect(-8, 4, 16, 16), 2.5, 2.5);
+        dc.DrawRoundedRectangle(Palette.WaterTank, null, new Rect(-9, 8.5, 18, 16), 2.5, 2.5);
         dc.Pop();
-        dc.DrawRoundedRectangle(Palette.Lid, null, new Rect(-6, -6, 12, 7), 1.5, 1.5);
-        dc.DrawEllipse(Palette.Button, null, new Point(0, -10), 1.6, 1.6);
+        dc.DrawRoundedRectangle(Palette.Lid, null, new Rect(-9, -3, 18, 7), 1.5, 1.5);   // the dust bin and its filter
+        dc.DrawEllipse(Palette.Button, null, new Point(0, -7.5), 1.6, 1.6);
 
         var spinning = activity is RobotActivity.Vacuuming or RobotActivity.VacuumingAndMopping;
         var turn = spinning ? t / 0.8 * 360 : 0;
@@ -145,7 +145,7 @@ public static class RobotMarkers
     /// <summary>The roller across the back, its treads running backwards like a tractor tyre's.</summary>
     private static void DrawRoller(DrawingContext dc, double t)
     {
-        var roller = new Rect(-10, 12, 20, 6);
+        var roller = new Rect(-10, 7, 20, 6);
         dc.DrawRoundedRectangle(Palette.Roller, null, roller, 3, 3);
         dc.PushClip(new RectangleGeometry(roller, 3, 3));
         var shift = t / 0.35 % 1 * 2.5;
@@ -161,6 +161,10 @@ public static class RobotMarkers
 
     private static readonly double[] TankX = [-14.15, 0, 14.15];
     private const double TankY = -15, TankRadius = 6.3;
+    // Water runs between the tanks and the docked robot, whose centre is at (0, 9): clean water
+    // slants from the right-hand tank towards it, dirty water rises from it into the middle one.
+    private static readonly Point CleanTankOutlet = new(13, -9), RobotInlet = new(3, 4);
+    private static readonly Point RobotOutlet = new(0, 2), DirtyTankInlet = new(0, -9);
 
     private static void DrawPlate(DrawingContext dc, Matrix frame)
     {
@@ -194,14 +198,15 @@ public static class RobotMarkers
                 break;
             case DockActivity.FillingWater:
                 DrawTankGlow(dc, TankX[2], Palette.CleanGlow, t);
-                DrawDrop(dc, Palette.CleanDrop, TankX[2], -6, 9, t, 0);
-                DrawDrop(dc, Palette.CleanDrop, TankX[2], -6, 9, t, 0.5);
+                DrawDrop(dc, Palette.CleanDrop, CleanTankOutlet, RobotInlet, t, 0);
+                DrawDrop(dc, Palette.CleanDrop, CleanTankOutlet, RobotInlet, t, 0.5);
                 break;
             case DockActivity.WashingRoller:
                 DrawTankGlow(dc, TankX[1], Palette.DirtyGlow, t);
-                DrawDrop(dc, Palette.DirtyDrop, TankX[1], 0, -9, t, 0);
-                DrawDrop(dc, Palette.DirtyDrop, TankX[1], 0, -9, t, 0.5);
-                DrawDrop(dc, Palette.CleanDrop, TankX[2], -6, 9, t, 0.25);
+                DrawTankGlow(dc, TankX[2], Palette.CleanGlow, t + 0.5);
+                DrawDrop(dc, Palette.DirtyDrop, RobotOutlet, DirtyTankInlet, t, 0);
+                DrawDrop(dc, Palette.DirtyDrop, RobotOutlet, DirtyTankInlet, t, 0.5);
+                DrawDrop(dc, Palette.CleanDrop, CleanTankOutlet, RobotInlet, t, 0.25);
                 break;
             case DockActivity.DryingRoller:
                 for (var i = 0; i < 3; i++) DrawHeatWave(dc, -6 + 6 * i, t, i * 0.45);
@@ -219,13 +224,12 @@ public static class RobotMarkers
         dc.Pop();
     }
 
-    /// <summary>A drop sliding from <paramref name="y"/> by <paramref name="travel"/> each second, fading in then out.</summary>
-    private static void DrawDrop(DrawingContext dc, Brush brush, double x, double y, double travel, double t, double delay)
+    /// <summary>A drop sliding from <paramref name="from"/> to <paramref name="to"/> each second, fading in then out.</summary>
+    private static void DrawDrop(DrawingContext dc, Brush brush, Point from, Point to, double t, double delay)
     {
         var phase = ((t - delay) % 1 + 1) % 1;
-        var startOffset = -Math.Sign(travel) * 3;
         dc.PushOpacity(Fade(phase));
-        dc.DrawEllipse(brush, null, new Point(x, y + startOffset + phase * (travel + 3 * Math.Sign(travel))), 1.4, 1.4);
+        dc.DrawEllipse(brush, null, from + (to - from) * phase, 1.4, 1.4);
         dc.Pop();
     }
 
