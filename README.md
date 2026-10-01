@@ -30,7 +30,7 @@ dépôt reproduit donc le protocole de [l'application Android MyDyson](https://p
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Horaires, zones de restriction, meubles, pièces | fonctionne, vérifié dans l'application mobile |
-| Tests unitaires | 279 tests, exécutés en CI |
+| Tests unitaires | 281 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris

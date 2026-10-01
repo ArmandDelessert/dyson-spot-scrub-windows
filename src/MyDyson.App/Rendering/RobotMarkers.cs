@@ -112,6 +112,9 @@ public static class RobotMarkers
 
     private static Matrix Translated(Vector by) => new(1, 0, 0, 1, by.X, by.Y);
 
+    /// <summary>The robot as the application's icon: cleaning, its light on, brushes at rest. See <see cref="AppIcon"/>.</summary>
+    public static void DrawIcon(DrawingContext dc, Matrix frame) => DrawRobot(dc, frame, RobotActivity.Vacuuming, 0);
+
     // ---- The robot ---------------------------------------------------------------
 
     private static void DrawRobot(DrawingContext dc, Matrix frame, RobotActivity activity, double t)

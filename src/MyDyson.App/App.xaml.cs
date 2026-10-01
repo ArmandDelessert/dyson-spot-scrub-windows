@@ -81,6 +81,17 @@ public partial class App : Application
             return;
         }
 
+        // Headless helper: writes the application icon, drawn by the map's own code, to an .ico.
+        //   MyDyson.App.exe --export-icon app.ico
+        var icon = Array.IndexOf(args, "--export-icon");
+        if (icon >= 0 && icon + 1 < args.Length)
+        {
+            using (var file = System.IO.File.Create(args[icon + 1]))
+                Rendering.AppIcon.WriteIco(file, Rendering.AppIcon.Sizes);
+            Shutdown();
+            return;
+        }
+
         // Loop so that logging out from the main window (see MainViewModel.LogoutCommand) returns
         // here to sign in again, instead of only being able to do that once at process start.
         while (true)
