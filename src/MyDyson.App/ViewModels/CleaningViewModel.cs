@@ -39,7 +39,18 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
         _robotReady = s.IsDocked || s.State is "INACTIVE_DISCHARGING" or "FULL_CLEAN_FINISHED" or "ABORTED";
         UpdateCanStart();
         _robotPosition = s.LatestPosition ?? _robotPosition;
+        _activity.Apply(s);
         RebuildScene();
+    }
+
+    /// <summary>What the robot and its dock are doing, for their icons on the map.</summary>
+    private readonly RobotActivityTracker _activity = new();
+
+    public void ApplyJdm(JdmProperties jdm)
+    {
+        var before = (_activity.Docked, _activity.Robot, _activity.Dock);
+        _activity.ApplyJdm(jdm);
+        if ((_activity.Docked, _activity.Robot, _activity.Dock) != before) RebuildScene();
     }
 
     /// <summary>
@@ -56,6 +67,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
     public void SetLiveTrail(IReadOnlyList<RobotPosition> path)
     {
         _liveTrail = path.Select(p => new MyDyson.Core.Point(p.X, p.Y, p.Update)).ToList();
+        _activity.ApplyTrail(path);
         RebuildScene();
     }
 
@@ -212,6 +224,9 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
             ShowFurniture = display.ShowFurniture,
             ShowTravelPath = display.ShowTravelPath,
             SpotZone = SpotCorners,
+            RobotActivity = isCurrent ? _activity.Robot : RobotActivity.Idle,
+            DockActivity = isCurrent ? _activity.Dock : DockActivity.Idle,
+            RobotDocked = isCurrent && _activity.Docked,
         };
     }
 

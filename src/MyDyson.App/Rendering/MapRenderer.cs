@@ -59,6 +59,19 @@ public sealed class MapScene
     /// <summary>The zone drawn for a zone clean, not yet started: outlined over the map.</summary>
     public IReadOnlyList<CorePoint>? SpotZone { get; init; }
 
+    /// <summary>What the robot is doing, for its animation; see <see cref="RobotMarkers"/>.</summary>
+    public RobotActivity RobotActivity { get; init; }
+    /// <summary>What the dock is doing, for its animation.</summary>
+    public DockActivity DockActivity { get; init; }
+    /// <summary>The robot sits on its dock: drawn on the plate, under the tanks, rather than where it reports itself.</summary>
+    public bool RobotDocked { get; init; }
+
+    /// <summary>
+    /// Whether a dock location is a real one. Maps the robot has never cleaned on report a sentinel
+    /// far off the floor plan, observed at (1100, 1100), which is nothing to draw.
+    /// </summary>
+    public static bool IsRealDock(DockLocation dock) => Math.Abs(dock.X) < 1000 && Math.Abs(dock.Y) < 1000;
+
     /// <summary>How far the map is turned clockwise on screen: the stored map's orientation, 0 when it has none or an odd one.</summary>
     public int Orientation => Map?.Orientation is 90 or 180 or 270 ? Map.Orientation.Value : 0;
 
@@ -215,12 +228,9 @@ public static class MapRenderer
 
         private static (Pen, Brush) RestrictionStyle(Color c) =>
             (Frozen(new Pen(Frozen(new SolidColorBrush(c)), 2)), Frozen(new SolidColorBrush(Color.FromArgb(0x50, c.R, c.G, c.B))));
-        public static readonly Brush DockFill = Frozen(new SolidColorBrush(Color.FromRgb(0xff, 0xd7, 0x00)));
         public static readonly Brush RobotFill = Frozen(new SolidColorBrush(Color.FromRgb(0x3c, 0xb4, 0x3c)));
         public static readonly Brush ObstacleFill = Frozen(new SolidColorBrush(Color.FromRgb(0xe0, 0xa0, 0x30)));
         public static readonly Pen BlackPen = Frozen(new Pen(Brushes.Black, 1));
-        public static readonly Pen RobotOutline = Frozen(new Pen(Brushes.White, 1.5));
-        public static readonly Pen RobotHeading = Frozen(new Pen(Brushes.White, 2));
         /// <summary>The cut being aimed while splitting a room: dashed so it reads as a proposal, not as map data.</summary>
         public static readonly Pen CutPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xe0, 0x30, 0x30))), 2)
         {
@@ -394,20 +404,6 @@ public static class MapRenderer
             var labelRect = DrawLabel(dc, label, at);
             if (scene.ZoneOrder is { } order && order.TryGetValue(z.Id, out var rank))
                 DrawBadge(dc, rank.ToString(CultureInfo.InvariantCulture), new Point(labelRect.Left - 12, at.Y));
-        }
-
-        if (scene.Dock is { } dock)
-        {
-            var p = m.Transform(new Point(dock.X, dock.Y));
-            dc.DrawRectangle(Resources.DockFill, Resources.BlackPen, new Rect(p.X - 6, p.Y - 6, 12, 12));
-        }
-
-        if (scene.Robot is { } robot)
-        {
-            var p = m.Transform(new Point(robot.X, robot.Y));
-            dc.DrawEllipse(Resources.RobotFill, Resources.RobotOutline, p, 8, 8);
-            var tip = m.Transform(new Point(robot.X + 0.35 * Math.Cos(robot.Angle), robot.Y + 0.35 * Math.Sin(robot.Angle)));
-            dc.DrawLine(Resources.RobotHeading, p, tip);
         }
     }
 
@@ -720,7 +716,10 @@ public static class MapRenderer
     {
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
-            Render(dc, scene, new Size(width, height), out _);
+        {
+            Render(dc, scene, new Size(width, height), out var m);
+            RobotMarkers.Draw(dc, scene, m, 0);
+        }
         var rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
         rtb.Render(visual);
         var encoder = new PngBitmapEncoder();

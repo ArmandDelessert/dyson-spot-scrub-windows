@@ -103,6 +103,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 Status.ApplyJdm(jdm);
                 Schedules.ApplyJdm(jdm);
+                Cleaning.ApplyJdm(jdm);
             });
             session.Tracker.CleanPathChanged += path => Hub.Post(() => Cleaning.SetLiveTrail(path));
             session.Tracker.EventReceived += (name, json) => Hub.Post(() =>

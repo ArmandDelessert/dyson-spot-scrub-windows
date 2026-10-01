@@ -172,6 +172,64 @@ public sealed class MapView : FrameworkElement
         Focusable = true;
         ClipToBounds = true;
         IsManipulationEnabled = true;
+        AddVisualChild(_markers);
+        IsVisibleChanged += (_, _) => UpdateAnimation();
+        Unloaded += (_, _) => StopAnimation();
+        Loaded += (_, _) => UpdateAnimation();
+    }
+
+    // ---- The robot and its dock, on a layer of their own --------------------------------
+    // They are animated by what they are doing; redrawing only this layer each frame leaves the
+    // map itself, much heavier to draw, untouched.
+
+    private readonly DrawingVisual _markers = new();
+    private bool _animating;
+    private TimeSpan _lastFrame;
+    private static readonly TimeSpan FrameInterval = TimeSpan.FromSeconds(1.0 / 30);
+    private static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
+
+    protected override int VisualChildrenCount => 1;
+    protected override Visual GetVisualChild(int index) => index == 0 ? _markers : throw new ArgumentOutOfRangeException(nameof(index));
+
+    private void DrawMarkers()
+    {
+        using var dc = _markers.RenderOpen();
+        if (Scene is not { } scene) return;
+        // Windows' "show animations" setting off: everything stands still.
+        var seconds = SystemParameters.ClientAreaAnimation ? Clock.Elapsed.TotalSeconds : 0;
+        RobotMarkers.Draw(dc, scene, WorldToScreen, seconds);
+    }
+
+    /// <summary>Keeps redrawing the markers while something moves and the map can be seen, and only then.</summary>
+    private void UpdateAnimation()
+    {
+        var wanted = IsVisible && IsLoaded && Scene is { } scene && RobotMarkers.IsAnimated(scene) && SystemParameters.ClientAreaAnimation;
+        if (wanted == _animating) return;
+        if (wanted) CompositionTarget.Rendering += OnFrame;
+        else CompositionTarget.Rendering -= OnFrame;
+        _animating = wanted;
+    }
+
+    private void StopAnimation()
+    {
+        if (!_animating) return;
+        CompositionTarget.Rendering -= OnFrame;
+        _animating = false;
+    }
+
+    private void OnFrame(object? sender, EventArgs e)
+    {
+        // Rendering fires at the screen's rate; thirty frames a second is plenty for these.
+        var now = e is RenderingEventArgs r ? r.RenderingTime : Clock.Elapsed;
+        if (now - _lastFrame < FrameInterval) return;
+        _lastFrame = now;
+        DrawMarkers();
+    }
+
+    protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        if (e.Property == SceneProperty) UpdateAnimation();
     }
 
     public void ResetView()
@@ -186,6 +244,7 @@ public sealed class MapView : FrameworkElement
         var size = new Size(Math.Max(1, ActualWidth), Math.Max(1, ActualHeight));
         MapRenderer.Render(drawingContext, Scene ?? new MapScene(), size, out var m, Zoom, _pan);
         WorldToScreen = m;
+        DrawMarkers();
         // The grid under what is being aimed or dragged, and where the pointer lands on it.
         if (SnapSpec is { } grid && (Picking != MapPick.None || EditableShape is not null))
         {
