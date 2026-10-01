@@ -13,7 +13,7 @@ public enum RobotActivity
     /// <summary>The roller's treads run backwards.</summary>
     Mopping,
     VacuumingAndMopping,
-    /// <summary>Driving without cleaning: to a room, back to the dock, finding itself.</summary>
+    /// <summary>Driving without cleaning: to a room, back to the dock, finding itself. Drawn still: its moving on the map says enough.</summary>
     Moving,
 }
 
@@ -56,7 +56,7 @@ public static class RobotMarkers
 
     /// <summary>Whether anything is moving, so the view knows to keep redrawing.</summary>
     public static bool IsAnimated(MapScene scene) =>
-        (scene.Robot is not null && scene.RobotActivity != RobotActivity.Idle && !scene.RobotDocked)
+        (scene.Robot is not null && scene.RobotActivity is not (RobotActivity.Idle or RobotActivity.Moving) && !scene.RobotDocked)
         || (scene.Dock is not null && scene.DockActivity != DockActivity.Idle);
 
     /// <summary>Draws the dock, then the robot, at <paramref name="seconds"/> into their animations.</summary>
@@ -112,9 +112,10 @@ public static class RobotMarkers
 
     private static void DrawRobot(DrawingContext dc, Matrix frame, RobotActivity activity, double t)
     {
-        if (activity == RobotActivity.Moving)
-            frame = Translated(new Vector(0, -1 + Math.Cos(t * 2 * Math.PI / 0.9))) * frame;   // a slight bob forward
         dc.PushTransform(new MatrixTransform(frame));
+        // The green light it shines on the floor ahead while cleaning, as the phone app draws it.
+        if (activity is RobotActivity.Vacuuming or RobotActivity.Mopping or RobotActivity.VacuumingAndMopping)
+            dc.DrawGeometry(Palette.Light, null, LightCone);
         dc.DrawEllipse(Palette.Body, Palette.Rim, default, 16, 16);
         dc.PushClip(BodyClip);
         dc.DrawRoundedRectangle(Palette.WaterTank, null, new Rect(-9, 8.5, 18, 16), 2.5, 2.5);
@@ -127,7 +128,6 @@ public static class RobotMarkers
         DrawBrush(dc, new Point(-11, -11), Palette.LeftBrush, turn);    // turns clockwise, sweeping inwards
         DrawBrush(dc, new Point(11, -11), Palette.RightBrush, -turn);
         if (activity is RobotActivity.Mopping or RobotActivity.VacuumingAndMopping) DrawRoller(dc, t);
-        if (activity == RobotActivity.Moving) dc.DrawGeometry(null, Palette.Chevron, Ahead);
         dc.Pop();
     }
 
@@ -249,7 +249,7 @@ public static class RobotMarkers
     // ---- Shapes and colours ------------------------------------------------------------
 
     private static readonly Geometry BodyClip = Frozen(new EllipseGeometry(default, 16, 16));
-    private static readonly Geometry Ahead = Frozen(Geometry.Parse("M-5,-21 L0,-25 L5,-21"));
+    private static readonly Geometry LightCone = Frozen(Geometry.Parse("M-6,-14 L-13,-31 Q0,-35 13,-31 L6,-14 Z"));
     private static readonly Geometry Plate = Frozen(Geometry.Parse("M-19,-6 H19 V14 A19,10 0 0 1 -19,14 Z"));
     private static readonly Geometry Bolt = Frozen(Geometry.Parse("M-1,15 L2,11 H-1 L2,7"));
     private static readonly Geometry Swirl = Frozen(Geometry.Parse("M-14.15,-18.6 A3.6,3.6 0 0 1 -10.55,-15 M-14.15,-11.4 A3.6,3.6 0 0 1 -17.75,-15"));
@@ -270,7 +270,10 @@ public static class RobotMarkers
         public static readonly Pen RightBrush = Line(0xFFE24B4A, 1.6);
         public static readonly Brush Roller = Solid(0xFF185FA5);
         public static readonly Pen Tread = Line(0xFFB5D4F4, 0.9);
-        public static readonly Pen Chevron = Line(0xFFB4B2A9, 1.6);
+        /// <summary>Bright at the robot, fading out ahead of it.</summary>
+        public static readonly Brush Light = Frozen(new LinearGradientBrush(
+            new GradientStopCollection { new(Color.FromArgb(0xB0, 0x4C, 0xE0, 0x5A), 0), new(Color.FromArgb(0x00, 0x4C, 0xE0, 0x5A), 1) },
+            new Point(0, 0), new Point(0, 1)) { MappingMode = BrushMappingMode.Absolute, StartPoint = new Point(0, -15), EndPoint = new Point(0, -33) });
         public static readonly Brush Plate = Solid(0xFF444441);
         public static readonly Pen PlateRim = Line(0xFF888780, 1);
         public static readonly Brush Bin = Solid(0xFF534AB7);
