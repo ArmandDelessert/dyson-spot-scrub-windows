@@ -30,7 +30,7 @@ dépôt reproduit donc le protocole de [l'application Android MyDyson](https://p
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Horaires, zones de restriction, meubles, pièces | fonctionne, vérifié dans l'application mobile |
-| Tests unitaires | 273 tests, exécutés en CI |
+| Tests unitaires | 279 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -100,10 +100,10 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   temps réel du nettoyage en cours, construit au fil de l'eau depuis le flux `cur_path` du robot, en
   gris là où il ne fait que se déplacer et dans la couleur du type de nettoyage de la pièce là où il
   travaille réellement. Le robot et la station sont dessinés vus de dessus, à l'échelle, et animés
-  selon ce qu'ils font : brosses qui tournent pendant l'aspiration, rouleau qui défile pendant le
+  selon ce qu'ils font : lumière verte devant lui et brosses qui tournent sous lui pendant l'aspiration, rouleau qui défile pendant le
   lavage, robot à quai sur le socle, charge, vidage du collecteur, remplissage d'eau propre, lavage
   et séchage du rouleau (animations coupées si Windows les désactive). Icônes pour les obstacles et
-  les taches détectés. Clic ou tape pour
+  les taches détectés, dont la taille suit le zoom. Clic ou tape pour
   sélectionner une pièce, ou pour effacer la sélection en dehors d'une pièce ; double-clic ou
   double-tape en dehors d'une pièce pour réinitialiser le zoom. Molette ou pincement à deux doigts
   pour zoomer, glisser (souris ou un doigt) pour déplacer la vue.
@@ -111,7 +111,8 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   l'application mobile, qui affiche le libellé du type (« Salon ») et masque le nom (« Salon12 »).
   Un bouton « Affichage » regroupe ce qui ne concerne que cette fenêtre, et vaut aussi pour la carte
   de l'historique : masquer les meubles, masquer les déplacements sans nettoyage (ne reste alors que
-  ce qui a réellement été nettoyé), masquer le bouton d'export. Ces choix sont retenus d'un
+  ce qui a réellement été nettoyé), masquer le bouton d'export, et lisser les déplacements du
+  robot, qui glisse alors d'une position à la suivante au lieu de sauter. Ces choix sont retenus d'un
   lancement à l'autre, dans `%APPDATA%\MyDyson\display.json`, et ne sont jamais envoyés au robot.
 - **Historique** : date, durée, fin, carte, pièces réellement nettoyées, surface, batterie et
   fautes pour chaque nettoyage. Les pièces se remplissent en arrière-plan une par une après le

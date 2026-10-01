@@ -240,6 +240,8 @@
                                             <CheckBox IsChecked="{Binding ShowFurniture}" Content="Afficher les meubles"/>
                                             <CheckBox IsChecked="{Binding ShowTravelPath}" Content="Afficher les déplacements sans nettoyage"/>
                                             <CheckBox IsChecked="{Binding ShowExportButton}" Content="Afficher le bouton d'export PNG"/>
+                                            <CheckBox IsChecked="{Binding SmoothRobotMotion}" Content="Lisser les déplacements du robot"
+                                                      ToolTip="Le robot glisse d'une position à la suivante au lieu de sauter, avec un léger retard."/>
                                             <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0" MaxWidth="260">
                                                 Ces réglages ne concernent que cet affichage : rien n'est envoyé au robot.
                                             </TextBlock>

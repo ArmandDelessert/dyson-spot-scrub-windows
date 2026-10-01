@@ -65,6 +65,8 @@ public sealed class MapScene
     public DockActivity DockActivity { get; init; }
     /// <summary>The robot sits on its dock: drawn on the plate, under the tanks, rather than where it reports itself.</summary>
     public bool RobotDocked { get; init; }
+    /// <summary>Glide the robot between reported positions; see <see cref="Services.DisplaySettings.SmoothRobotMotion"/>.</summary>
+    public bool SmoothRobotMotion { get; init; }
 
     /// <summary>
     /// Whether a dock location is a real one. Maps the robot has never cleaned on report a sentinel
@@ -230,6 +232,7 @@ public static class MapRenderer
             (Frozen(new Pen(Frozen(new SolidColorBrush(c)), 2)), Frozen(new SolidColorBrush(Color.FromArgb(0x50, c.R, c.G, c.B))));
         public static readonly Brush RobotFill = Frozen(new SolidColorBrush(Color.FromRgb(0x3c, 0xb4, 0x3c)));
         public static readonly Brush ObstacleFill = Frozen(new SolidColorBrush(Color.FromRgb(0xe0, 0xa0, 0x30)));
+        public static readonly Pen ObstacleMark = Frozen(new Pen(Brushes.Black, 1.5) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round });
         public static readonly Pen BlackPen = Frozen(new Pen(Brushes.Black, 1));
         /// <summary>The cut being aimed while splitting a room: dashed so it reads as a proposal, not as map data.</summary>
         public static readonly Pen CutPen = Frozen(new Pen(Frozen(new SolidColorBrush(Color.FromRgb(0xe0, 0x30, 0x30))), 2)
@@ -383,10 +386,11 @@ public static class MapRenderer
         if (scene.Path is { Count: > 1 } path)
             DrawActionPath(dc, res, scene, path, m);
 
+        var obstacleSize = ObstacleMarkerSize(m);
         foreach (var o in scene.Obstacles ?? [])
         {
             var p = m.Transform(new Point(o.X, o.Y));
-            DrawObstacleMarker(dc, p);
+            DrawObstacleMarker(dc, p, obstacleSize);
         }
 
         foreach (var d in scene.DirtSpots ?? [])
@@ -444,18 +448,27 @@ public static class MapRenderer
         dc.DrawGeometry(null, pen, geo);
     }
 
-    private static void DrawObstacleMarker(DrawingContext dc, Point p)
+    /// <summary>
+    /// Half the width of an obstacle's warning triangle, in pixels: 8 cm on the floor, so it grows
+    /// as the map is zoomed in, but never below 8 pixels nor above 16.
+    /// </summary>
+    public static double ObstacleMarkerSize(Matrix worldToScreen) =>
+        Math.Clamp(0.08 * new Vector(worldToScreen.M11, worldToScreen.M12).Length, 8, 16);
+
+    private static void DrawObstacleMarker(DrawingContext dc, Point p, double half)
     {
         var geo = new StreamGeometry();
         using (var g = geo.Open())
         {
-            g.BeginFigure(new Point(p.X, p.Y - 7), true, true);
-            g.LineTo(new Point(p.X + 6, p.Y + 5), true, true);
-            g.LineTo(new Point(p.X - 6, p.Y + 5), true, true);
+            g.BeginFigure(new Point(p.X, p.Y - half * 7 / 6), true, true);
+            g.LineTo(new Point(p.X + half, p.Y + half * 5 / 6), true, true);
+            g.LineTo(new Point(p.X - half, p.Y + half * 5 / 6), true, true);
         }
         geo.Freeze();
         dc.DrawGeometry(Resources.ObstacleFill, Resources.BlackPen, geo);
-        dc.DrawEllipse(Brushes.Black, null, new Point(p.X, p.Y + 1.5), 0.8, 0.8);
+        // The exclamation mark: a stroke and a dot.
+        dc.DrawLine(Resources.ObstacleMark, new Point(p.X, p.Y - half * 0.45), new Point(p.X, p.Y + half * 0.2));
+        dc.DrawEllipse(Brushes.Black, null, new Point(p.X, p.Y + half * 0.5), half * 0.1, half * 0.1);
     }
 
     /// <summary>

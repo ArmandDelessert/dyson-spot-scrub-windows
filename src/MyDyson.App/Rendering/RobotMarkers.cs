@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using MyDyson.Core;
 using Point = System.Windows.Point;
 
 namespace MyDyson.App.Rendering;
@@ -59,8 +60,11 @@ public static class RobotMarkers
         (scene.Robot is not null && scene.RobotActivity is not (RobotActivity.Idle or RobotActivity.Moving) && !scene.RobotDocked)
         || (scene.Dock is not null && scene.DockActivity != DockActivity.Idle);
 
-    /// <summary>Draws the dock, then the robot, at <paramref name="seconds"/> into their animations.</summary>
-    public static void Draw(DrawingContext dc, MapScene scene, Matrix worldToScreen, double seconds)
+    /// <summary>
+    /// Draws the dock, then the robot, at <paramref name="seconds"/> into their animations. The robot
+    /// stands at <paramref name="robotAt"/> when given (see <see cref="RobotGlide"/>), else where it reported itself.
+    /// </summary>
+    public static void Draw(DrawingContext dc, MapScene scene, Matrix worldToScreen, double seconds, RobotPosition? robotAt = null)
     {
         var dock = scene.Dock is { } d && MapScene.IsRealDock(d) ? d : null;
         var unit = UnitLength(worldToScreen);
@@ -79,7 +83,7 @@ public static class RobotMarkers
             }
             DrawTower(dc, dockFrame, scene.DockActivity, seconds);
         }
-        if (scene.Robot is { } robot && !(scene.RobotDocked && dock is not null))
+        if ((robotAt ?? scene.Robot) is { } robot && !(scene.RobotDocked && dock is not null))
         {
             var heading = new Vector(Math.Cos(robot.Angle), Math.Sin(robot.Angle));
             DrawRobot(dc, Frame(new Point(robot.X, robot.Y), heading, unit, mirrored: false) * worldToScreen, scene.RobotActivity, seconds);
@@ -116,6 +120,13 @@ public static class RobotMarkers
         // The green light it shines on the floor ahead while cleaning, as the phone app draws it.
         if (activity is RobotActivity.Vacuuming or RobotActivity.Mopping or RobotActivity.VacuumingAndMopping)
             dc.DrawGeometry(Palette.Light, null, LightCone);
+
+        // The side brushes turn under the front of the body, only their tips showing past its rim.
+        var spinning = activity is RobotActivity.Vacuuming or RobotActivity.VacuumingAndMopping;
+        var turn = spinning ? t / 0.8 * 360 : 0;
+        DrawBrush(dc, new Point(-11, -11), Palette.LeftBrush, turn);    // turns clockwise, sweeping inwards
+        DrawBrush(dc, new Point(11, -11), Palette.RightBrush, -turn);   // its mirror image
+
         dc.DrawEllipse(Palette.Body, Palette.Rim, default, 16, 16);
         dc.PushClip(BodyClip);
         dc.DrawRoundedRectangle(Palette.WaterTank, null, new Rect(-9, 8.5, 18, 16), 2.5, 2.5);
@@ -123,13 +134,12 @@ public static class RobotMarkers
         dc.DrawRoundedRectangle(Palette.Lid, null, new Rect(-9, -3, 18, 7), 1.5, 1.5);   // the dust bin and its filter
         dc.DrawEllipse(Palette.Button, null, new Point(0, -7.5), 1.6, 1.6);
 
-        var spinning = activity is RobotActivity.Vacuuming or RobotActivity.VacuumingAndMopping;
-        var turn = spinning ? t / 0.8 * 360 : 0;
-        DrawBrush(dc, new Point(-11, -11), Palette.LeftBrush, turn);    // turns clockwise, sweeping inwards
-        DrawBrush(dc, new Point(11, -11), Palette.RightBrush, -turn);
         if (activity is RobotActivity.Mopping or RobotActivity.VacuumingAndMopping) DrawRoller(dc, t);
         dc.Pop();
     }
+
+    /// <summary>Long enough for the arms to reach past the rim of the body they sit under.</summary>
+    private const double BrushArm = 8;
 
     private static void DrawBrush(DrawingContext dc, Point hub, Pen pen, double degrees)
     {
@@ -137,7 +147,7 @@ public static class RobotMarkers
         for (var arm = 0; arm < 3; arm++)
         {
             var a = (arm * 120 - 90) * Math.PI / 180;
-            dc.DrawLine(pen, hub, new Point(hub.X + 5 * Math.Cos(a), hub.Y + 5 * Math.Sin(a)));
+            dc.DrawLine(pen, hub, new Point(hub.X + BrushArm * Math.Cos(a), hub.Y + BrushArm * Math.Sin(a)));
         }
         dc.Pop();
     }
@@ -266,8 +276,8 @@ public static class RobotMarkers
         public static readonly Brush WaterTank = Solid(0xFF7F77DD);
         public static readonly Brush Lid = Solid(0xFF444441);
         public static readonly Brush Button = Solid(0xFFB4B2A9);
-        public static readonly Pen LeftBrush = Line(0xFF378ADD, 1.6);
-        public static readonly Pen RightBrush = Line(0xFFE24B4A, 1.6);
+        public static readonly Pen LeftBrush = Line(0xFF378ADD, 1.8);
+        public static readonly Pen RightBrush = Line(0xFFE24B4A, 1.8);
         public static readonly Brush Roller = Solid(0xFF185FA5);
         public static readonly Pen Tread = Line(0xFFB5D4F4, 0.9);
         /// <summary>Bright at the robot, fading out ahead of it.</summary>

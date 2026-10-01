@@ -227,6 +227,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
             RobotActivity = isCurrent ? _activity.Robot : RobotActivity.Idle,
             DockActivity = isCurrent ? _activity.Dock : DockActivity.Idle,
             RobotDocked = isCurrent && _activity.Docked,
+            SmoothRobotMotion = display.SmoothRobotMotion,
         };
     }
 

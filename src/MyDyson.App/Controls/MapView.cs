@@ -183,6 +183,7 @@ public sealed class MapView : FrameworkElement
     // map itself, much heavier to draw, untouched.
 
     private readonly DrawingVisual _markers = new();
+    private readonly RobotGlide _glide = new();
     private bool _animating;
     private TimeSpan _lastFrame;
     private static readonly TimeSpan FrameInterval = TimeSpan.FromSeconds(1.0 / 30);
@@ -196,14 +197,21 @@ public sealed class MapView : FrameworkElement
         using var dc = _markers.RenderOpen();
         if (Scene is not { } scene) return;
         // Windows' "show animations" setting off: everything stands still.
-        var seconds = SystemParameters.ClientAreaAnimation ? Clock.Elapsed.TotalSeconds : 0;
-        RobotMarkers.Draw(dc, scene, WorldToScreen, seconds);
+        var animate = SystemParameters.ClientAreaAnimation;
+        var seconds = animate ? Clock.Elapsed.TotalSeconds : 0;
+        var robotAt = animate && scene.SmoothRobotMotion && !scene.RobotDocked && scene.Robot is { } robot
+            ? _glide.At(robot, Clock.Elapsed.TotalSeconds)
+            : null;
+        RobotMarkers.Draw(dc, scene, WorldToScreen, seconds, robotAt);
+        // A new position starts a glide, and one that has arrived stops the frames.
+        if (robotAt is not null) Dispatcher.BeginInvoke(UpdateAnimation, DispatcherPriority.Render);
     }
 
     /// <summary>Keeps redrawing the markers while something moves and the map can be seen, and only then.</summary>
     private void UpdateAnimation()
     {
-        var wanted = IsVisible && IsLoaded && Scene is { } scene && RobotMarkers.IsAnimated(scene) && SystemParameters.ClientAreaAnimation;
+        var wanted = IsVisible && IsLoaded && Scene is { } scene && SystemParameters.ClientAreaAnimation
+            && (RobotMarkers.IsAnimated(scene) || (scene.SmoothRobotMotion && _glide.IsGliding(Clock.Elapsed.TotalSeconds)));
         if (wanted == _animating) return;
         if (wanted) CompositionTarget.Rendering += OnFrame;
         else CompositionTarget.Rendering -= OnFrame;

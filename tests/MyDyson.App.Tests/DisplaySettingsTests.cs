@@ -38,6 +38,16 @@ public sealed class DisplaySettingsTests : IDisposable
         Assert.False(second.ShowExportButton);
     }
 
+
+    [Fact]
+    public void SmoothingTheRobotIsOffUntilChosenThenRemembered()
+    {
+        var first = DisplaySettings.Load(_path);
+        Assert.False(first.SmoothRobotMotion);
+        first.SmoothRobotMotion = true;
+
+        Assert.True(DisplaySettings.Load(_path).SmoothRobotMotion);
+    }
     [Fact]
     public void LoadingDoesNotLookLikeAChange()
     {
