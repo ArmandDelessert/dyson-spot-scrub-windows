@@ -830,9 +830,12 @@ arbitre, et l'application qui estime la durée d'un nettoyage. Elle dispose pour
 `/v2/app/{serial}/persistent-maps/{mapId}/clean-estimation`, qui renvoie `durationMinutes` mais
 refuse un `GET` (405) : il attend un corps décrivant les pièces, dont la forme n'est pas connue.
 
-Reste à vérifier sur le robot lui-même à quelle heure locale part un horaire : l'application
-envoie le décalage de Londres (3600 en été), le fuseau du cloud, alors que le logement des captures
-vit à l'heure d'Europe centrale (7200 en été).
+**Le robot déclenche les horaires à l'heure de Pékin (UTC+8).** Observé le 1er octobre 2026 : un
+horaire du jeudi à 10:00, créé sur le téléphone, a démarré à 04:00 heure de Suisse (UTC+2), soit
+02:00 UTC, c'est-à-dire 10:00 à UTC+8. Le champ `time_zone` d'`add_order` (3600) est donc ignoré,
+et le fuseau du robot est resté celui d'usine, que `service.set_robot_time_zone` ne parvient pas à
+changer (voir la section suivante). Les quatre horaires du mardi à 18, 19, 20 et 21 h, attendus en
+vain le soir du 29 septembre, tombaient de même entre 12 et 15 h, heure locale.
 
 ## Fuseau horaire
 
