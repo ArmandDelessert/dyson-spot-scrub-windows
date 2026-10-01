@@ -172,12 +172,19 @@ public static class RobotMarkers
 
     // ---- The dock ----------------------------------------------------------------
 
-    private static readonly double[] TankX = [-14.15, 0, 14.15];
-    private const double TankY = -15, TankRadius = 6.3;
+    // The three tanks in a row, the same gap between each other and between them and the inner
+    // edge of the tower's rim on all four sides; the tower is as wide as the plate and its bottom
+    // edge stays where the docked robot's back slips under it.
+    private const double TankRadius = 6.3, TankGap = 1.25, TowerRim = 1.2, TowerWidth = 44, TowerBottom = -4;
+    private const double TowerHeight = 2 * TankRadius + 2 * TankGap + TowerRim;
+    private const double TankY = TowerBottom - TowerRim / 2 - TankGap - TankRadius;
+    private const double TankStep = 2 * TankRadius + TankGap;
+    private static readonly double[] TankX = [-TankStep, 0, TankStep];
+    private static readonly Rect Tower = new(-TowerWidth / 2, TowerBottom - TowerHeight, TowerWidth, TowerHeight);
     // Water runs between the tanks and the docked robot, whose centre is at (0, 9): clean water
     // slants from the right-hand tank towards it, dirty water rises from it into the middle one.
-    private static readonly Point CleanTankOutlet = new(13, -9), RobotInlet = new(3, 4);
-    private static readonly Point RobotOutlet = new(0, 2), DirtyTankInlet = new(0, -9);
+    private static readonly Point CleanTankOutlet = new(12.5, -6), RobotInlet = new(3, 4);
+    private static readonly Point RobotOutlet = new(0, 2), DirtyTankInlet = new(0, -6);
 
     private static void DrawPlate(DrawingContext dc, Matrix frame)
     {
@@ -189,11 +196,12 @@ public static class RobotMarkers
     private static void DrawTower(DrawingContext dc, Matrix frame, DockActivity activity, double t)
     {
         dc.PushTransform(new MatrixTransform(frame));
-        dc.DrawRoundedRectangle(Palette.Body, Palette.Rim, new Rect(-22, -26, 44, 22), 4, 4);
+        dc.DrawRoundedRectangle(Palette.Body, Palette.Rim, Tower, 4, 4);
         dc.DrawEllipse(Palette.Bin, null, new Point(TankX[0], TankY), TankRadius, TankRadius);
         dc.DrawEllipse(Palette.BinFilter, null, new Point(TankX[0], TankY), 3.6, 3.6);
         foreach (var x in TankX.Skip(1))
-            dc.DrawEllipse(Palette.Lid, Palette.TankRim, new Point(x, TankY), TankRadius, TankRadius);
+            // The rim drawn inside the circle, so these tanks are no bigger than the bin, which has none.
+            dc.DrawEllipse(Palette.Lid, Palette.TankRim, new Point(x, TankY), TankRadius - 0.5, TankRadius - 0.5);
         dc.DrawEllipse(Palette.DirtyDot, null, new Point(TankX[1], TankY), 1.4, 1.4);
         dc.DrawEllipse(Palette.CleanDot, null, new Point(TankX[2], TankY), 1.4, 1.4);
 
@@ -205,8 +213,10 @@ public static class RobotMarkers
                 dc.Pop();
                 break;
             case DockActivity.EmptyingBin:
-                dc.PushTransform(new RotateTransform(t / 0.8 * 360, TankX[0], TankY));
+                dc.PushTransform(new TranslateTransform(TankX[0], TankY));
+                dc.PushTransform(new RotateTransform(t / 0.8 * 360));
                 dc.DrawGeometry(null, Palette.Swirl, Swirl);
+                dc.Pop();
                 dc.Pop();
                 break;
             case DockActivity.FillingWater:
@@ -265,7 +275,7 @@ public static class RobotMarkers
     private static readonly Geometry LightCone = Frozen(Geometry.Parse("M-6,-14 L-13,-31 Q0,-35 13,-31 L6,-14 Z"));
     private static readonly Geometry Plate = Frozen(Geometry.Parse("M-19,-6 H19 V14 A19,10 0 0 1 -19,14 Z"));
     private static readonly Geometry Bolt = Frozen(Geometry.Parse("M-1,15 L2,11 H-1 L2,7"));
-    private static readonly Geometry Swirl = Frozen(Geometry.Parse("M-14.15,-18.6 A3.6,3.6 0 0 1 -10.55,-15 M-14.15,-11.4 A3.6,3.6 0 0 1 -17.75,-15"));
+    private static readonly Geometry Swirl = Frozen(Geometry.Parse("M0,-3.6 A3.6,3.6 0 0 1 3.6,0 M0,3.6 A3.6,3.6 0 0 1 -3.6,0"));
     private static readonly Geometry HeatWave = Frozen(Geometry.Parse("M0,-6 Q2,-3 0,0 Q-2,3 0,6"));
 
     private static T Frozen<T>(T f) where T : Freezable { f.Freeze(); return f; }
