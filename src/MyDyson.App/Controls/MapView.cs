@@ -285,6 +285,22 @@ public sealed class MapView : FrameworkElement
         InvalidateVisual();
     }
 
+    /// <summary>
+    /// Escape: drops a shape being dragged back where it was. False when no shape was being dragged,
+    /// so the key can mean something else (leaving a drawing, erasing a zone).
+    /// </summary>
+    public bool CancelGesture()
+    {
+        if (_shapeGrip is not null)
+        {
+            ReleaseShape(drop: false);
+            _dragStart = null;
+            ReleaseMouseCapture();
+            return true;
+        }
+        return false;
+    }
+
     private void ReleaseShape(bool drop)
     {
         var dropped = _shapePreview;

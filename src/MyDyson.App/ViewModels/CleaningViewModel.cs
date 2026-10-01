@@ -311,6 +311,18 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
         SpotCorners = null;
     }
 
+    /// <summary>
+    /// Escape: gives up the drawing under way, or else erases the drawn zone. False when there was
+    /// neither, so the key is left to whatever else it may mean.
+    /// </summary>
+    public bool CancelSpot()
+    {
+        if (DrawingSpot) DrawingSpot = false;
+        else if (HasSpot) SpotCorners = null;
+        else return false;
+        return true;
+    }
+
     /// <summary>Called by the window once both corners have been clicked on the map.</summary>
     public void SpotDrawn(MyDyson.Core.Point a, MyDyson.Core.Point b)
     {

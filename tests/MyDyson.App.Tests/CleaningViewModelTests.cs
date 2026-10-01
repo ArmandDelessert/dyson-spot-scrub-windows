@@ -128,6 +128,27 @@ public class CleaningViewModelTests
         Assert.True(Room(vm, "12").Selected);
     }
 
+
+    [Fact]
+    public async Task EscapeGivesUpTheDrawingThenErasesTheZone()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        Assert.False(vm.CancelSpot());   // nothing to cancel: the key is left alone
+
+        vm.DrawSpotCommand.Execute(null);
+        Assert.True(vm.CancelSpot());
+        Assert.False(vm.DrawingSpot);
+
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+        vm.DrawSpotCommand.Execute(null);   // drawing another one: Escape keeps the first
+        Assert.True(vm.CancelSpot());
+        Assert.False(vm.DrawingSpot);
+        Assert.True(vm.HasSpot);
+
+        Assert.True(vm.CancelSpot());
+        Assert.False(vm.HasSpot);
+    }
     [Fact]
     public async Task AClickInEmptySpaceErasesTheZoneUnlessItLandsOnTheZone()
     {

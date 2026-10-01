@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using MyDyson.App.Controls;
 using MyDyson.App.ViewModels;
 
@@ -50,6 +51,11 @@ public partial class MapManagerWindow : Window
             }
         };
         MapCanvas.ShapeEdited += corners => _ = vm.ShapeDroppedAsync(corners);
+        // Escape puts back a zone or a piece being dragged before it means leaving a mode.
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape && MapCanvas.CancelGesture()) e.Handled = true;
+        };
 
         // Every click goes to the view model, which knows which tab it is for.
         MapCanvas.WorldClicked += vm.MapClickedAt;

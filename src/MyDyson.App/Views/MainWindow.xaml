@@ -141,7 +141,7 @@
                             <!-- A rectangle drawn on the map instead of whole rooms, as the phone's zone clean. -->
                             <TextBlock Text="Nettoyer une zone" Style="{StaticResource Section}" Margin="0,16,0,4"/>
                             <TextBlock Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap">
-                                Tracez un rectangle sur la carte en cliquant deux coins opposés, choisissez comment le nettoyer, puis lancez : le robot ne nettoie que cette zone. Faites-la glisser pour la déplacer, tirez ses coins pour la redimensionner ; un clic dans le vide de la carte l'efface. Tant qu'une zone est tracée, les pièces ne peuvent pas être cochées.
+                                Tracez un rectangle sur la carte en cliquant deux coins opposés, choisissez comment le nettoyer, puis lancez : le robot ne nettoie que cette zone. Faites-la glisser pour la déplacer, tirez ses coins pour la redimensionner ; un clic dans le vide de la carte ou la touche Échap l'efface (Échap abandonne aussi un tracé ou un déplacement en cours). Tant qu'une zone est tracée, les pièces ne peuvent pas être cochées.
                             </TextBlock>
                             <WrapPanel Margin="0,6,0,0">
                                 <Button Content="{Binding DrawSpotLabel}" Command="{Binding DrawSpotCommand}" Style="{StaticResource Secondary}"/>

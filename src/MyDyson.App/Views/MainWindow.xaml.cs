@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using MyDyson.App.Controls;
 using MyDyson.App.Services;
 using MyDyson.App.ViewModels;
@@ -36,6 +37,17 @@ public partial class MainWindow : Window
         };
         MapCanvas.RectanglePicked += _vm.Cleaning.SpotDrawn;
         MapCanvas.ShapeEdited += _vm.Cleaning.SpotEdited;
+        // Escape puts back a zone being dragged; otherwise, on the dashboard, it gives up the
+        // drawing or erases the drawn zone. A drag is checked first, on the way down, so nothing
+        // else on the way can take the key from it; the rest waits for an open list to close itself.
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape && MapCanvas.CancelGesture()) e.Handled = true;
+        };
+        KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape && Tabs.SelectedIndex == 0 && _vm.Cleaning.CancelSpot()) e.Handled = true;
+        };
         _vm.LoggedOut += () => { LoggedOut?.Invoke(); Close(); };
         _vm.NotifyRequested += (title, text) => _notifications.Show(title, text, onClick: () =>
         {
