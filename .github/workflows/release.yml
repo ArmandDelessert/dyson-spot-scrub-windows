@@ -1,0 +1,62 @@
+name: Release
+
+# Pushing a tag v1.2.3 builds that version, runs the tests, and publishes a GitHub release with the
+# application for x64 and ARM64: one self-contained executable each, nothing to install. A tag with
+# a suffix (v1.2.3-beta.1) gives a pre-release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # to create the release
+
+jobs:
+  release:
+    # WPF only builds on Windows.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Version from the tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $m = [regex]::Match($tag, '^v(\d+\.\d+\.\d+)(-[0-9A-Za-z.-]+)?$')
+          if (-not $m.Success) { throw "Tag « $tag » : attendu vX.Y.Z ou vX.Y.Z-suffixe." }
+          "version=$($tag.Substring(1))" >> $env:GITHUB_OUTPUT
+          "prerelease=$($m.Groups[2].Success.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test MyDyson.slnx --configuration Release -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          New-Item -ItemType Directory -Force dist | Out-Null
+          foreach ($rid in 'win-x64', 'win-arm64') {
+            # One compressed executable carrying .NET and WPF's native libraries.
+            dotnet publish src/MyDyson.App/MyDyson.App.csproj --configuration Release --runtime $rid --self-contained `
+              -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+              -p:DebugType=none -p:Version=$version --output "publish/$rid"
+            if ($LASTEXITCODE -ne 0) { throw "Publication $rid impossible." }
+            Copy-Item README.md, LICENSE "publish/$rid"
+            Compress-Archive -Path "publish/$rid/*" -DestinationPath "dist/MyDyson-$version-$rid.zip"
+          }
+          # Checksums, so a download can be checked against what was built here.
+          Get-ChildItem dist/*.zip | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
+            Set-Content dist/SHA256SUMS.txt -Encoding ascii
+
+      - name: Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $flags = @('--generate-notes', '--title', 'Version ${{ steps.version.outputs.version }}')
+          if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $flags += '--prerelease' }
+          gh release create '${{ github.ref_name }}' (Get-ChildItem dist/*).FullName @flags

@@ -235,10 +235,16 @@ Le protocole retrouvé par décompilation et par captures est documenté dans [d
   `latest-recommended`) et traite tout avertissement comme une erreur ; `Directory.Packages.props`
   centralise les versions de paquets.
 - `.github/workflows/ci.yml` compile les cinq projets et lance les tests à chaque push.
+- `.github/workflows/release.yml` publie une version à chaque tag `vX.Y.Z` (voir « Publier une version »).
 - Les règles qui exigeraient de rendre une `Window` WPF `IDisposable` (CA1001) sont supprimées
   ponctuellement, avec justification, là où la durée de vie est déjà celle de l'événement `Closed`.
 
 ## Prérequis
+
+Pour utiliser l'application, il suffit de télécharger le zip de la dernière version dans les
+releases GitHub (x64 ou ARM64) et de lancer `MyDyson.App.exe`, qui embarque .NET.
+
+Pour la compiler :
 
 - Windows 10/11, [.NET SDK 10](https://dotnet.microsoft.com/download)
 - Un compte MyDyson avec le robot déjà enregistré dans l'application mobile
@@ -266,6 +272,21 @@ dotnet test
 
 `watch` enregistre aussi les commandes publiées par l'application mobile, ce qui permet de
 constituer des captures de référence en pilotant le robot depuis le téléphone.
+
+### Publier une version
+
+Le numéro de version vient du tag Git. Pousser un tag `vX.Y.Z` (ou `vX.Y.Z-beta.1` pour une
+pré-version) lance le workflow `release.yml`, qui compile cette version, lance les tests, puis crée
+la release GitHub avec un exécutable autonome pour x64 et pour ARM64, chacun dans un zip, et leurs
+empreintes SHA-256 :
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Une compilation locale porte la version `0.0.0-dev`. L'exécutable n'est pas signé : au premier
+lancement, Windows SmartScreen demande une confirmation.
 
 ## Protocole
 
