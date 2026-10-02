@@ -42,16 +42,14 @@ public enum DockActivity
 /// </summary>
 public static class RobotMarkers
 {
-    /// <summary>The robot's radius on the floor, in metres.</summary>
-    public const double RobotRadius = 0.175;
+    /// <summary>The robot's radius on the floor, in metres: 37.3 cm wide by 37 cm long, per Dyson's specifications.</summary>
+    public const double RobotRadius = 0.186;
     /// <summary>How far in front of the dock's reported point the robot sits once docked, in metres (measured: 0.25).</summary>
     public const double DockedOffset = 0.25;
     /// <summary>The robot's radius in icon units.</summary>
     private const double Units = 16;
-    /// <summary>The dock is laid out in units 1.25 times the robot's, as on the approved drawing.</summary>
-    private const double DockScale = 1.25;
-    /// <summary>Where the dock's reported point falls in the dock's own units: the robot's centre lies DockedOffset in front of it.</summary>
-    private const double DockedRobotY = 9;
+    /// <summary>The dock is laid out in centimetres, its origin on its reported point, +y towards the side the robot leaves by.</summary>
+    private const double DockUnit = 0.01;
     /// <summary>The smallest robot on screen, in pixels, so it stays recognisable when zoomed out.</summary>
     private const double MinimumRadiusPixels = 11;
 
@@ -67,18 +65,18 @@ public static class RobotMarkers
     public static void Draw(DrawingContext dc, MapScene scene, Matrix worldToScreen, double seconds, RobotPosition? robotAt = null)
     {
         var dock = scene.Dock is { } d && MapScene.IsRealDock(d) ? d : null;
-        var unit = UnitLength(worldToScreen);
+        // Real scale, or both enlarged alike when zoomed out too far to read them.
+        var enlarge = Enlargement(worldToScreen);
+        var unit = RobotRadius / Units * enlarge;
         if (dock is not null)
         {
             var forward = new Vector(Math.Cos(dock.Angle), Math.Sin(dock.Angle));
-            var dockFrame = Frame(new Point(dock.X, dock.Y), forward, unit * DockScale, mirrored: true) * worldToScreen;
-            // The dock's point in its own units is where the robot's centre lies DockedOffset metres behind.
-            var origin = new Vector(0, DockedRobotY - DockedOffset / (unit * DockScale));
-            dockFrame = Translated(-origin) * dockFrame;
+            var dockFrame = Frame(new Point(dock.X, dock.Y), forward, DockUnit * enlarge, mirrored: true) * worldToScreen;
             DrawPlate(dc, dockFrame);
             if (scene.Robot is not null && scene.RobotDocked)
             {
-                var at = new Point(dock.X + forward.X * DockedOffset, dock.Y + forward.Y * DockedOffset);
+                var offset = DockedOffset * enlarge;
+                var at = new Point(dock.X + forward.X * offset, dock.Y + forward.Y * offset);
                 DrawRobot(dc, Frame(at, forward, unit, mirrored: false) * worldToScreen, RobotActivity.Idle, seconds);
             }
             DrawTower(dc, dockFrame, scene.DockActivity, seconds);
@@ -90,12 +88,11 @@ public static class RobotMarkers
         }
     }
 
-    /// <summary>Metres per icon unit: real scale, or larger when that would make the robot too small to read.</summary>
-    private static double UnitLength(Matrix worldToScreen)
+    /// <summary>1 at real scale; more when the robot would otherwise be too small to read.</summary>
+    private static double Enlargement(Matrix worldToScreen)
     {
         var pixelsPerMetre = new Vector(worldToScreen.M11, worldToScreen.M12).Length;
-        var radius = Math.Max(RobotRadius, MinimumRadiusPixels / Math.Max(pixelsPerMetre, 1e-9));
-        return radius / Units;
+        return Math.Max(1, MinimumRadiusPixels / Math.Max(pixelsPerMetre, 1e-9) / RobotRadius);
     }
 
     /// <summary>
@@ -109,8 +106,6 @@ public static class RobotMarkers
         var sign = mirrored ? -1 : 1;
         return new Matrix(sign * unit * right.X, sign * unit * right.Y, -sign * unit * forward.X, -sign * unit * forward.Y, centre.X, centre.Y);
     }
-
-    private static Matrix Translated(Vector by) => new(1, 0, 0, 1, by.X, by.Y);
 
     /// <summary>The robot as the application's icon: cleaning, its light on, brushes at rest. See <see cref="AppIcon"/>.</summary>
     public static void DrawIcon(DrawingContext dc, Matrix frame) => DrawRobot(dc, frame, RobotActivity.Vacuuming, 0);
@@ -172,19 +167,28 @@ public static class RobotMarkers
 
     // ---- The dock ----------------------------------------------------------------
 
+    // In centimetres, from the dock's reported point, +y towards the side the robot leaves by. The
+    // station is 44 cm wide, tower and plate alike, and 50.8 cm long (Dyson's specifications). The
+    // docked robot's centre lies DockedOffset ahead of the point, its front 2 cm short of the
+    // plate's rounded edge, which places the back of the station.
+    private const double StationWidth = 44, StationLength = 50.8;
+    private const double DockedRobotY = DockedOffset / DockUnit;
+    private const double PlateFront = DockedRobotY + RobotRadius / DockUnit + 1.9;
+    private const double StationBack = PlateFront - StationLength;
     // The three tanks in a row, the same gap between each other and between them and the inner
-    // edge of the tower's rim on all four sides; the tower is as wide as the plate and its bottom
-    // edge stays where the docked robot's back slips under it.
-    private const double TankRadius = 6.3, TankGap = 1.25, TowerRim = 1.2, TowerWidth = 44, TowerBottom = -4;
+    // edge of the tower's rim on all four sides, which sets how deep the tower is; the back of the
+    // docked robot slips under its front edge.
+    private const double TankRadius = 6.3, TankGap = 1.25, TowerRim = 1.2;
     private const double TowerHeight = 2 * TankRadius + 2 * TankGap + TowerRim;
-    private const double TankY = TowerBottom - TowerRim / 2 - TankGap - TankRadius;
+    private const double TowerFront = StationBack + TowerHeight;
+    private const double TankY = TowerFront - TowerRim / 2 - TankGap - TankRadius;
     private const double TankStep = 2 * TankRadius + TankGap;
     private static readonly double[] TankX = [-TankStep, 0, TankStep];
-    private static readonly Rect Tower = new(-TowerWidth / 2, TowerBottom - TowerHeight, TowerWidth, TowerHeight);
-    // Water runs between the tanks and the docked robot, whose centre is at (0, 9): clean water
-    // slants from the right-hand tank towards it, dirty water rises from it into the middle one.
-    private static readonly Point CleanTankOutlet = new(12.5, -6), RobotInlet = new(3, 4);
-    private static readonly Point RobotOutlet = new(0, 2), DirtyTankInlet = new(0, -6);
+    private static readonly Rect Tower = new(-StationWidth / 2, StationBack, StationWidth, TowerHeight);
+    // Water runs between the tanks and the docked robot: clean water slants from the right-hand
+    // tank towards it, dirty water rises from it into the middle one.
+    private static readonly Point CleanTankOutlet = new(12.5, TankY + 6), RobotInlet = new(3, DockedRobotY - 5);
+    private static readonly Point RobotOutlet = new(0, DockedRobotY - 7), DirtyTankInlet = new(0, TankY + 6);
 
     private static void DrawPlate(DrawingContext dc, Matrix frame)
     {
@@ -261,7 +265,7 @@ public static class RobotMarkers
     {
         var phase = ((t - delay) / 1.4 % 1 + 1) % 1;
         dc.PushOpacity(Fade(phase));
-        dc.PushTransform(new TranslateTransform(x, -3 + phase * 12));
+        dc.PushTransform(new TranslateTransform(x, TowerFront + 1 + phase * 12));
         dc.DrawGeometry(null, Palette.Heat, HeatWave);
         dc.Pop();
         dc.Pop();
@@ -273,8 +277,10 @@ public static class RobotMarkers
 
     private static readonly Geometry BodyClip = Frozen(new EllipseGeometry(default, 16, 16));
     private static readonly Geometry LightCone = Frozen(Geometry.Parse("M-6,-14 L-13,-31 Q0,-35 13,-31 L6,-14 Z"));
-    private static readonly Geometry Plate = Frozen(Geometry.Parse("M-19,-6 H19 V14 A19,10 0 0 1 -19,14 Z"));
-    private static readonly Geometry Bolt = Frozen(Geometry.Parse("M-1,15 L2,11 H-1 L2,7"));
+    // As wide as the tower, from under it to its rounded front edge, 45.5 cm ahead of the dock point.
+    private static readonly Geometry Plate = Frozen(Geometry.Parse("M-22,0 H22 V35.5 A22,10 0 0 1 -22,35.5 Z"));
+    // Over the docked robot, 25 cm ahead of the dock point.
+    private static readonly Geometry Bolt = Frozen(Geometry.Parse("M-1,29 L2,25 H-1 L2,21"));
     private static readonly Geometry Swirl = Frozen(Geometry.Parse("M0,-3.6 A3.6,3.6 0 0 1 3.6,0 M0,3.6 A3.6,3.6 0 0 1 -3.6,0"));
     private static readonly Geometry HeatWave = Frozen(Geometry.Parse("M0,-6 Q2,-3 0,0 Q-2,3 0,6"));
 
