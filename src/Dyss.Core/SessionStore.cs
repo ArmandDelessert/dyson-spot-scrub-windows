@@ -10,39 +10,11 @@ namespace Dyss.Core;
 /// </summary>
 public static class SessionStore
 {
-    // Kept from the project's former name: changing it would make every stored session unreadable.
-    private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("MyDyson.SessionStore.v1");
+    private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("Dyss.SessionStore.v1");
 
     /// <summary>The folder under %APPDATA% that holds the session, the preferences and the logs.</summary>
-    public const string FolderName = "DySS Cockpit";
-    /// <summary>The same folder before the project was renamed, moved on first use; see <see cref="Resolve"/>.</summary>
-    public const string FormerFolderName = "MyDyson";
-
-    private static readonly Lazy<string> Folder = new(() =>
-        Resolve(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)));
-
-    public static string Directory => Folder.Value;
-
-    /// <summary>
-    /// The data folder under <paramref name="appData"/>, moving the one of the former name there
-    /// when only that one exists, so the session and the preferences survive the rename. Should the
-    /// move fail (a file still open in the old folder), the old folder keeps being used.
-    /// </summary>
-    public static string Resolve(string appData)
-    {
-        var current = Path.Combine(appData, FolderName);
-        var former = Path.Combine(appData, FormerFolderName);
-        if (System.IO.Directory.Exists(current) || !System.IO.Directory.Exists(former)) return current;
-        try
-        {
-            System.IO.Directory.Move(former, current);
-            return current;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return former;
-        }
-    }
+    public static string Directory =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DySS Cockpit");
 
     public static string FilePath => Path.Combine(Directory, "session.bin");
 

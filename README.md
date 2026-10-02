@@ -248,9 +248,7 @@ Le protocole retrouvé par décompilation et par captures est documenté dans [d
 
 Pour utiliser l'application, il suffit de télécharger le zip de la dernière version dans les
 releases GitHub (x64 ou ARM64) et de lancer `DyssCockpit.exe`, qui embarque .NET.
-Les données locales (session, préférences, journaux) vivent dans `%APPDATA%\DySS Cockpit`. Le
-projet s'appelait auparavant MyDyson : l'ancien dossier `%APPDATA%\MyDyson` est déplacé au premier
-lancement, sans avoir à se reconnecter.
+Les données locales (session, préférences, journaux) vivent dans `%APPDATA%\DySS Cockpit`.
 
 Pour la compiler :
 
