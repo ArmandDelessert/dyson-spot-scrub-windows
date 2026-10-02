@@ -1,17 +1,19 @@
 # DySS Cockpit
 
-> Ce README, comme l'essentiel du code de ce dépôt, a été rédigé par Claude (Claude Code, Anthropic),
-> sur la direction d'Armand Delessert, qui a fourni les captures et vérifié chaque étape sur son robot.
+> Ce README, comme l'essentiel du code de ce dépôt, a été rédigé par Claude (Claude Code, Anthropic), sur la direction d'Armand Delessert, qui a fourni les captures et vérifié chaque étape sur son robot.
 
-**DySS Cockpit** est une application Windows non officielle pour contrôler le robot aspirateur **Dyson Spot+Scrub AI** ([en](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai), [fr-CH](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai)) (nom interne RB05). DySS vient de *Dy*son *S*pot+*S*crub.
+**DySS Cockpit** est une application Windows non officielle pour contrôler le robot aspirateur **Dyson Spot+Scrub AI** (nom interne RB05). DySS vient de **Dy**son **S**pot+**S**crub.
 
-> **Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson.** Dyson,
-> Spot+Scrub et MyDyson sont des marques du groupe Dyson, citées ici uniquement pour désigner le
-> robot et l'application avec lesquels ce logiciel communique.
+Présentation du produit :
 
-Le robot n'expose aucun service sur le réseau local : il n'est joignable que via le cloud Dyson
-(MQTT direct sur TLS vers AWS IoT, voir « Le transport compte autant que les credentials »). Ce
-dépôt reproduit donc le protocole de [l'application Android MyDyson](https://play.google.com/store/apps/details?id=com.dyson.mobile.android).
+- [Présentation du produit (français (Suisse))](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai)
+- [Fiche technique (français (Suisse))](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai/noir)
+- [Présentation du produit (anglais)](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai)
+- [Fiche technique (anglais)](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai/black)
+
+> **Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson.** Dyson, Spot+Scrub et MyDyson sont des marques du groupe Dyson, citées ici uniquement pour désigner le robot et l'application avec lesquels ce logiciel communique.
+
+Le robot n'expose aucun service sur le réseau local : il n'est joignable que via le cloud Dyson (MQTT direct sur TLS vers AWS IoT, voir [« Le transport compte autant que les credentials »](#le-transport-compte-autant-que-les-credentials)). Ce dépôt reproduit donc le protocole de [l'application Android MyDyson](https://play.google.com/store/apps/details?id=com.dyson.mobile.android).
 
 ## État du projet
 
