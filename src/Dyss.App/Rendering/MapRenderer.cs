@@ -292,7 +292,7 @@ public static class MapRenderer
 
     // The golden angle conjugate spreads hues around the wheel so that consecutive zone ids never
     // land near each other, unlike a short fixed palette cycling modulo its length (8 rooms used to
-    // repeat the same colour: see docs/protocole.md).
+    // repeat the same colour).
     private const double GoldenAngleTurns = 0.6180339887498949;
 
     public static Color ZoneColor(int zoneId)
