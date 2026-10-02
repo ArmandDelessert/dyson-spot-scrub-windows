@@ -101,4 +101,20 @@ public class RobotActivityTrackerTests
         Assert.Equal(RobotActivity.Idle, t.Robot);
         Assert.False(t.Docked);
     }
+
+    [Fact]
+    public void TheTaskIsOverOnceChargingWithNothingLeftButDrying()
+    {
+        var t = new RobotActivityTracker();
+        t.Apply(State("FULL_CLEAN_RUNNING", action: "VACUUMING"));
+        Assert.False(t.TaskOver);
+        t.Apply(State("FULL_CLEAN_FINISHED", dock: "COLLECTING_DUST"));
+        Assert.False(t.TaskOver);
+        t.Apply(State("INACTIVE_CHARGING", dock: "WASHING_MOP"));
+        Assert.False(t.TaskOver);
+        t.Apply(State("INACTIVE_CHARGING", dock: "DRYING_MOP"));
+        Assert.True(t.TaskOver);
+        t.Apply(State("INACTIVE_CHARGED"));
+        Assert.True(t.TaskOver);
+    }
 }

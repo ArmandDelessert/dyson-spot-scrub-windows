@@ -63,6 +63,31 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, Disp
         catch (Exception ex) { hub.AddLog($"historique: {ex.Message}"); }
     }
 
+
+    /// <summary>Waits before each look for the clean that just ended: the cloud files it a little after the robot is back.</summary>
+    public IReadOnlyList<TimeSpan> RefreshDelays { get; init; } = [TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2)];
+
+    /// <summary>
+    /// After a task has ended: reloads the list until a clean newer than the ones shown appears,
+    /// keeping the row the user had chosen, then fills in the details.
+    /// </summary>
+    public async Task RefreshAfterCleanAsync()
+    {
+        var newest = History.FirstOrDefault()?.Summary.CleanId;
+        foreach (var delay in RefreshDelays)
+        {
+            try { await Task.Delay(delay, hub.Ct); }
+            catch (OperationCanceledException) { return; }
+            var selected = SelectedClean?.Summary.CleanId;
+            await LoadAsync();
+            if (selected is not null) SelectedClean = History.FirstOrDefault(c => c.Summary.CleanId == selected);
+            if (History.FirstOrDefault()?.Summary.CleanId is { } id && id != newest)
+            {
+                await FillDetailsAsync();
+                return;
+            }
+        }
+    }
     /// <summary>
     /// Resolves each row's map name (cheap, from the already-loaded maps) and, one at a time so as
     /// not to fetch several hundred KB per entry all at once, its actual room list from that

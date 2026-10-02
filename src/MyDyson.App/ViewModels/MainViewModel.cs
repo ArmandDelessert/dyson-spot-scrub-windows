@@ -56,6 +56,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Settings = new SettingsViewModel(Hub);
         Journal = new JournalViewModel(Hub, Display);
         Schedules = new SchedulesViewModel(Hub, _maps, () => History.History.Select(c => c.Summary));
+        // A task over on the robot: its clean shows up in the history a little later.
+        Cleaning.TaskFinished += () => _ = History.RefreshAfterCleanAsync();
 
         _refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _refresh.Tick += async (_, _) => await Hub.RefreshStateAsync();

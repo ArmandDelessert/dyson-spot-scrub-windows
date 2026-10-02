@@ -30,7 +30,7 @@ dépôt reproduit donc le protocole de [l'application Android MyDyson](https://p
 | Reconnexion automatique avec credentials renouvelés | fonctionne |
 | Cartes, position en direct, historique des nettoyages (REST) | fonctionne |
 | Horaires, zones de restriction, meubles, pièces | fonctionne, vérifié dans l'application mobile |
-| Tests unitaires | 281 tests, exécutés en CI |
+| Tests unitaires | 283 tests, exécutés en CI |
 | Application Windows (WPF) : tableau de bord, carte, historique, réglages | fonctionne |
 
 Vérifié du 19 au 22 septembre 2026 sur un RB05 en ligne, firmware `RB05PR.01.000.0436`, y compris
@@ -99,7 +99,9 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 - **Carte** : grille d'occupation colorée par pièce, meubles, station, position du robot, tracé en
   temps réel du nettoyage en cours, construit au fil de l'eau depuis le flux `cur_path` du robot, en
   gris là où il ne fait que se déplacer et dans la couleur du type de nettoyage de la pièce là où il
-  travaille réellement. Le robot et la station sont dessinés vus de dessus, à l'échelle, et animés
+  travaille réellement. Comme sur le téléphone, ce tracé quitte la carte une fois le robot revenu en
+  charge, collecteur vidé et rouleau lavé, et l'historique se recharge pour montrer ce nettoyage.
+  Le robot et la station sont dessinés vus de dessus, à l'échelle (robot de 37 cm, station de 44 × 51 cm), et animés
   selon ce qu'ils font : lumière verte devant lui et brosses qui tournent sous lui pendant l'aspiration, rouleau qui défile pendant le
   lavage, robot à quai sur le socle, charge, vidage du collecteur, remplissage d'eau propre, lavage
   et séchage du rouleau (animations coupées si Windows les désactive). Icônes pour les obstacles et
