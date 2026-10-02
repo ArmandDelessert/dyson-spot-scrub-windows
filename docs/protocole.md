@@ -346,7 +346,7 @@ qu'elle publie, et pas seulement les réponses du robot. Les deux premières cap
 bénéficié de cela : elles ont été faites avec des filtres restreints aux topics d'état.
 
 ```bash
-dotnet run --project src/MyDyson.Cli -- watch --serial XXX-XX-XXXXXXXX --poll 0 --log capture.jsonl
+dotnet run --project src/Dyss.Cli -- watch --serial XXX-XX-XXXXXXXX --poll 0 --log capture.jsonl
 ```
 
 `--poll 0` évite toute publication, donc la fermeture de connexion décrite dans le README.

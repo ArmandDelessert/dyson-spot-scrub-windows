@@ -1,9 +1,9 @@
-# Dyson Spot+Scrub AI pour Windows
+# DySS Cockpit
 
 > Ce README, comme l'essentiel du code de ce dépôt, a été rédigé par Claude (Claude Code, Anthropic),
 > sur la direction d'Armand Delessert, qui a fourni les captures et vérifié chaque étape sur son robot.
 
-Application Windows non officielle pour contrôler le robot aspirateur **Dyson Spot+Scrub AI** ([en](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai), [fr-CH](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai)) (nom interne RB05).
+**DySS Cockpit** est une application Windows non officielle pour contrôler le robot aspirateur **Dyson Spot+Scrub AI** ([en](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai), [fr-CH](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai)) (nom interne RB05). DySS vient de *Dy*son *S*pot+*S*crub.
 
 > **Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson.** Dyson,
 > Spot+Scrub et MyDyson sont des marques du groupe Dyson, citées ici uniquement pour désigner le
@@ -68,7 +68,7 @@ titre de comparaison et de diagnostic.
 
 ## Application Windows
 
-`src/MyDyson.App` est une application WPF. Au premier lancement elle demande le compte MyDyson et
+`src/Dyss.App` est une application WPF. Au premier lancement elle demande le compte MyDyson et
 le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
 
 - **Thème** : suit le mode clair ou sombre de Windows, y compris en cours d'exécution.
@@ -116,7 +116,7 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   de l'historique : masquer les meubles, masquer les déplacements sans nettoyage (ne reste alors que
   ce qui a réellement été nettoyé), masquer le bouton d'export, et lisser les déplacements du
   robot, qui glisse alors d'une position à la suivante au lieu de sauter. Ces choix sont retenus d'un
-  lancement à l'autre, dans `%APPDATA%\MyDyson\display.json`, et ne sont jamais envoyés au robot.
+  lancement à l'autre, dans `%APPDATA%\DySS Cockpit\display.json`, et ne sont jamais envoyés au robot.
 - **Historique** : date, durée, fin, carte, pièces réellement nettoyées, surface, batterie et
   fautes pour chaque nettoyage. Les pièces se remplissent en arrière-plan une par une après le
   chargement de la liste, chacune nécessitant le détail complet de son nettoyage (l'API ne dit pas,
@@ -160,7 +160,7 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   vocaux. Chaque réglage part au robot dans les deux dialectes.
 - **Journal** : les événements notables du robot et le résultat des commandes envoyées depuis la
   fenêtre, pas chaque message MQTT. Une case, retenue d'un lancement à l'autre, enregistre tous
-  les messages dans `%APPDATA%\MyDyson\messages`, un fichier JSON Lines par jour gardé 30 jours,
+  les messages dans `%APPDATA%\DySS Cockpit\messages`, un fichier JSON Lines par jour gardé 30 jours,
   pour repérer des messages non encore identifiés.
 
 L'en-tête rappelle le numéro de série, le firmware et le compte connecté.
@@ -175,16 +175,16 @@ consultée et les pièces cochées survivent à un rechargement.
 Lancée sans réseau, l'application attend : une fenêtre réessaie toutes les 10 secondes, et tout de
 suite quand Windows signale le retour du réseau, ou propose de quitter. La première connexion au
 robot est elle aussi réessayée tant qu'elle échoue. Les erreurs inattendues sont consignées, avec
-leur détail, dans `%APPDATA%\MyDyson\erreurs.log`.
+leur détail, dans `%APPDATA%\DySS Cockpit\erreurs.log`.
 
 Des options de ligne de commande servent à la vérification sans écran et à la documentation
 (`--manage-maps` photographie la fenêtre « Gérer les cartes », sur l'onglet `--layer 0` à `2` et la
 carte `--map-id` voulus ; `--edit-schedule` l'éditeur d'horaire) :
 
 ```bash
-MyDyson.App.exe --export-map carte.png
-MyDyson.App.exe --screenshot ecran.png --after 15 --tab 0 --theme light --zones 11,13
-MyDyson.App.exe --screenshot editeur.png --after 15 --edit-schedule
+DyssCockpit.exe --export-map carte.png
+DyssCockpit.exe --screenshot ecran.png --after 15 --tab 0 --theme light --zones 11,13
+DyssCockpit.exe --screenshot editeur.png --after 15 --edit-schedule
 ```
 
 WPF a été préféré à WinUI 3 parce qu'il se compile et se lance sans outillage supplémentaire sur
@@ -192,7 +192,7 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
 
 ## Architecture
 
-- `MyDyson.Core`
+- `Dyss.Core`
   - `DysonCloudClient` : API REST `appapi.cp.dyson.com` : compte, appareils, credentials, cartes, historique.
   - `RobotMqttClient` : MQTT direct sur TLS comme l'application, commandes des deux dialectes,
     corrélation requête-réponse (`RequestStateAsync`, `RequestJdmAsync`). Implémente `IRobotCommands`,
@@ -202,22 +202,22 @@ une machine ARM64 ; la bibliothèque ne dépend d'aucune interface, une migratio
   - `RobotState`, `RobotStateTracker`, `JdmProperties`, `RoomPreference` : modèle d'état typé des deux dialectes.
   - `MapModels`, `MapGrid` : cartes, zones, position en direct, historique, grille d'occupation décodée.
   - `AwsSigV4`, `RawMqttProbe` : diagnostics des autres transports.
-  - `SessionStore` : bearer token chiffré avec DPAPI dans `%APPDATA%\MyDyson\session.bin`.
-- `MyDyson.App` : application WPF. `MapRenderer` dessine la scène pour l'écran et l'export PNG,
+  - `SessionStore` : bearer token chiffré avec DPAPI dans `%APPDATA%\DySS Cockpit\session.bin`.
+- `Dyss.App` : application WPF. `MapRenderer` dessine la scène pour l'écran et l'export PNG,
   `RobotContext` porte la session. `MainViewModel` connecte le robot et distribue ce qu'il pousse aux
   modèles de vue d'onglet (`StatusViewModel`, `CleaningViewModel`, `HistoryViewModel`,
   `SchedulesViewModel`, `SettingsViewModel`, `JournalViewModel`), qui partagent un `RobotHub`
   (session, journal, envoi de commandes, annulation à la fermeture) et un `MapCatalog` (cartes,
   géométrie, grille).
-- `MyDyson.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `maps`, `map`, `live`, `history`,
+- `Dyss.Cli` : `login`, `devices`, `iot`, `status`, `watch`, `maps`, `map`, `live`, `history`,
   `clean`, `send`, `api`, `probe`, `wstest`.
-- `tests/MyDyson.Core.Tests` : casse des requêtes, signature SigV4, nom d'utilisateur MQTT, modèle
+- `tests/Dyss.Core.Tests` : casse des requêtes, signature SigV4, nom d'utilisateur MQTT, modèle
   d'état des deux dialectes (dont le tracé `cur_path` et les propriétés jdm de la station), formes
   JSON des réponses REST, préférences de pièces, libellés de pièces et de résultats, grille
   d'occupation, messages exacts de la séquence de démarrage, attente entre deux reconnexions,
   horaires, zones et meubles relus ou écrits à l'identique des messages capturés, géométrie des
   rectangles.
-- `tests/MyDyson.App.Tests` : géométrie de la scène (bornes, dock sentinelle, pièce sous un point,
+- `tests/Dyss.App.Tests` : géométrie de la scène (bornes, dock sentinelle, pièce sous un point,
   découpage du trajet par action) et les modèles de vue, branchés sur des réponses HTTP simulées :
   texte d'état et compte à rebours de séchage, numérotation des pièces choisies et sa conservation
   au rechargement, pièces d'un nettoyage passé, partage du téléchargement de détail, réglages qui
@@ -245,7 +245,10 @@ Le protocole retrouvé par décompilation et par captures est documenté dans [d
 ## Prérequis
 
 Pour utiliser l'application, il suffit de télécharger le zip de la dernière version dans les
-releases GitHub (x64 ou ARM64) et de lancer `MyDyson.App.exe`, qui embarque .NET.
+releases GitHub (x64 ou ARM64) et de lancer `DyssCockpit.exe`, qui embarque .NET.
+Les données locales (session, préférences, journaux) vivent dans `%APPDATA%\DySS Cockpit`. Le
+projet s'appelait auparavant MyDyson : l'ancien dossier `%APPDATA%\MyDyson` est déplacé au premier
+lancement, sans avoir à se reconnecter.
 
 Pour la compiler :
 
@@ -256,20 +259,20 @@ Pour la compiler :
 
 ```bash
 dotnet build
-dotnet run --project src/MyDyson.App
+dotnet run --project src/Dyss.App
 ```
 
 Ligne de commande :
 
 ```bash
-dotnet run --project src/MyDyson.Cli -- login --country CH --culture fr-CH
-dotnet run --project src/MyDyson.Cli -- devices
-dotnet run --project src/MyDyson.Cli -- iot    --serial XXX-XX-XXXXXXXX
-dotnet run --project src/MyDyson.Cli -- status --serial XXX-XX-XXXXXXXX
-dotnet run --project src/MyDyson.Cli -- watch  --serial XXX-XX-XXXXXXXX --log capture.jsonl
-dotnet run --project src/MyDyson.Cli -- send   --serial XXX-XX-XXXXXXXX maps
-dotnet run --project src/MyDyson.Cli -- send   --serial XXX-XX-XXXXXXXX zone --map ID --zones 11
-dotnet run --project src/MyDyson.Cli -- history --serial XXX-XX-XXXXXXXX
+dotnet run --project src/Dyss.Cli -- login --country CH --culture fr-CH
+dotnet run --project src/Dyss.Cli -- devices
+dotnet run --project src/Dyss.Cli -- iot    --serial XXX-XX-XXXXXXXX
+dotnet run --project src/Dyss.Cli -- status --serial XXX-XX-XXXXXXXX
+dotnet run --project src/Dyss.Cli -- watch  --serial XXX-XX-XXXXXXXX --log capture.jsonl
+dotnet run --project src/Dyss.Cli -- send   --serial XXX-XX-XXXXXXXX maps
+dotnet run --project src/Dyss.Cli -- send   --serial XXX-XX-XXXXXXXX zone --map ID --zones 11
+dotnet run --project src/Dyss.Cli -- history --serial XXX-XX-XXXXXXXX
 dotnet test
 ```
 

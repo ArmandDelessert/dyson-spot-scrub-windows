@@ -17,13 +17,13 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore MyDyson.slnx
+        run: dotnet restore Dyss.slnx
 
       - name: Build
-        run: dotnet build MyDyson.slnx --configuration Release --no-restore
+        run: dotnet build Dyss.slnx --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test MyDyson.slnx --configuration Release --no-build --logger "trx;LogFileName=results.trx"
+        run: dotnet test Dyss.slnx --configuration Release --no-build --logger "trx;LogFileName=results.trx"
 
       - name: Upload test results
         if: always()
