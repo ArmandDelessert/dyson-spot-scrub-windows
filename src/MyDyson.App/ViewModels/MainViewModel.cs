@@ -56,8 +56,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Settings = new SettingsViewModel(Hub);
         Journal = new JournalViewModel(Hub, Display);
         Schedules = new SchedulesViewModel(Hub, _maps, () => History.History.Select(c => c.Summary));
-        // A task over on the robot: its clean shows up in the history a little later.
-        Cleaning.TaskFinished += () => _ = History.RefreshAfterCleanAsync();
 
         _refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _refresh.Tick += async (_, _) => await Hub.RefreshStateAsync();
@@ -115,6 +113,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 {
                     case "event.clean_finish.post":
                         NotifyRequested?.Invoke("Nettoyage terminé", "Le robot a terminé son nettoyage.");
+                        break;
+                    // The robot's report of the clean, finished or not: the cloud files it as a history
+                    // entry, which is also what the phone's end-of-clean notification follows.
+                    case "event.clean_record.post":
+                        _ = History.RefreshAfterCleanAsync();
                         break;
                     case "event.Unable_all_area_recharge.post":
                         NotifyRequested?.Invoke("Zone inaccessible", "Le robot n'a pas pu atteindre une ou plusieurs pièces sélectionnées.");

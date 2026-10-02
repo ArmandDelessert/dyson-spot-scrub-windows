@@ -481,6 +481,10 @@ puis entame le séchage qui dure des heures.
 ```
 
 `record_task_status` vaut 1 pour un nettoyage mené à terme et 4 pour un nettoyage abandonné.
+Les deux arrivent une fois le robot revenu et son rouleau lavé, quelques minutes après la fin du
+nettoyage proprement dit (capture du 20 septembre : retour à 21:15, `clean_finish` à 21:19). Le
+compte-rendu sert de signal à cette application pour recharger l'historique, où le cloud range ce
+nettoyage peu après.
 Plusieurs champs de ce message transportent des entiers négatifs encodés en non signé, par exemple
 `4294967276` pour -20.
 

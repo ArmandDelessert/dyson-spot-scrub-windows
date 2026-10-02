@@ -64,11 +64,11 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, Disp
     }
 
 
-    /// <summary>Waits before each look for the clean that just ended: the cloud files it a little after the robot is back.</summary>
-    public IReadOnlyList<TimeSpan> RefreshDelays { get; init; } = [TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2)];
+    /// <summary>Waits before each look for the clean the robot just reported: the cloud files it shortly after the report.</summary>
+    public IReadOnlyList<TimeSpan> RefreshDelays { get; init; } = [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2)];
 
     /// <summary>
-    /// After a task has ended: reloads the list until a clean newer than the ones shown appears,
+    /// After the robot has reported a clean (event.clean_record): reloads the list until a clean newer than the ones shown appears,
     /// keeping the row the user had chosen, then fills in the details.
     /// </summary>
     public async Task RefreshAfterCleanAsync()

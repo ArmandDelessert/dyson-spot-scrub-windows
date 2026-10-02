@@ -100,7 +100,8 @@ le code reçu par e-mail, puis mémorise la session chiffrée. Ensuite :
   temps réel du nettoyage en cours, construit au fil de l'eau depuis le flux `cur_path` du robot, en
   gris là où il ne fait que se déplacer et dans la couleur du type de nettoyage de la pièce là où il
   travaille réellement. Comme sur le téléphone, ce tracé quitte la carte une fois le robot revenu en
-  charge, collecteur vidé et rouleau lavé, et l'historique se recharge pour montrer ce nettoyage.
+  charge, collecteur vidé et rouleau lavé, et l'historique se recharge dès que le robot envoie le
+  compte-rendu du nettoyage.
   Le robot et la station sont dessinés vus de dessus, à l'échelle (robot de 37 cm, station de 44 × 51 cm), et animés
   selon ce qu'ils font : lumière verte devant lui et brosses qui tournent sous lui pendant l'aspiration, rouleau qui défile pendant le
   lavage, robot à quai sur le socle, charge, vidage du collecteur, remplissage d'eau propre, lavage

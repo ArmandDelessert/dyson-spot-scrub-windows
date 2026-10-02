@@ -40,8 +40,6 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
         UpdateCanStart();
         _robotPosition = s.LatestPosition ?? _robotPosition;
         _activity.Apply(s);
-        if (s.IsCleaning || s.IsMapping) _taskRunning = true;
-        NoticeTaskOver();
         RebuildScene();
     }
 
@@ -52,24 +50,7 @@ public sealed partial class CleaningViewModel(RobotHub hub, MapCatalog maps, Dis
     {
         var before = (_activity.Docked, _activity.Robot, _activity.Dock, _activity.TaskOver);
         _activity.ApplyJdm(jdm);
-        NoticeTaskOver();
         if ((_activity.Docked, _activity.Robot, _activity.Dock, _activity.TaskOver) != before) RebuildScene();
-    }
-
-    /// <summary>
-    /// Raised once a task seen running here is over (see <see cref="RobotActivityTracker.TaskOver"/>):
-    /// its trail leaves the map, and the history has a new clean to show.
-    /// </summary>
-    public event Action? TaskFinished;
-    /// <summary>A clean or a mapping has been seen running since the last one ended.</summary>
-    private bool _taskRunning;
-
-    private void NoticeTaskOver()
-    {
-        // Only an end seen happening: on launch with the robot already back, there is nothing new.
-        if (!_taskRunning || !_activity.TaskOver) return;
-        _taskRunning = false;
-        TaskFinished?.Invoke();
     }
 
     /// <summary>

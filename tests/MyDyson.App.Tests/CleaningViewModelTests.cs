@@ -401,18 +401,15 @@ public class CleaningViewModelTests
     }
 
     [Fact]
-    public async Task OnceTheRobotIsDoneTheTrailLeavesTheMapAndTheHistoryIsTold()
+    public async Task OnceTheRobotIsDoneTheTrailLeavesTheMap()
     {
         var vm = New(out _);
         await vm.LoadMapsAsync();
-        var finished = 0;
-        vm.TaskFinished += () => finished++;
 
-        // On launch with the robot already back: no trail, and nothing new for the history.
+        // On launch with the robot already back: no trail.
         vm.Apply(Docked);
         vm.SetLiveTrail([new RobotPosition(1, 0.5, 0.5, 0, 1)]);
         Assert.Null(vm.Scene.Path);
-        Assert.Equal(0, finished);
 
         vm.Apply(RobotState.Parse("""{"msg":"CURRENT-STATE","state":"FULL_CLEAN_RUNNING","dockState":"IDLE","fullCleanAction":"VACUUMING"}""")!);
         Assert.NotNull(vm.Scene.Path);
@@ -420,12 +417,8 @@ public class CleaningViewModelTests
         // Back on the dock, emptying the bin: still part of the task.
         vm.Apply(RobotState.Parse("""{"msg":"CURRENT-STATE","state":"FULL_CLEAN_FINISHED","dockState":"COLLECTING_DUST"}""")!);
         Assert.NotNull(vm.Scene.Path);
-        Assert.Equal(0, finished);
 
         vm.Apply(Docked);
         Assert.Null(vm.Scene.Path);
-        Assert.Equal(1, finished);
-        vm.Apply(Docked);
-        Assert.Equal(1, finished);
     }
 }
