@@ -3,6 +3,8 @@ using Dyss.App.Rendering;
 using Dyss.App.Services;
 using Dyss.App.Views;
 using Dyss.Core;
+using Dyss.Presentation.Map;
+using Dyss.Presentation.Services;
 
 namespace Dyss.App;
 

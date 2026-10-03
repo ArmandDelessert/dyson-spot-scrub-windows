@@ -19,7 +19,7 @@ public partial class TextPromptWindow : Window
     }
 
     /// <summary>Returns the text, or null when the user cancelled.</summary>
-    public static string? Ask(Window owner, string title, string prompt, string initial)
+    public static string? Ask(Window? owner, string title, string prompt, string initial)
     {
         var w = new TextPromptWindow(title, prompt, initial) { Owner = owner };
         return w.ShowDialog() == true ? w.Input.Text : null;

@@ -1,6 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:vm="clr-namespace:Dyss.App.ViewModels">
+                    xmlns:vm="clr-namespace:Dyss.Presentation.ViewModels;assembly=Dyss.Presentation">
 
     <!-- Themed control styles shared by the dashboard and the map manager. Deliberately not in
          App.xaml: the implicit styles here would then also land on the login window, which is a

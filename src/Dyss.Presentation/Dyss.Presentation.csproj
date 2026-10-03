@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Everything the windows show, minus the windows: view models, the map's geometry and gestures,
+       and the services they share. No UI framework here, so the WPF application and a future WinUI
+       one can both sit on it, and the tests run without a desktop. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dyss.Core\Dyss.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Dyss.Presentation.Tests" />
+  </ItemGroup>
+
+</Project>

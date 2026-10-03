@@ -3,9 +3,10 @@
     <Project Path="src/Dyss.App/Dyss.App.csproj" />
     <Project Path="src/Dyss.Cli/Dyss.Cli.csproj" />
     <Project Path="src/Dyss.Core/Dyss.Core.csproj" />
+    <Project Path="src/Dyss.Presentation/Dyss.Presentation.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Dyss.App.Tests/Dyss.App.Tests.csproj" />
     <Project Path="tests/Dyss.Core.Tests/Dyss.Core.Tests.csproj" />
+    <Project Path="tests/Dyss.Presentation.Tests/Dyss.Presentation.Tests.csproj" />
   </Folder>
 </Solution>

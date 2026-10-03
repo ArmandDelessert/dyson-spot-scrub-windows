@@ -1,6 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
-using Dyss.App.ViewModels;
+using Dyss.Presentation.ViewModels;
 using Dyss.Core;
 
 namespace Dyss.App.Views;
@@ -33,7 +33,7 @@ public partial class RoomNameWindow : Window
     }
 
     /// <summary>Returns the chosen name and type (null type meaning a free name), or null when cancelled.</summary>
-    public static (string Name, string? Type)? Ask(Window owner, ManagedRoom room, IReadOnlyList<RoomTypeOption> types)
+    public static (string Name, string? Type)? Ask(Window? owner, ManagedRoom room, IReadOnlyList<RoomTypeOption> types)
     {
         var w = new RoomNameWindow(room, types) { Owner = owner };
         if (w.ShowDialog() != true) return null;

@@ -1,11 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Dyss.Core\Dyss.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <ProjectReference Include="..\Dyss.Presentation\Dyss.Presentation.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

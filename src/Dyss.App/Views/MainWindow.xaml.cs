@@ -1,8 +1,8 @@
 using System.Windows;
 using System.Windows.Input;
-using Dyss.App.Controls;
 using Dyss.App.Services;
-using Dyss.App.ViewModels;
+using Dyss.Presentation.Services;
+using Dyss.Presentation.ViewModels;
 
 namespace Dyss.App.Views;
 
@@ -19,24 +19,8 @@ public partial class MainWindow : Window
     public MainWindow(RobotContext ctx)
     {
         InitializeComponent();
-        _vm = new MainViewModel(ctx);
+        _vm = new MainViewModel(ctx, new WpfUiDispatcher(Dispatcher), new WpfDialogService());
         DataContext = _vm;
-        MapCanvas.ZoneClicked += _vm.Cleaning.ToggleZone;
-        MapCanvas.EmptySpaceClicked += _vm.Cleaning.ClearSelection;
-        MapCanvas.WorldClicked += _vm.Cleaning.MapClickedAt;
-        // Drawing a zone to clean: the map picks two corners while the view model says so, and
-        // once drawn the zone can be dragged or stretched from its corners like a restricted zone.
-        MapCanvas.EditableShapeResizable = true;
-        MapCanvas.MinimumShapeSide = CleaningViewModel.MinimumSpotSide;
-        _vm.Cleaning.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(CleaningViewModel.DrawingSpot))
-                MapCanvas.Picking = _vm.Cleaning.DrawingSpot ? MapPick.Rectangle : MapPick.None;
-            else if (e.PropertyName == nameof(CleaningViewModel.SpotCorners))
-                MapCanvas.EditableShape = _vm.Cleaning.SpotCorners;
-        };
-        MapCanvas.RectanglePicked += _vm.Cleaning.SpotDrawn;
-        MapCanvas.ShapeEdited += _vm.Cleaning.SpotEdited;
         // Escape puts back a zone being dragged; otherwise, on the dashboard, it gives up the
         // drawing or erases the drawn zone. A drag is checked first, on the way down, so nothing
         // else on the way can take the key from it; the rest waits for an open list to close itself.
@@ -57,9 +41,6 @@ public partial class MainWindow : Window
             SelectTab(1);
         });
         _vm.MapManagerRequested += OpenMapManager;
-        _vm.Schedules.EditSchedule = editor => ScheduleEditorWindow.Ask(this, editor);
-        _vm.Schedules.Confirm = (title, text) =>
-            MessageBox.Show(this, text, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         Loaded += async (_, _) => await _vm.StartAsync();
         Closing += async (_, _) => await _vm.ShutdownAsync();
         Closed += (_, _) => { _notifications.Dispose(); _vm.Dispose(); };

@@ -1,6 +1,6 @@
 using System.Windows;
-using Dyss.App.Services;
-using Dyss.App.ViewModels;
+using Dyss.Presentation.Services;
+using Dyss.Presentation.ViewModels;
 
 namespace Dyss.App.Views;
 

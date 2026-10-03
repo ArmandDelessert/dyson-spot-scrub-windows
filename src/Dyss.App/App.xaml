@@ -7,5 +7,6 @@
         <local:NotConverter x:Key="Not"/>
         <local:ShowConverter x:Key="Show"/>
         <local:CollapseConverter x:Key="Collapse"/>
+        <local:ColorBrushConverter x:Key="ColorBrush"/>
     </Application.Resources>
 </Application>

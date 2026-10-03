@@ -1,6 +1,9 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Media;
+using Dyss.App.Rendering;
+using Dyss.Presentation.Map;
 
 namespace Dyss.App;
 
@@ -21,5 +24,19 @@ public sealed class ShowConverter : IValueConverter
 public sealed class CollapseConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is true ? Visibility.Collapsed : Visibility.Visible;
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
+/// <summary>A view model's <see cref="ArgbColor"/> → a frozen brush of that colour.</summary>
+public sealed class ColorBrushConverter : IValueConverter
+{
+    public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is not ArgbColor c) return null;
+        var brush = new SolidColorBrush(c.ToWpf());
+        brush.Freeze();
+        return brush;
+    }
+
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
 }

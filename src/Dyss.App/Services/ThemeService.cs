@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Media;
 using Microsoft.Win32;
 using Dyss.App.Rendering;
+using Dyss.Presentation.Map;
 
 namespace Dyss.App.Services;
 

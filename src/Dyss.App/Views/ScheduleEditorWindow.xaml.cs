@@ -1,5 +1,5 @@
 using System.Windows;
-using Dyss.App.ViewModels;
+using Dyss.Presentation.ViewModels;
 
 namespace Dyss.App.Views;
 
@@ -15,7 +15,7 @@ public partial class ScheduleEditorWindow : Window
         DataContext = vm;
     }
 
-    public static bool Ask(Window owner, ScheduleEditorViewModel vm) =>
+    public static bool Ask(Window? owner, ScheduleEditorViewModel vm) =>
         new ScheduleEditorWindow(vm) { Owner = owner }.ShowDialog() == true;
 
     /// <summary>Diagnostics only: shows the editor without waiting for it, so a screenshot run can shoot it.</summary>

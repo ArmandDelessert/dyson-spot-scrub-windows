@@ -148,9 +148,10 @@ dotnet run --project src/Dyss.App
 | Projet | Contenu |
 |---|---|
 | `src/Dyss.Core` | Bibliothèque sans interface : client REST (`DysonCloudClient`), client MQTT (`RobotMqttClient`), session longue durée avec reconnexion (`RobotSession`), modèle d'état des deux dialectes, cartes et grille d'occupation, séquences de commandes (`CleaningSequence`, `SpotCleanSequence`), horaires, session chiffrée par DPAPI (`SessionStore`). |
-| `src/Dyss.App` | Application WPF (`DyssCockpit.exe`), en MVVM : un modèle de vue par onglet, qui partagent un `RobotHub` (session, journal, envoi de commandes) et un `MapCatalog` (cartes et géométrie). `MapRenderer` et `RobotMarkers` dessinent la carte, le robot et la station. |
+| `src/Dyss.Presentation` | Tout ce que montrent les fenêtres, sans dépendre d'un framework d'interface : un modèle de vue par onglet, qui partagent un `RobotHub` (session, journal, envoi de commandes, dialogues) et un `MapCatalog` (cartes et géométrie) ; la géométrie de la carte (`MapGeometry`, `RobotMarkerLayout`), ses couleurs, et ses gestes (`MapInteraction` : zoom, déplacement, clics, tracés). L'interface fournit le fil d'interface (`IUiDispatcher`) et les dialogues (`IDialogService`). |
+| `src/Dyss.App` | Application WPF (`DyssCockpit.exe`) : fenêtres, implémentations WPF des dialogues, contrôle `MapView` ; `MapRenderer` et `RobotMarkers` dessinent la carte, le robot et la station. |
 | `src/Dyss.Cli` | Ligne de commande `dyss`, pour explorer le protocole. |
-| `tests/` | Tests xUnit de `Dyss.Core` et de `Dyss.App`, exécutés en CI. |
+| `tests/` | Tests xUnit de `Dyss.Core` et de `Dyss.Presentation`, exécutés en CI sans bureau. |
 
 Les tests portent d'abord sur ce qui a été retrouvé par rétro-ingénierie et qu'aucune documentation ne permettrait de retrouver : formes exactes des messages, correspondances entre les deux dialectes, décodage de la grille. Les modèles de vue sont testés sur des réponses HTTP simulées.
 

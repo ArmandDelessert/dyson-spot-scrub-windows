@@ -159,7 +159,7 @@
                                                 </Border.InputBindings>
                                                 <DockPanel>
                                                     <!-- The zone's colour on the map, which doubles as the legend. -->
-                                                    <Border DockPanel.Dock="Left" Width="12" Height="12" CornerRadius="2" Background="{Binding Swatch}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                    <Border DockPanel.Dock="Left" Width="12" Height="12" CornerRadius="2" Background="{Binding Swatch, Converter={StaticResource ColorBrush}}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                                     <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" Style="{StaticResource Muted}" Margin="6,0,0,0"/>
                                                     <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
                                                 </DockPanel>
@@ -260,7 +260,7 @@
                         Visibility="{Binding IsActiveMap, Converter={StaticResource Collapse}}">
                     <TextBlock Text="{Binding EditBlockedReason}" TextWrapping="Wrap"/>
                 </Border>
-                <controls:MapView x:Name="MapCanvas" Scene="{Binding Scene}" AutomationProperties.Name="Carte en cours de modification"/>
+                <controls:MapView x:Name="MapCanvas" Interaction="{Binding Canvas}" AutomationProperties.Name="Carte en cours de modification"/>
             </DockPanel>
         </Border>
     </DockPanel>
