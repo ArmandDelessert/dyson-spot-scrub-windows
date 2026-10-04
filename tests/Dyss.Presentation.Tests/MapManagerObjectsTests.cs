@@ -73,7 +73,10 @@ public class MapManagerObjectsTests
         vm.MapClickedAt(new(3, 3));
         Assert.Equal("1", vm.SelectedZone!.Id);
 
-        vm.MapClickedAt(new(9, 9));   // empty space lets go
+        // Beside every zone, the click lets go, but only once it is not the first of a double.
+        vm.MapClickedAt(new(9, 9));
+        Assert.Equal("1", vm.SelectedZone!.Id);
+        vm.MapClickConfirmedAt(new(9, 9));
         Assert.Null(vm.SelectedZone);
     }
 

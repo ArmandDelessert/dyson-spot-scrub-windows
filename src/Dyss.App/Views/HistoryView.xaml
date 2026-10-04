@@ -15,7 +15,7 @@
 
     <Grid Padding="16,0,16,16" RowSpacing="12">
         <Grid.RowDefinitions>
-            <RowDefinition Height="2*"/>
+            <RowDefinition Height="*" MinHeight="170"/>
             <RowDefinition Height="3*"/>
         </Grid.RowDefinitions>
 

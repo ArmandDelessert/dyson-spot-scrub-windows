@@ -20,6 +20,10 @@ internal static class Ui
 
     public static bool HasText(string? text) => !string.IsNullOrEmpty(text);
 
+    /// <summary>A message's look: an error, or only what happens next.</summary>
+    public static Microsoft.UI.Xaml.Controls.InfoBarSeverity Severity(bool isError) =>
+        isError ? Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error : Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational;
+
     public static double Number(int value) => value;
 
     public static string Percent(int value) => string.Create(CultureInfo.CurrentCulture, $"{value} %");

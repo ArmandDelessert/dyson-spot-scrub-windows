@@ -389,19 +389,13 @@ public sealed class MapInteraction(TimeProvider? time = null)
     /// <summary>The user's double-click speed (500 ms by default in Windows); set by the view from the system's setting.</summary>
     public TimeSpan DoubleClickTime { get; set; } = TimeSpan.FromMilliseconds(500);
 
-    /// <summary>
-    /// Whether a click on empty space waits to see if a double click follows before raising
-    /// <see cref="EmptySpaceClicked"/>. The dashboard needs it: there, clearing the selection on
-    /// the first half of a double click would untick the rooms queued for a clean. Where clearing
-    /// costs nothing (the map manager), turning it off makes the click react at once; a double
-    /// click still resets the zoom, the first click having simply cleared along the way.
-    /// </summary>
-    public bool DeferEmptySpaceClick { get; set; } = true;
     private const double DoubleClickMaxDistance = 24;
     private DateTimeOffset _lastClickTime;
     private Vec2 _lastClickPosition;
     /// <summary>The single click on empty space waiting to see whether a second one follows; dropped by anything that overrides it.</summary>
     private object? _pendingEmptySpaceClear;
+    /// <summary>The latest single click waiting for <see cref="ClickConfirmed"/>; dropped by a double click.</summary>
+    private object? _pendingConfirmation;
 
     public void PointerWheel(Vec2 position, double delta) => ZoomAbout(position, delta > 0 ? 1.2 : 1 / 1.2);
 
@@ -566,7 +560,12 @@ public sealed class MapInteraction(TimeProvider? time = null)
         return isDouble;
     }
 
-    /// <summary>A room always reacts right away; only empty space needs to wait and see whether a second click/tap turns this into a double, since that's the only place the two mean different things.</summary>
+    /// <summary>
+    /// A room always reacts right away; only empty space needs to wait and see whether a second
+    /// click/tap turns this into a double, since that's the only place the two mean different
+    /// things. The same wait applies on every map, so a double click to reset the zoom never
+    /// lets go of what was chosen.
+    /// </summary>
     private void HandleClick(Vec2 position, bool isDouble)
     {
         if (Picking != MapPick.None)
@@ -576,7 +575,16 @@ public sealed class MapInteraction(TimeProvider? time = null)
         }
 
         var world = ToWorld(position);
-        if (world is { } clicked && !isDouble) WorldClicked?.Invoke(clicked.ToPoint());
+        if (world is { } clicked && !isDouble)
+        {
+            WorldClicked?.Invoke(clicked.ToPoint());
+            if (ClickConfirmed is not null)
+            {
+                var confirmation = _pendingConfirmation = new object();
+                _ = ConfirmAfterDoubleClickTimeAsync(confirmation, clicked.ToPoint());
+            }
+        }
+        if (isDouble) _pendingConfirmation = null;
         var zone = world is { } w ? Scene.ZoneAt(w.X, w.Y) : null;
         if (zone is not null)
         {
@@ -588,15 +596,26 @@ public sealed class MapInteraction(TimeProvider? time = null)
             CancelPendingClear();
             ResetView();
         }
-        else if (!DeferEmptySpaceClick)
-        {
-            EmptySpaceClicked?.Invoke();
-        }
         else
         {
             var pending = _pendingEmptySpaceClear = new object();
             _ = ClearAfterDoubleClickTimeAsync(pending);
         }
+    }
+
+    /// <summary>
+    /// A single click or tap, wherever it landed, once the double-click time has passed with no
+    /// second one: for what the first half of a double click must not do, such as letting go of a
+    /// chosen shape. Only the latest click is confirmed. Raised after <see cref="WorldClicked"/>.
+    /// </summary>
+    public event Action<CorePoint>? ClickConfirmed;
+
+    private async Task ConfirmAfterDoubleClickTimeAsync(object pending, CorePoint at)
+    {
+        await Task.Delay(DoubleClickTime, _time);
+        if (!ReferenceEquals(_pendingConfirmation, pending)) return;
+        _pendingConfirmation = null;
+        ClickConfirmed?.Invoke(at);
     }
 
     private void PickAt(Vec2 position)

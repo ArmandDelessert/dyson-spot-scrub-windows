@@ -124,16 +124,25 @@ public class MapInteractionTests
     }
 
     [Fact]
-    public void WhereClearingCostsNothingItHappensAtOnce()
+    public async Task ASingleClickIsConfirmedWhereverItLandedButNotTheHalvesOfADouble()
     {
-        var map = Map();
-        map.DeferEmptySpaceClick = false;
-        var cleared = 0;
-        map.EmptySpaceClicked += () => cleared++;
+        SynchronizationContext.SetSynchronizationContext(null);
+        var time = new ManualTime();
+        var map = Map(time);
+        var confirmed = new List<Point>();
+        map.ClickConfirmed += confirmed.Add;
 
-        Click(map, Empty);
+        Click(map, At(map, 0.5, 1));                 // on a room
+        time.Advance(TimeSpan.FromSeconds(1));
+        await WaitForAsync(() => confirmed.Count == 1);
+        Assert.Equal(0.5, confirmed[0].X, 6);
 
-        Assert.Equal(1, cleared);
+        Click(map, Empty);                           // a double click on empty space
+        time.Advance(TimeSpan.FromMilliseconds(200));
+        Click(map, Empty + new Vec2(2, 2));
+        time.Advance(TimeSpan.FromSeconds(1));
+        await Task.Delay(50);
+        Assert.Single(confirmed);
     }
 
     [Fact]

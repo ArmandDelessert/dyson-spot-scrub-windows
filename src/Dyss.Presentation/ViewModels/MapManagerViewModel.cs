@@ -116,8 +116,6 @@ public sealed partial class MapManagerViewModel : ObservableObject
 
         Canvas = new MapInteraction
         {
-            // Clearing here costs nothing, so it need not wait to see whether a double click follows.
-            DeferEmptySpaceClick = false,
             // Zones, drawn or resized, never shrink below what is accepted.
             MinimumShapeSide = MinimumZoneSide,
             // Cuts, and zones and furniture when the box says so, land on the robot's 5 cm grid.
@@ -125,6 +123,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         };
         // Every click comes here, which knows which tab it is for.
         Canvas.WorldClicked += MapClickedAt;
+        Canvas.ClickConfirmed += MapClickConfirmedAt;
         Canvas.ZoneClicked += RoomClickedById;
         Canvas.EmptySpaceClicked += ClearRoomSelection;
         Canvas.LinePicked += (from, to) => _ = SplitAsync(from, to);
@@ -580,25 +579,41 @@ public sealed partial class MapManagerViewModel : ObservableObject
     }
 
     /// <summary>
-    /// A click on the map, wherever it lands, from <see cref="Canvas"/>. On the zones and furniture tabs it
-    /// chooses what lies under it — the smallest shape, when several overlap — or lets go of the
-    /// choice on empty space. The rooms tab has its own handling (<see cref="RoomClickedById"/>).
+    /// A click on the map, wherever it lands, from <see cref="Canvas"/>. On the zones and furniture
+    /// tabs it chooses what lies under it at once — the smallest shape, when several overlap. Letting
+    /// go of the choice, on a click beside every shape, waits for <see cref="MapClickConfirmedAt"/>,
+    /// as a double click there only means to reset the zoom. The rooms tab has its own handling
+    /// (<see cref="RoomClickedById"/>).
     /// </summary>
     public void MapClickedAt(Dyss.Core.Point p)
     {
         if (Busy || InMode) return;
         switch (Layer)
         {
-            case MapLayer.Zones:
-                SelectedZone = RestrictionZones.Where(z => z.Corners.Count > 2 && MapShapes.Contains(z.Corners, p.X, p.Y))
-                    .OrderBy(z => MapShapes.Area(z.Corners)).FirstOrDefault();
+            case MapLayer.Zones when ZoneAt(p) is { } zone:
+                SelectedZone = zone;
                 break;
-            case MapLayer.Furniture:
-                SelectedFurniture = FurnitureItems.Where(f => f.Corners.Count > 2 && MapShapes.Contains(f.Corners, p.X, p.Y))
-                    .OrderBy(f => MapShapes.Area(f.Corners)).FirstOrDefault();
+            case MapLayer.Furniture when FurnitureAt(p) is { } piece:
+                SelectedFurniture = piece;
                 break;
         }
     }
+
+    /// <summary>A single click confirmed not to be the first half of a double: beside every shape, it lets go of the chosen one.</summary>
+    public void MapClickConfirmedAt(Dyss.Core.Point p)
+    {
+        if (Busy || InMode) return;
+        if (Layer == MapLayer.Zones && ZoneAt(p) is null) SelectedZone = null;
+        else if (Layer == MapLayer.Furniture && FurnitureAt(p) is null) SelectedFurniture = null;
+    }
+
+    private ManagedZone? ZoneAt(Dyss.Core.Point p) =>
+        RestrictionZones.Where(z => z.Corners.Count > 2 && MapShapes.Contains(z.Corners, p.X, p.Y))
+            .OrderBy(z => MapShapes.Area(z.Corners)).FirstOrDefault();
+
+    private ManagedFurniture? FurnitureAt(Dyss.Core.Point p) =>
+        FurnitureItems.Where(f => f.Corners.Count > 2 && MapShapes.Contains(f.Corners, p.X, p.Y))
+            .OrderBy(f => MapShapes.Area(f.Corners)).FirstOrDefault();
 
     [RelayCommand]
     private void ClickZone(ManagedZone? zone)
