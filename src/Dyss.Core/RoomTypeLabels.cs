@@ -1,7 +1,9 @@
+using static Dyss.Core.Translation;
+
 namespace Dyss.Core;
 
 /// <summary>
-/// French labels of the thirty room types, as the official app shows them. The app displays a
+/// Labels of the thirty room types, in French as the official app shows them, and in English. The app displays a
 /// typed room under its type's label and hides the stored name; this app shows the stored name
 /// instead (see <see cref="Resolve"/>) and uses the labels for the type picker and as a hint.
 ///
@@ -19,38 +21,38 @@ namespace Dyss.Core;
 /// </summary>
 public static class RoomTypeLabels
 {
-    private static readonly Dictionary<string, string> Known = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, (string French, string English)> Known = new(StringComparer.Ordinal)
     {
-        ["balcony"] = "Balcon",
-        ["bathroom"] = "Salle de bain",
-        ["bedroom"] = "Chambre",
-        ["boxroom"] = "Cagibi",
-        ["cloakroom"] = "Toilettes",
-        ["closet"] = "Dressing",
-        ["conservatory"] = "Véranda",
-        ["dining"] = "Salle à manger",
-        ["ensuite"] = "Salle de bain attenante",
-        ["entrance"] = "Hall d'entrée",
-        ["familyRoom"] = "Pièce familiale",
-        ["guestBathroom"] = "Salle de bain invités",
-        ["guestBedroom"] = "Chambre d'amis",
-        ["guestRoom"] = "Chambre invités",
-        ["hallway"] = "Couloir",
-        ["kidsBedroom"] = "Chambre d'enfant",
-        ["kitchen"] = "Cuisine",
-        ["laundryRoom"] = "Buanderie",
-        ["livingRoom"] = "Salon",
-        ["nursery"] = "Chambre de bébé",
-        ["office"] = "Bureau",
-        ["pantry"] = "Cellier",
-        ["playRoom"] = "Salle de jeux",
-        ["primaryBathroom"] = "Salle de bain parentale",
-        ["primaryBedroom"] = "Chambre parentale",
-        ["recreationRoom"] = "Salle de loisirs",
-        ["storageRoom"] = "Débarras",
-        ["study"] = "Bibliothèque",
-        ["toilet"] = "W.-C.",
-        ["utilityRoom"] = "Cave",
+        ["balcony"] = ("Balcon", "Balcony"),
+        ["bathroom"] = ("Salle de bain", "Bathroom"),
+        ["bedroom"] = ("Chambre", "Bedroom"),
+        ["boxroom"] = ("Cagibi", "Box room"),
+        ["cloakroom"] = ("Toilettes", "Cloakroom"),
+        ["closet"] = ("Dressing", "Closet"),
+        ["conservatory"] = ("Véranda", "Conservatory"),
+        ["dining"] = ("Salle à manger", "Dining room"),
+        ["ensuite"] = ("Salle de bain attenante", "En suite"),
+        ["entrance"] = ("Hall d'entrée", "Entrance"),
+        ["familyRoom"] = ("Pièce familiale", "Family room"),
+        ["guestBathroom"] = ("Salle de bain invités", "Guest bathroom"),
+        ["guestBedroom"] = ("Chambre d'amis", "Guest bedroom"),
+        ["guestRoom"] = ("Chambre invités", "Guest room"),
+        ["hallway"] = ("Couloir", "Hallway"),
+        ["kidsBedroom"] = ("Chambre d'enfant", "Kids' bedroom"),
+        ["kitchen"] = ("Cuisine", "Kitchen"),
+        ["laundryRoom"] = ("Buanderie", "Laundry room"),
+        ["livingRoom"] = ("Salon", "Living room"),
+        ["nursery"] = ("Chambre de bébé", "Nursery"),
+        ["office"] = ("Bureau", "Office"),
+        ["pantry"] = ("Cellier", "Pantry"),
+        ["playRoom"] = ("Salle de jeux", "Playroom"),
+        ["primaryBathroom"] = ("Salle de bain parentale", "Primary bathroom"),
+        ["primaryBedroom"] = ("Chambre parentale", "Primary bedroom"),
+        ["recreationRoom"] = ("Salle de loisirs", "Recreation room"),
+        ["storageRoom"] = ("Débarras", "Storage room"),
+        ["study"] = ("Bibliothèque", "Study"),
+        ["toilet"] = ("W.-C.", "Toilet"),
+        ["utilityRoom"] = ("Cave", "Utility room"),
     };
 
     /// <summary>
@@ -72,16 +74,16 @@ public static class RoomTypeLabels
     /// </summary>
     public static string TypeHint(string? type, string? storedName)
     {
-        if (string.IsNullOrEmpty(type) || type == "custom") return "Personnalisée";
+        if (string.IsNullOrEmpty(type) || type == "custom") return T("Personnalisée", "Custom");
         if (DefaultNameFor(type) is not { } label) return type;
         return label == Resolve(type, storedName, "") ? "" : label;
     }
 
     /// <summary>The default name the robot gives a room of this type, used to prefill a rename.</summary>
     public static string? DefaultNameFor(string? type) =>
-        type is not null && Known.TryGetValue(type, out var label) ? label : null;
+        type is not null && Known.TryGetValue(type, out var label) ? T(label.French, label.English) : null;
 
     /// <summary>Every known type with its label, for a type picker. "custom" is not in here: it has no label of its own.</summary>
-    public static IReadOnlyList<(string Type, string Label)> All { get; } =
-        [.. Known.Select(kv => (kv.Key, kv.Value)).OrderBy(t => t.Value, StringComparer.CurrentCulture)];
+    public static IReadOnlyList<(string Type, string Label)> All =>
+        [.. Known.Select(kv => (kv.Key, T(kv.Value.French, kv.Value.English))).OrderBy(t => t.Item2, StringComparer.CurrentCulture)];
 }

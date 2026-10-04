@@ -5,6 +5,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dyss.Core;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Presentation.ViewModels;
 
 /// <summary>One of the seven day buttons.</summary>
@@ -34,7 +36,7 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
         _others = others;
         _minutesPerSquareMetre = minutesPerSquareMetre;
         Map = map;
-        Title = existing is null ? "Nouvel horaire" : "Modifier l'horaire";
+        Title = existing is null ? T("Nouvel horaire", "New schedule") : T("Modifier l'horaire", "Edit the schedule");
         _hour = existing?.Hour ?? 10;
         _minute = existing?.Minute ?? 0;
 
@@ -63,7 +65,7 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
 
     public MapItem Map { get; }
     public string Title { get; }
-    public string MapText => $"Pour la carte « {Map.Metadata.Name ?? Map.Id} » : un horaire appartient à une carte et ne s'exécute que lorsqu'elle est active.";
+    public string MapText => T($"Pour la carte « {Map.Metadata.Name ?? Map.Id} » : un horaire appartient à une carte et ne s'exécute que lorsqu'elle est active.", $"For the “{Map.Metadata.Name ?? Map.Id}” map: a schedule belongs to a map and only runs while that map is active.");
 
     public IReadOnlyList<int> Hours { get; } = Enumerable.Range(0, 24).ToList();
     public IReadOnlyList<int> Minutes { get; } = Enumerable.Range(0, 60).ToList();
@@ -124,9 +126,9 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
         var rooms = Rooms.Where(r => r.Selected).ToList();
         Missing = (days == ScheduleDays.None, rooms.Count == 0) switch
         {
-            (true, true) => "Choisissez au moins un jour et une pièce.",
-            (true, false) => "Choisissez au moins un jour.",
-            (false, true) => "Choisissez au moins une pièce.",
+            (true, true) => T("Choisissez au moins un jour et une pièce.", "Choose at least one day and one room."),
+            (true, false) => T("Choisissez au moins un jour.", "Choose at least one day."),
+            (false, true) => T("Choisissez au moins une pièce.", "Choose at least one room."),
             _ => "",
         };
         CanSave = Missing == "";
@@ -138,7 +140,7 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
             return;
         }
         var minutes = CleanDurationEstimate.Minutes(rooms.Select(r => (r.Area, r.Settings)), _minutesPerSquareMetre);
-        EstimateText = $"Durée estimée : environ {FormatMinutes(minutes)}, d'après les nettoyages passés.";
+        EstimateText = T($"Durée estimée : environ {FormatMinutes(minutes)}, d'après les nettoyages passés.", $"Estimated duration: about {FormatMinutes(minutes)}, from past cleans.");
 
         OverlapWarning = "";
         if (days == ScheduleDays.None) return;
@@ -148,8 +150,8 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
             var otherMinutes = CleanDurationEstimate.Minutes(other.Rooms.Select(r => (AreaOf(r.ZoneId), r.Settings)), _minutesPerSquareMetre);
             if (CleanDurationEstimate.Overlaps(other, otherMinutes, self) || CleanDurationEstimate.Overlaps(self, minutes, other))
             {
-                OverlapWarning = $"Chevauche l'horaire de {ScheduleDayLabels.Time(other.Hour, other.Minute)} ({ScheduleDayLabels.Describe(other.Days)}) : "
-                    + "le robot ne commence pas un horaire tant que le précédent est en cours.";
+                OverlapWarning = T($"Chevauche l'horaire de {ScheduleDayLabels.Time(other.Hour, other.Minute)} ({ScheduleDayLabels.Describe(other.Days)}) : ", $"Overlaps the {ScheduleDayLabels.Time(other.Hour, other.Minute)} schedule ({ScheduleDayLabels.Describe(other.Days)}): ")
+                    + T("le robot ne commence pas un horaire tant que le précédent est en cours.", "the robot does not start a schedule while the previous one is running.");
                 return;
             }
         }

@@ -7,6 +7,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.App.Services;
 
 /// <summary>
@@ -32,8 +34,8 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
         {
             Title = title,
             Content = Text(message),
-            PrimaryButtonText = "Oui",
-            CloseButtonText = "Non",
+            PrimaryButtonText = T("Oui", "Yes"),
+            CloseButtonText = T("Non", "No"),
             DefaultButton = ContentDialogButton.Primary,
         });
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
@@ -58,8 +60,8 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
         {
             Title = title,
             Content = input,
-            PrimaryButtonText = "Valider",
-            CloseButtonText = "Annuler",
+            PrimaryButtonText = T("Valider", "OK"),
+            CloseButtonText = T("Annuler", "Cancel"),
             DefaultButton = ContentDialogButton.Primary,
             // An empty name is not something the robot would take, and Enter on a blank field
             // should not look like a working action.
@@ -91,7 +93,7 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
             SuggestedFileName = suggestedFileName,
             DefaultFileExtension = ".png",
         };
-        picker.FileTypeChoices.Add("Image PNG", [".png"]);
+        picker.FileTypeChoices.Add(T("Image PNG", "PNG image"), [".png"]);
         if (await picker.PickSaveFileAsync() is not { } file) return null;
         await MapImage.ExportPngAsync(scene, 1200, 1400, file.Path, window.Theme == ElementTheme.Light ? MapPalette.Light : MapPalette.Dark);
         return file.Path;

@@ -8,25 +8,25 @@
                     IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False"
                     SelectionChanged="Nav_SelectionChanged">
         <NavigationView.MenuItems>
-            <NavigationViewItem x:Name="DashboardItem" Content="Tableau de bord" Tag="dashboard">
+            <NavigationViewItem x:Name="DashboardItem" Content='{local:Tr Fr="Tableau de bord", En="Dashboard"}' Tag="dashboard">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE80F;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="HistoryItem" Content="Historique" Tag="history">
+            <NavigationViewItem x:Name="HistoryItem" Content='{local:Tr Fr="Historique", En="History"}' Tag="history">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE81C;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="SchedulesItem" Content="Horaires" Tag="schedules">
+            <NavigationViewItem x:Name="SchedulesItem" Content='{local:Tr Fr="Horaires", En="Schedules"}' Tag="schedules">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE787;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="SettingsItem" Content="Réglages du robot" Tag="settings">
+            <NavigationViewItem x:Name="SettingsItem" Content='{local:Tr Fr="Réglages du robot", En="Robot settings"}' Tag="settings">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="JournalItem" Content="Journal" Tag="journal">
+            <NavigationViewItem x:Name="JournalItem" Content='{local:Tr Fr="Journal", En="Log"}' Tag="journal">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE8FD;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.MenuItems>
         <NavigationView.FooterMenuItems>
-            <NavigationViewItem x:Name="MapsItem" Content="Gérer les cartes" Tag="maps"
-                                ToolTipService.ToolTip="Renommer les cartes et les pièces, fusionner ou diviser des pièces, zones et meubles, lancer une cartographie">
+            <NavigationViewItem x:Name="MapsItem" Content='{local:Tr Fr="Gérer les cartes", En="Manage maps"}' Tag="maps"
+                                ToolTipService.ToolTip='{local:Tr Fr="Renommer les cartes et les pièces, fusionner ou diviser des pièces, zones et meubles, lancer une cartographie", En="Rename maps and rooms, merge or split rooms, zones and furniture, start mapping"}'>
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE81E;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.FooterMenuItems>
@@ -47,7 +47,7 @@
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind ViewModel.RobotName}" Style="{StaticResource SubtitleTextBlockStyle}"/>
                     <TextBlock Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap">
-                        <Run Text="Numéro de série"/> <Run Text="{x:Bind ViewModel.Serial}"/> · <Run Text="Firmware"/> <Run Text="{x:Bind ViewModel.Firmware}"/> · <Run Text="Compte"/> <Run Text="{x:Bind ViewModel.AccountEmail}"/>
+                        <Run Text='{local:Tr Fr="Numéro de série", En="Serial number"}'/> <Run Text="{x:Bind ViewModel.Serial}"/> · <Run Text='{local:Tr Fr="Firmware", En="Firmware"}'/> <Run Text="{x:Bind ViewModel.Firmware}"/> · <Run Text='{local:Tr Fr="Compte", En="Account"}'/> <Run Text="{x:Bind ViewModel.AccountEmail}"/>
                     </TextBlock>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
@@ -58,10 +58,22 @@
                     <TextBlock Text="{x:Bind ViewModel.Hub.Connection, Mode=OneWay}" VerticalAlignment="Center"/>
                     <TextBlock Text="{x:Bind local:Ui.Updated(ViewModel.Status.LastUpdate), Mode=OneWay}" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
                     <CommandBar DefaultLabelPosition="Right" Background="Transparent" IsOpen="False" VerticalAlignment="Center">
-                        <AppBarButton Label="Actualiser" Command="{x:Bind ViewModel.RefreshCommand}">
+                        <!-- Each language under its own name, so it can be found whatever the current one. -->
+                        <AppBarButton Label='{local:Tr Fr="Langue", En="Language"}'>
+                            <AppBarButton.Icon><FontIcon Glyph="&#xF2B7;"/></AppBarButton.Icon>
+                            <AppBarButton.Flyout>
+                                <MenuFlyout>
+                                    <RadioMenuFlyoutItem x:Name="LanguageAuto" GroupName="Language" Tag="auto" Click="Language_Click"
+                                                         Text='{local:Tr Fr="Automatique (langue de Windows)", En="Automatic (Windows language)"}'/>
+                                    <RadioMenuFlyoutItem x:Name="LanguageFrench" GroupName="Language" Tag="fr" Click="Language_Click" Text="Français"/>
+                                    <RadioMenuFlyoutItem x:Name="LanguageEnglish" GroupName="Language" Tag="en" Click="Language_Click" Text="English"/>
+                                </MenuFlyout>
+                            </AppBarButton.Flyout>
+                        </AppBarButton>
+                        <AppBarButton Label='{local:Tr Fr="Actualiser", En="Refresh"}' Command="{x:Bind ViewModel.RefreshCommand}">
                             <AppBarButton.Icon><FontIcon Glyph="&#xE72C;"/></AppBarButton.Icon>
                         </AppBarButton>
-                        <AppBarButton Label="Se déconnecter" Command="{x:Bind ViewModel.LogoutCommand}">
+                        <AppBarButton Label='{local:Tr Fr="Se déconnecter", En="Log out"}' Command="{x:Bind ViewModel.LogoutCommand}">
                             <AppBarButton.Icon><FontIcon Glyph="&#xF3B1;"/></AppBarButton.Icon>
                         </AppBarButton>
                     </CommandBar>

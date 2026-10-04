@@ -2,6 +2,8 @@ using System.Text.Json.Nodes;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Core;
 
 // Models for the map endpoints of appapi.cp.dyson.com, as returned for an RB05 in September 2026.
@@ -77,7 +79,7 @@ public sealed record MapZone(
     [property: JsonPropertyName("settings")] ZoneSettings? Settings = null);
 
 /// <summary>
-/// French label for a zone's cleanStatus, as seen in clean-maps-data/live-maps. Confirmed values:
+/// Label in the current language for a zone's cleanStatus, as seen in clean-maps-data/live-maps. Confirmed values:
 /// CLEAN_NOT_REQUESTED (not selected for this task), CLEAN_COMPLETE, CANT_CLEAN (the robot gave up
 /// reaching it, see event.Unable_all_area_recharge.post in docs/protocole.md), CLEAN_PENDING (the
 /// room was selected but the task ended before its turn came, seen on a 0-minute clean whose path
@@ -87,10 +89,10 @@ public static class CleanStatusLabels
 {
     public static string Resolve(string? status) => status switch
     {
-        "CLEAN_COMPLETE" => "Terminée",
-        "CANT_CLEAN" => "Injoignable",
-        "CLEAN_NOT_REQUESTED" => "Non demandée",
-        "CLEAN_PENDING" => "Non commencée",
+        "CLEAN_COMPLETE" => T("Terminée", "Done"),
+        "CANT_CLEAN" => T("Injoignable", "Unreachable"),
+        "CLEAN_NOT_REQUESTED" => T("Non demandée", "Not requested"),
+        "CLEAN_PENDING" => T("Non commencée", "Not started"),
         null => "",
         var s => s,
     };

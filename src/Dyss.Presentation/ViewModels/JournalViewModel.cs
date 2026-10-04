@@ -5,6 +5,8 @@ using CommunityToolkit.Mvvm.Input;
 using Dyss.Presentation.Services;
 using Dyss.Core;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Presentation.ViewModels;
 
 /// <summary>
@@ -31,8 +33,8 @@ public sealed partial class JournalViewModel(RobotHub hub, DisplaySettings setti
             settings.RecordMessages = value;
             if (!value) _log.Close();
             OnPropertyChanged();
-            RecordInfo = value ? $"Enregistrement dans {_log.Directory}" : "";
-            hub.AddLog(value ? "enregistrement des messages activé" : "enregistrement des messages arrêté");
+            RecordInfo = value ? T($"Enregistrement dans {_log.Directory}", $"Recording to {_log.Directory}") : "";
+            hub.AddLog(value ? T("enregistrement des messages activé", "message recording on") : T("enregistrement des messages arrêté", "message recording off"));
         }
     }
 
@@ -51,13 +53,13 @@ public sealed partial class JournalViewModel(RobotHub hub, DisplaySettings setti
             // Disk full, folder locked: the record stops, the session goes on.
             hub.Post(() =>
             {
-                hub.AddLog($"enregistrement des messages interrompu : {ex.Message}");
+                hub.AddLog(T($"enregistrement des messages interrompu : {ex.Message}", $"message recording interrupted: {ex.Message}"));
                 RecordMessages = false;
             });
             return;
         }
         var (count, file) = (_log.Count, Path.GetFileName(_log.CurrentFile));
-        hub.Post(() => RecordInfo = $"{count} message(s) aujourd'hui → {file}");
+        hub.Post(() => RecordInfo = T($"{count} message(s) aujourd'hui → {file}", $"{count} message(s) today → {file}"));
     }
 
     [RelayCommand]
@@ -70,7 +72,7 @@ public sealed partial class JournalViewModel(RobotHub hub, DisplaySettings setti
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
-            hub.AddLog($"dossier des messages : {ex.Message}");
+            hub.AddLog(T($"dossier des messages : {ex.Message}", $"message folder: {ex.Message}"));
         }
     }
 

@@ -1,10 +1,13 @@
 using Dyss.App.Services;
+using Dyss.Core;
 using Dyss.Presentation.Services;
 using Dyss.Presentation.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.System;
+
+using static Dyss.Core.Translation;
 
 namespace Dyss.App.Views;
 
@@ -64,6 +67,7 @@ public sealed partial class ShellView : UserControl
             await ViewModel.StartAsync();
         };
         Nav.SelectedItem = DashboardItem;
+        (ViewModel.Display.Language switch { "fr" => LanguageFrench, "en" => LanguageEnglish, _ => LanguageAuto }).IsChecked = true;
         PreviewKeyDown += OnPreviewKeyDown;
         KeyDown += OnKeyDown;
     }
@@ -74,6 +78,25 @@ public sealed partial class ShellView : UserControl
     public Task<bool> Finished => _finished.Task;
 
     // ---- Pages -----------------------------------------------------------------------------
+
+    /// <summary>
+    /// Keeps the language chosen in the header menu. Every text is laid out in it once, as the
+    /// window is built, so a different language takes a restart, offered straight away.
+    /// </summary>
+    private async void Language_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not RadioMenuFlyoutItem { Tag: string language } || language == ViewModel.Display.Language) return;
+        ViewModel.Display.Language = language;
+        if (ViewModel.Display.ChosenLanguage == Dyss.Core.Translation.Current) return;
+        if (!await ViewModel.Hub.Dialogs.ConfirmAsync(T("Changer de langue", "Change language"),
+                T("La nouvelle langue s'applique au redémarrage de l'application. Redémarrer maintenant ?",
+                  "The new language applies when the application restarts. Restart now?"))) return;
+        // Only comes back when Windows could not restart the application.
+        var failure = Microsoft.Windows.AppLifecycle.AppInstance.Restart("");
+        await ViewModel.Hub.Dialogs.AlertAsync(T("Changer de langue", "Change language"),
+            T($"Le redémarrage a échoué ({failure}). Relancez l'application pour changer de langue.",
+              $"The restart failed ({failure}). Start the application again to change its language."));
+    }
 
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {

@@ -3,6 +3,8 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.App.Views;
 
 /// <summary>
@@ -43,7 +45,7 @@ public sealed partial class ConnectionWaitView : UserControl
         if (e.IsAvailable) DispatcherQueue.TryEnqueue(() => Answer(true));
     }
 
-    private void UpdateCountdown() => Countdown.Text = $"Nouvel essai dans {_secondsLeft} s…";
+    private void UpdateCountdown() => Countdown.Text = T($"Nouvel essai dans {_secondsLeft} s…", $"Trying again in {_secondsLeft} s…");
 
     private void Retry_Click(object sender, RoutedEventArgs e) => Answer(true);
     private void Quit_Click(object sender, RoutedEventArgs e) => Answer(false);

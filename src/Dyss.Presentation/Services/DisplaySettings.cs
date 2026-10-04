@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Dyss.Core;
@@ -45,6 +46,20 @@ public sealed partial class DisplaySettings : ObservableObject
     /// </summary>
     [ObservableProperty] private bool _smoothRobotMotion;
 
+    /// <summary>
+    /// The language of the application: <c>"fr"</c>, <c>"en"</c>, or <c>"auto"</c> for Windows' own (French on a
+    /// French Windows, English otherwise). Read once at start-up, see <see cref="ChosenLanguage"/>.
+    /// </summary>
+    [ObservableProperty] private string _language = "auto";
+
+    /// <summary>The language <see cref="Language"/> stands for on this machine.</summary>
+    public AppLanguage ChosenLanguage => Language switch
+    {
+        "fr" => AppLanguage.French,
+        "en" => AppLanguage.English,
+        _ => Translation.FromCulture(CultureInfo.CurrentUICulture),
+    };
+
     /// <summary>Raised after any of the above changes, once they have been written back to disk.</summary>
     public event Action? Changed;
 
@@ -66,6 +81,7 @@ public sealed partial class DisplaySettings : ObservableObject
                 settings.RecordMessages = s.RecordMessages ?? false;
                 settings.SnapToGrid = s.SnapToGrid ?? true;
                 settings.SmoothRobotMotion = s.SmoothRobotMotion ?? false;
+                settings.Language = s.Language is "fr" or "en" ? s.Language : "auto";
                 settings._loading = false;
             }
         }
@@ -86,7 +102,7 @@ public sealed partial class DisplaySettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            File.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion)));
+            File.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -100,7 +116,8 @@ public sealed partial class DisplaySettings : ObservableObject
     partial void OnRecordMessagesChanged(bool value) => Save();
     partial void OnSnapToGridChanged(bool value) => Save();
     partial void OnSmoothRobotMotionChanged(bool value) => Save();
+    partial void OnLanguageChanged(string value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null);
 }

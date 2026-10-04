@@ -3,6 +3,8 @@ using CommunityToolkit.Mvvm.Input;
 using Dyss.Presentation.Services;
 using Dyss.Core;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Presentation.ViewModels;
 
 /// <summary>
@@ -83,12 +85,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 Hub.Connected = s == RobotConnectionStatus.Connected;
                 Hub.Connection = s switch
                 {
-                    RobotConnectionStatus.Connected => "Connecté",
-                    RobotConnectionStatus.Connecting => "Connexion…",
-                    RobotConnectionStatus.Reconnecting => "Reconnexion…" + (d is null ? "" : $" ({d})"),
-                    _ => "Déconnecté",
+                    RobotConnectionStatus.Connected => T("Connecté", "Connected"),
+                    RobotConnectionStatus.Connecting => T("Connexion…", "Connecting…"),
+                    RobotConnectionStatus.Reconnecting => T("Reconnexion…", "Reconnecting…") + (d is null ? "" : $" ({d})"),
+                    _ => T("Déconnecté", "Disconnected"),
                 };
-                if (cameBack) _ = ReloadAsync("connexion rétablie");
+                if (cameBack) _ = ReloadAsync(T("connexion rétablie", "connection restored"));
             });
             session.AuthenticationLost += reason => Hub.Post(() => _ = SessionExpiredAsync(reason));
             session.Tracker.StateChanged += st => Hub.Post(() =>
@@ -110,7 +112,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 switch (name)
                 {
                     case "event.clean_finish.post":
-                        NotifyRequested?.Invoke("Nettoyage terminé", "Le robot a terminé son nettoyage.");
+                        NotifyRequested?.Invoke(T("Nettoyage terminé", "Clean finished"), T("Le robot a terminé son nettoyage.", "The robot has finished cleaning."));
                         break;
                     // The robot's report of the clean, finished or not: the cloud files it as a history
                     // entry, which is also what the phone's end-of-clean notification follows.
@@ -118,7 +120,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         _ = History.RefreshAfterCleanAsync();
                         break;
                     case "event.Unable_all_area_recharge.post":
-                        NotifyRequested?.Invoke("Zone inaccessible", "Le robot n'a pas pu atteindre une ou plusieurs pièces sélectionnées.");
+                        NotifyRequested?.Invoke(T("Zone inaccessible", "Unreachable area"), T("Le robot n'a pas pu atteindre une ou plusieurs pièces sélectionnées.", "The robot could not reach one or more of the selected rooms."));
                         break;
                 }
             });
@@ -126,7 +128,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             // only written anywhere while recording is on (see JournalViewModel).
             session.MessageReceived += Journal.CaptureMessage;
             Hub.Connected = true;
-            Hub.Connection = "Connecté";
+            Hub.Connection = T("Connecté", "Connected");
 
             await Task.WhenAll(Hub.RefreshStateAsync(), Hub.RefreshPropertiesAsync(), Cleaning.LoadMapsAsync(), History.LoadAsync());
             _initialLoadDone = true;
@@ -159,7 +161,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>
     /// The first connection to the robot, tried again and again until it holds: the network can
     /// drop between the device list and the broker, or the broker be briefly unreachable. Without
-    /// this the window would stay "Connexion…" for good, since <see cref="RobotSession"/> only
+    /// this the window would stay T("Connexion…", "Connecting…") for good, since <see cref="RobotSession"/> only
     /// reconnects a session that once connected. Null when the token is refused (the session-expired
     /// path takes over) or the window is closing.
     /// </summary>
@@ -179,8 +181,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             catch (Exception ex) when (!Hub.IsShuttingDown)
             {
                 var delay = RobotSession.BackoffFor(attempt);
-                Hub.Connection = $"Hors ligne, nouvel essai dans {delay.TotalSeconds:F0} s";
-                Hub.AddLog($"connexion au robot impossible : {ex.Message}");
+                Hub.Connection = T($"Hors ligne, nouvel essai dans {delay.TotalSeconds:F0} s", $"Offline, retrying in {delay.TotalSeconds:F0} s");
+                Hub.AddLog(T($"connexion au robot impossible : {ex.Message}", $"cannot connect to the robot: {ex.Message}"));
                 await Task.Delay(delay, Hub.Ct);
             }
         }
@@ -217,7 +219,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _reloading = true;
         try
         {
-            if (reason is not null) Hub.AddLog($"{reason}, rechargement des données");
+            if (reason is not null) Hub.AddLog(T($"{reason}, rechargement des données", $"{reason}, reloading the data"));
             // Drop cached geometry too: furniture, zones or rooms edited from the phone would
             // otherwise keep showing as they were when first loaded.
             _maps.Invalidate();
@@ -235,8 +237,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task LogoutAsync()
     {
-        if (!await Hub.Dialogs.ConfirmAsync("Déconnexion",
-                "Vous devrez ressaisir votre e-mail, votre mot de passe et un code reçu par e-mail pour vous reconnecter.\n\nSe déconnecter du compte MyDyson ?"))
+        if (!await Hub.Dialogs.ConfirmAsync(T("Déconnexion", "Log out"),
+                T("Vous devrez ressaisir votre e-mail, votre mot de passe et un code reçu par e-mail pour vous reconnecter.\n\nSe déconnecter du compte MyDyson ?", "You will have to enter your e-mail, your password and a code sent by e-mail to log in again.\n\nLog out of the MyDyson account?")))
             return;
 
         await ShutdownAsync();
@@ -247,9 +249,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The token died mid-session: same exit as a logout, but told rather than asked.</summary>
     private async Task SessionExpiredAsync(string reason)
     {
-        Hub.AddLog($"session expirée: {reason}");
-        await Hub.Dialogs.AlertAsync("Session expirée",
-            "La session MyDyson n'est plus acceptée par le cloud Dyson. Vous devez vous reconnecter.");
+        Hub.AddLog(T($"session expirée: {reason}", $"session expired: {reason}"));
+        await Hub.Dialogs.AlertAsync(T("Session expirée", "Session expired"),
+            T("La session MyDyson n'est plus acceptée par le cloud Dyson. Vous devez vous reconnecter.", "The Dyson cloud no longer accepts the MyDyson session. Please log in again."));
         await ShutdownAsync();
         SessionStore.Delete();
         LoggedOut?.Invoke();

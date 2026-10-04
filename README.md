@@ -24,7 +24,7 @@ Le robot sur le site de Dyson : [présentation](https://www.dyson.ch/fr_ch/aspir
 
 ## Fonctionnalités
 
-L'application parle au robot comme l'application mobile MyDyson, avec le même compte. Tout ce qui est modifié ici se retrouve sur le téléphone, et inversement. Elle a l'apparence de Windows 11 (Mica, contrôles Fluent), suit son thème clair ou sombre, et range ses pages dans un volet de navigation : tableau de bord, historique, horaires, réglages, journal et gestion des cartes.
+L'application parle au robot comme l'application mobile MyDyson, avec le même compte. Tout ce qui est modifié ici se retrouve sur le téléphone, et inversement. Elle a l'apparence de Windows 11 (Mica, contrôles Fluent), suit son thème clair ou sombre, et range ses pages dans un volet de navigation : tableau de bord, historique, horaires, réglages, journal et gestion des cartes. Elle parle français ou anglais : la langue de Windows par défaut, ou celle choisie dans l'en-tête.
 
 ### Tableau de bord
 
@@ -180,15 +180,17 @@ DyssCockpit.exe --export-icon app.ico
 DyssCockpit.exe --screenshot ecran.png --after 15 --tab 0 --theme light --zones 11,13
 DyssCockpit.exe --screenshot editeur.png --after 15 --edit-schedule
 DyssCockpit.exe --screenshot connexion.png --after 3 --login
+DyssCockpit.exe --screenshot dashboard.png --after 15 --lang en
 ```
 
-`--tab` choisit la page (`0` tableau de bord, `1` historique, `2` horaires, `3` réglages, `4` journal). `--manage-maps` photographie la gestion des cartes (onglet `--layer 0` à `2`, carte `--map-id`). `--login` montre la connexion sans toucher à la session enregistrée. `--export-icon` régénère l'icône à partir du dessin du robot ; [assets/logo.svg](assets/logo.svg) en est la version vectorielle.
+`--tab` choisit la page (`0` tableau de bord, `1` historique, `2` horaires, `3` réglages, `4` journal). `--manage-maps` photographie la gestion des cartes (onglet `--layer 0` à `2`, carte `--map-id`). `--login` montre la connexion sans toucher à la session enregistrée. `--lang fr` ou `--lang en` impose la langue, sans changer celle choisie. `--export-icon` régénère l'icône à partir du dessin du robot ; [assets/logo.svg](assets/logo.svg) en est la version vectorielle.
 
 ### Outillage
 
 - `global.json` épingle le SDK. `Directory.Build.props` active les analyseurs .NET et traite tout avertissement comme une erreur ; il porte aussi le nom du produit et la version. `Directory.Packages.props` centralise les versions des paquets.
 - `.github/workflows/ci.yml` compile et lance les tests à chaque push.
 - `.github/workflows/release.yml` publie une version à chaque tag.
+- Chaque texte de l'interface est écrit une seule fois avec ses deux langues côte à côte : `T("Tableau de bord", "Dashboard")` en C#, `{local:Tr Fr="Tableau de bord", En="Dashboard"}` en XAML, l'attribut étant alors entre apostrophes et une apostrophe du texte s'écrivant `&apos;`. La ligne de commande reste en français.
 
 ### Publier une version
 

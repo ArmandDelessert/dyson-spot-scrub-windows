@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Dyss.Core;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Presentation.ViewModels;
 
 public sealed record CleanTypeOption(CleanType Value, string Label);
@@ -15,25 +17,25 @@ public partial class ZoneItem : ObservableObject
     // options; ours is uniform).
     public static readonly IReadOnlyList<CleanTypeOption> CleanTypeOptions =
     [
-        new(CleanType.Vacuum, "Aspirer"),
-        new(CleanType.Mop, "Laver"),
-        new(CleanType.VacuumAndMop, "Aspirer et laver"),
-        new(CleanType.VacuumThenMop, "Aspirer puis laver"),
+        new(CleanType.Vacuum, T("Aspirer", "Vacuum")),
+        new(CleanType.Mop, T("Laver", "Mop")),
+        new(CleanType.VacuumAndMop, T("Aspirer et laver", "Vacuum and mop")),
+        new(CleanType.VacuumThenMop, T("Aspirer puis laver", "Vacuum then mop")),
     ];
 
     public static readonly IReadOnlyList<StrategyOption> StrategyOptions =
     [
         new(CleaningStrategy.Auto, "Auto"),
-        new(CleaningStrategy.Quick, "Rapide"),
-        new(CleaningStrategy.Quiet, "Silencieux"),
+        new(CleaningStrategy.Quick, T("Rapide", "Quick")),
+        new(CleaningStrategy.Quiet, T("Silencieux", "Quiet")),
         new(CleaningStrategy.Boost, "Boost"),
     ];
 
     public static readonly IReadOnlyList<WaterLevelOption> WaterLevelOptions =
     [
-        new(WaterLevel.Low, "Faible"),
-        new(WaterLevel.Medium, "Moyen"),
-        new(WaterLevel.High, "Élevé"),
+        new(WaterLevel.Low, T("Faible", "Low")),
+        new(WaterLevel.Medium, T("Moyen", "Medium")),
+        new(WaterLevel.High, T("Élevé", "High")),
     ];
 
     public static readonly IReadOnlyList<MopPassesOption> MopPassesOptions =

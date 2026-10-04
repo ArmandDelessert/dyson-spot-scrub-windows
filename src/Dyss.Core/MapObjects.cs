@@ -1,10 +1,12 @@
 using System.Text.Json.Nodes;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Core;
 
 /// <summary>
 /// A kind of restriction zone: its jdm type for set_virtual_wall, its REST behaviour in
-/// persistent-maps, and a French name. The pairing was established on 2026-09-23 by matching the
+/// persistent-maps, and its name in the current language. The pairing was established on 2026-09-23 by matching the
 /// coordinates of the same rectangles on both sides. The names mostly follow the phone app's; two
 /// are reworded as nouns, "Zone à éviter" and "Seuil à franchir" for its "Éviter la zone" and
 /// "Franchir le seuil", so all four read as what the zone is.
@@ -13,10 +15,10 @@ public sealed record RestrictionKind(int JdmType, string Behavior, string Label,
 {
     public static readonly IReadOnlyList<RestrictionKind> All =
     [
-        new(2, "keepOut", "Zone à éviter", "le robot n'y va pas"),
-        new(13, "climbObstacle", "Seuil à franchir", "le robot tente de franchir les petits obstacles"),
-        new(12, "brushBarOff", "Lavage uniquement", "le robot y passe sans la brosse"),
-        new(6, "noMop", "Aspirateur uniquement", "le robot y passe sans laver"),
+        new(2, "keepOut", T("Zone à éviter", "No-go zone"), T("le robot n'y va pas", "the robot stays out")),
+        new(13, "climbObstacle", T("Seuil à franchir", "Threshold to climb"), T("le robot tente de franchir les petits obstacles", "the robot tries to climb small obstacles")),
+        new(12, "brushBarOff", T("Lavage uniquement", "Mop only"), T("le robot y passe sans la brosse", "the robot goes there without its brush bar")),
+        new(6, "noMop", T("Aspirateur uniquement", "Vacuum only"), T("le robot y passe sans laver", "the robot goes there without mopping")),
     ];
 
     public static RestrictionKind? FromBehavior(string? behavior) => All.FirstOrDefault(k => k.Behavior == behavior);
@@ -27,7 +29,7 @@ public sealed record RestrictionKind(int JdmType, string Behavior, string Label,
 
 /// <summary>
 /// A piece of furniture the phone app offers: jdm code for adjust_furniture, REST type in
-/// persistent-maps, a French name, the app's category, and the size it had in the captures
+/// persistent-maps, its name and the app's category in the current language, and the size it had in the captures
 /// (<see cref="Length"/> along the first side, from corner 1 to 2, <see cref="Width"/> along the
 /// second). Codes established on 2026-09-25 by moving one piece on a map carrying all of them.
 /// </summary>
@@ -35,30 +37,30 @@ public sealed record FurnitureKind(int Code, string RestType, string Label, stri
 {
     public static readonly IReadOnlyList<FurnitureKind> All =
     [
-        new(1513, "doubleBed", "Lit double", "Lits", 2.1, 1.8),
-        new(1601, "singleBed", "Lit simple", "Lits", 2.1, 1.2),
-        new(1519, "bedsideTable", "Table de chevet", "Lits", 0.6, 0.8),
-        new(1528, "singleSeaterSofa", "Fauteuil", "Assises", 1.0, 0.9),
-        new(1512, "twoSeaterSofa", "Canapé deux places", "Assises", 1.1, 1.8),
-        new(1525, "threeSeaterSofa", "Canapé trois places", "Assises", 1.1, 2.5),
-        new(1526, "lShapedSofaLeft", "Canapé d'angle, à gauche", "Assises", 1.7, 2.4),
-        new(1527, "lShapedSofaRight", "Canapé d'angle, à droite", "Assises", 1.8, 2.4),
-        new(1511, "diningTableAndChairs", "Table et chaises", "Tables", 1.4, 2.0),
-        new(1518, "squareCoffeeTable", "Table basse carrée", "Tables", 0.5, 1.1),
-        new(1602, "roundCoffeeTable", "Table basse ronde", "Tables", 1.1, 1.1),
-        new(1603, "desk", "Bureau", "Tables", 1.4, 1.6),
-        new(1515, "cabinet", "Meuble", "Rangements", 0.9, 2.1),
-        new(1520, "tvStand", "Meuble TV", "Rangements", 0.6, 2.3),
-        new(1604, "storageCabinet", "Meuble de rangement", "Rangements", 0.4, 1.4),
-        new(1605, "shoeCabinet", "Meuble à chaussures", "Rangements", 0.4, 1.4),
-        new(1606, "wardrobe", "Armoire", "Rangements", 1.0, 1.8),
-        new(1607, "bookshelf", "Bibliothèque", "Rangements", 0.4, 1.4),
-        new(1516, "refrigerator", "Réfrigérateur", "Électroménager", 0.8, 0.8),
-        new(1524, "washingMachine", "Lave-linge", "Électroménager", 1.0, 0.9),
-        new(1608, "cabinetWithStove", "Meuble avec cuisinière", "Électroménager", 0.6, 0.6),
-        new(1514, "toilet", "Toilettes", "Autres", 0.7, 0.5),
-        new(1613, "indoorPlant", "Plante", "Autres", 0.5, 0.5),
-        new(1614, "standingMirror", "Miroir sur pied", "Autres", 0.5, 0.7),
+        new(1513, "doubleBed", T("Lit double", "Double bed"), T("Lits", "Beds"), 2.1, 1.8),
+        new(1601, "singleBed", T("Lit simple", "Single bed"), T("Lits", "Beds"), 2.1, 1.2),
+        new(1519, "bedsideTable", T("Table de chevet", "Bedside table"), T("Lits", "Beds"), 0.6, 0.8),
+        new(1528, "singleSeaterSofa", T("Fauteuil", "Armchair"), T("Assises", "Seating"), 1.0, 0.9),
+        new(1512, "twoSeaterSofa", T("Canapé deux places", "Two-seater sofa"), T("Assises", "Seating"), 1.1, 1.8),
+        new(1525, "threeSeaterSofa", T("Canapé trois places", "Three-seater sofa"), T("Assises", "Seating"), 1.1, 2.5),
+        new(1526, "lShapedSofaLeft", T("Canapé d'angle, à gauche", "L-shaped sofa, left"), T("Assises", "Seating"), 1.7, 2.4),
+        new(1527, "lShapedSofaRight", T("Canapé d'angle, à droite", "L-shaped sofa, right"), T("Assises", "Seating"), 1.8, 2.4),
+        new(1511, "diningTableAndChairs", T("Table et chaises", "Dining table and chairs"), T("Tables", "Tables"), 1.4, 2.0),
+        new(1518, "squareCoffeeTable", T("Table basse carrée", "Square coffee table"), T("Tables", "Tables"), 0.5, 1.1),
+        new(1602, "roundCoffeeTable", T("Table basse ronde", "Round coffee table"), T("Tables", "Tables"), 1.1, 1.1),
+        new(1603, "desk", T("Bureau", "Desk"), T("Tables", "Tables"), 1.4, 1.6),
+        new(1515, "cabinet", T("Meuble", "Cabinet"), T("Rangements", "Storage"), 0.9, 2.1),
+        new(1520, "tvStand", T("Meuble TV", "TV stand"), T("Rangements", "Storage"), 0.6, 2.3),
+        new(1604, "storageCabinet", T("Meuble de rangement", "Storage cabinet"), T("Rangements", "Storage"), 0.4, 1.4),
+        new(1605, "shoeCabinet", T("Meuble à chaussures", "Shoe cabinet"), T("Rangements", "Storage"), 0.4, 1.4),
+        new(1606, "wardrobe", T("Armoire", "Wardrobe"), T("Rangements", "Storage"), 1.0, 1.8),
+        new(1607, "bookshelf", T("Bibliothèque", "Bookshelf"), T("Rangements", "Storage"), 0.4, 1.4),
+        new(1516, "refrigerator", T("Réfrigérateur", "Refrigerator"), T("Électroménager", "Appliances"), 0.8, 0.8),
+        new(1524, "washingMachine", T("Lave-linge", "Washing machine"), T("Électroménager", "Appliances"), 1.0, 0.9),
+        new(1608, "cabinetWithStove", T("Meuble avec cuisinière", "Cabinet with stove"), T("Électroménager", "Appliances"), 0.6, 0.6),
+        new(1514, "toilet", T("Toilettes", "Toilet"), T("Autres", "Other"), 0.7, 0.5),
+        new(1613, "indoorPlant", T("Plante", "Indoor plant"), T("Autres", "Other"), 0.5, 0.5),
+        new(1614, "standingMirror", T("Miroir sur pied", "Standing mirror"), T("Autres", "Other"), 0.5, 0.7),
     ];
 
     public static FurnitureKind? FromRestType(string? type) => All.FirstOrDefault(k => k.RestType == type);

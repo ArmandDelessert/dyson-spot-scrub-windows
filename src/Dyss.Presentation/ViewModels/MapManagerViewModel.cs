@@ -6,6 +6,8 @@ using Dyss.Presentation.Map;
 using Dyss.Presentation.Services;
 using Dyss.Core;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Presentation.ViewModels;
 
 /// <summary>A room type offered in the rename dialog. Type null is the free-name escape hatch.</summary>
@@ -43,7 +45,7 @@ public sealed partial class ManagedZone(Restriction restriction, int sourceIndex
     public RestrictionKind? Kind { get; } = RestrictionKind.FromBehavior(restriction.Behavior);
     public IReadOnlyList<Dyss.Core.Point> Corners => Restriction.Points ?? [];
     public bool CanBeSentBack => Kind is not null && Corners.Count == 4;
-    public string Label => Kind?.Label ?? $"Type inconnu ({Restriction.Behavior})";
+    public string Label => Kind?.Label ?? T($"Type inconnu ({Restriction.Behavior})", $"Unknown type ({Restriction.Behavior})");
     public string SizeText => MapManagerViewModel.SizeOf(Corners);
     /// <summary>The zone's colour on the map, for the list.</summary>
     public ArgbColor Swatch { get; } = MapColors.Restriction(restriction.Behavior);
@@ -60,7 +62,7 @@ public sealed partial class ManagedFurniture(FurnitureItem item) : ObservableObj
     public IReadOnlyList<Dyss.Core.Point> Corners => Item.Points ?? [];
     public int Index => int.TryParse(Item.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) ? i : -1;
     public bool CanBeSentBack => Kind is not null && Corners.Count == 4 && Index >= 0;
-    public string Label => Kind?.Label ?? $"Meuble inconnu ({Item.Type})";
+    public string Label => Kind?.Label ?? T($"Meuble inconnu ({Item.Type})", $"Unknown furniture ({Item.Type})");
     public string SizeText => MapManagerViewModel.SizeOf(Corners);
     /// <summary>Clockwise quarter turns from the way a new piece is laid out, or null at another angle.</summary>
     public int? QuarterTurns => MapShapes.QuarterTurns(Corners);
@@ -72,10 +74,10 @@ public sealed record OrientationOption(int QuarterTurns, string Label)
 {
     public static readonly IReadOnlyList<OrientationOption> All =
     [
-        new(0, "0° (comme posé)"),
-        new(1, "90° (quart de tour horaire)"),
-        new(2, "180° (demi-tour)"),
-        new(3, "270° (quart de tour antihoraire)"),
+        new(0, T("0° (comme posé)", "0° (as placed)")),
+        new(1, T("90° (quart de tour horaire)", "90° (quarter turn clockwise)")),
+        new(2, T("180° (demi-tour)", "180° (half turn)")),
+        new(3, T("270° (quart de tour antihoraire)", "270° (quarter turn anticlockwise)")),
     ];
 
     public override string ToString() => Label;
@@ -111,7 +113,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     {
         _hub = hub;
         _display = display;
-        RoomTypes = [new RoomTypeOption(null, "Personnalisée (nom libre)"),
+        RoomTypes = [new RoomTypeOption(null, T("Personnalisée (nom libre)", "Custom (free name)")),
                      .. RoomTypeLabels.All.Select(t => new RoomTypeOption(t.Type, t.Label))];
 
         Canvas = new MapInteraction
@@ -185,11 +187,11 @@ public sealed partial class MapManagerViewModel : ObservableObject
     public bool InMode => Merging || Splitting || AddingZone || PlacingFurniture;
     /// <summary>What the current mode expects from the user, shown above the map.</summary>
     [ObservableProperty] private string _hint = RoomsHint;
-    [ObservableProperty] private string _mergeButtonLabel = "Fusionner des pièces…";
+    [ObservableProperty] private string _mergeButtonLabel = T("Fusionner des pièces…", "Merge rooms…");
 
-    private const string RoomsHint = "Cliquez une pièce pour la choisir, en dehors pour effacer le choix. Molette pour zoomer, glisser pour déplacer.";
-    private const string ZonesHint = "Cliquez une zone pour la choisir, puis faites-la glisser pour la déplacer ou tirez un de ses coins pour la redimensionner. Molette pour zoomer, glisser ailleurs pour déplacer la carte.";
-    private const string FurnitureHint = "Cliquez un meuble pour le choisir, puis faites-le glisser pour le déplacer. Molette pour zoomer, glisser ailleurs pour déplacer la carte.";
+    private static string RoomsHint => T("Cliquez une pièce pour la choisir, en dehors pour effacer le choix. Molette pour zoomer, glisser pour déplacer.", "Click a room to choose it, outside to clear the choice. Wheel to zoom, drag to move.");
+    private static string ZonesHint => T("Cliquez une zone pour la choisir, puis faites-la glisser pour la déplacer ou tirez un de ses coins pour la redimensionner. Molette pour zoomer, glisser ailleurs pour déplacer la carte.", "Click a zone to choose it, then drag it to move it or pull one of its corners to resize it. Wheel to zoom, drag elsewhere to move the map.");
+    private static string FurnitureHint => T("Cliquez un meuble pour le choisir, puis faites-le glisser pour le déplacer. Molette pour zoomer, glisser ailleurs pour déplacer la carte.", "Click a piece of furniture to choose it, then drag it to move it. Wheel to zoom, drag elsewhere to move the map.");
 
     private string LayerHint => Layer switch
     {
@@ -284,16 +286,16 @@ public sealed partial class MapManagerViewModel : ObservableObject
 
     /// <summary>Why the zones cannot be changed on this map, or empty when they can.</summary>
     public string ZonesBlockedReason => RestrictionZones.FirstOrDefault(z => !z.CanBeSentBack) is { } odd
-        ? $"Cette carte porte une zone que cette application ne sait pas décrire ({odd.Label}) : toute modification l'effacerait, les zones restent donc en lecture seule."
+        ? T($"Cette carte porte une zone que cette application ne sait pas décrire ({odd.Label}) : toute modification l'effacerait, les zones restent donc en lecture seule.", $"This map holds a zone this application cannot describe ({odd.Label}): any change would erase it, so the zones are read-only.")
         : "";
 
     /// <summary>Why the furniture cannot be changed on this map, or empty when it can.</summary>
     public string FurnitureBlockedReason => FurnitureItems.FirstOrDefault(f => !f.CanBeSentBack) is { } odd
-        ? $"Cette carte porte un meuble que cette application ne sait pas décrire ({odd.Label}) : toute modification l'effacerait, les meubles restent donc en lecture seule."
+        ? T($"Cette carte porte un meuble que cette application ne sait pas décrire ({odd.Label}) : toute modification l'effacerait, les meubles restent donc en lecture seule.", $"This map holds a piece of furniture this application cannot describe ({odd.Label}): any change would erase it, so the furniture is read-only.")
         : "";
 
-    public string ZonesEmptyText => RestrictionZones.Count == 0 ? "Aucune zone sur cette carte." : "";
-    public string FurnitureEmptyText => FurnitureItems.Count == 0 ? "Aucun meuble sur cette carte." : "";
+    public string ZonesEmptyText => RestrictionZones.Count == 0 ? T("Aucune zone sur cette carte.", "No zone on this map.") : "";
+    public string FurnitureEmptyText => FurnitureItems.Count == 0 ? T("Aucun meuble sur cette carte.", "No furniture on this map.") : "";
 
     /// <summary>"1,2 × 0,5 m": the first two sides of a shape.</summary>
     internal static string SizeOf(IReadOnlyList<Dyss.Core.Point> corners)
@@ -320,7 +322,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
                 ?? Maps.FirstOrDefault();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { Status = $"Cartes : {ex.Message}"; }
+        catch (Exception ex) { Status = T($"Cartes : {ex.Message}", $"Maps: {ex.Message}"); }
     }
 
     // ---- Map orientation ----------------------------------------------------------
@@ -328,10 +330,10 @@ public sealed partial class MapManagerViewModel : ObservableObject
     /// <summary>The four ways a map can be shown, clockwise, as the phone's rotate button steps through them.</summary>
     public IReadOnlyList<OrientationOption> MapOrientations { get; } =
     [
-        new(0, "0° (d'origine)"),
-        new(1, "90° (quart de tour horaire)"),
-        new(2, "180° (demi-tour)"),
-        new(3, "270° (quart de tour antihoraire)"),
+        new(0, T("0° (d'origine)", "0° (original)")),
+        new(1, T("90° (quart de tour horaire)", "90° (quarter turn clockwise)")),
+        new(2, T("180° (demi-tour)", "180° (half turn)")),
+        new(3, T("270° (quart de tour antihoraire)", "270° (quarter turn anticlockwise)")),
     ];
 
     /// <summary>
@@ -365,16 +367,16 @@ public sealed partial class MapManagerViewModel : ObservableObject
         try
         {
             await _hub.Api.SetMapOrientationAsync(_hub.Serial, map.Id, degrees, _hub.Ct);
-            _hub.AddLog($"carte « {map.Metadata.Name} » tournée à {degrees}°");
-            Status = $"Carte tournée à {degrees}°.";
+            _hub.AddLog(T($"carte « {map.Metadata.Name} » tournée à {degrees}°", $"map “{map.Metadata.Name}” turned to {degrees}°"));
+            Status = T($"Carte tournée à {degrees}°.", $"Map turned to {degrees}°.");
             await LoadMapAsync(map);
             Changed?.Invoke();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
         catch (Exception ex)
         {
-            Status = $"Rotation impossible : {ex.Message}";
-            _hub.AddLog($"rotation de la carte : {ex.Message}");
+            Status = T($"Rotation impossible : {ex.Message}", $"Rotation failed: {ex.Message}");
+            _hub.AddLog(T($"rotation de la carte : {ex.Message}", $"map rotation: {ex.Message}"));
         }
         finally
         {
@@ -431,7 +433,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
             RebuildScene();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { Status = $"Carte {item.Id} : {ex.Message}"; }
+        catch (Exception ex) { Status = T($"Carte {item.Id} : {ex.Message}", $"Map {item.Id}: {ex.Message}"); }
     }
 
     private PersistentMap? _map;
@@ -523,7 +525,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
 
     /// <summary>Why the edits are unavailable on the map on screen, or empty when they are available.</summary>
     public string EditBlockedReason => SelectedMap is null || IsActiveMap ? ""
-        : "Seule la carte active peut être modifiée. Définissez celle-ci comme active pour la renommer, la supprimer ou changer ses pièces, ses zones ou ses meubles.";
+        : T("Seule la carte active peut être modifiée. Définissez celle-ci comme active pour la renommer, la supprimer ou changer ses pièces, ses zones ou ses meubles.", "Only the active map can be changed. Make this one active to rename it, delete it, or change its rooms, zones or furniture.");
 
     private bool Idle => !Busy && !InMode;
     private bool NotBusy() => Idle;
@@ -665,16 +667,16 @@ public sealed partial class MapManagerViewModel : ObservableObject
             var (first, second) = MapShapes.Sides(corners);
             if (first < MinimumZoneSide - MapShapes.Tolerance || second < MinimumZoneSide - MapShapes.Tolerance)
             {
-                Status = "Zone trop étroite : il faut au moins 20 cm de côté.";
+                Status = T("Zone trop étroite : il faut au moins 20 cm de côté.", "Zone too narrow: each side needs at least 20 cm.");
                 return;
             }
             var zones = OrderedZones().Select(z => new RestrictionZone(z.Kind!, ReferenceEquals(z, zone) ? corners : z.Corners)).ToList();
             var resized = Math.Abs(MapShapes.Area(corners) - MapShapes.Area(zone.Corners)) > 1e-6;
-            await SendZonesAsync($"zone « {zone.Label} » {(resized ? "redimensionnée" : "déplacée")}", zones);
+            await SendZonesAsync(resized ? T($"zone « {zone.Label} » redimensionnée", $"“{zone.Label}” zone resized") : T($"zone « {zone.Label} » déplacée", $"“{zone.Label}” zone moved"), zones);
         }
         else if (Layer == MapLayer.Furniture && SelectedFurniture is { } piece && HasFurniture())
         {
-            await SendFurnitureAsync($"« {piece.Label} » déplacé", ReplaceCorners(piece, corners));
+            await SendFurnitureAsync(T($"« {piece.Label} » déplacé", $"“{piece.Label}” moved"), ReplaceCorners(piece, corners));
         }
     }
 
@@ -687,7 +689,11 @@ public sealed partial class MapManagerViewModel : ObservableObject
     private void AddZone()
     {
         AddingZone = true;
-        Hint = $"Cliquez deux coins opposés de la zone « {ZoneKind.Label} » ; {(SnapToGrid ? "ils se calent sur la grille de 5 cm, visible en zoomant" : "sans calage sur la grille")}. Échap pour annuler.";
+        Hint = SnapToGrid
+            ? T($"Cliquez deux coins opposés de la zone « {ZoneKind.Label} » ; ils se calent sur la grille de 5 cm, visible en zoomant. Échap pour annuler.",
+                $"Click two opposite corners of the “{ZoneKind.Label}” zone; they snap to the 5 cm grid, visible when zoomed in. Esc to cancel.")
+            : T($"Cliquez deux coins opposés de la zone « {ZoneKind.Label} » ; sans calage sur la grille. Échap pour annuler.",
+                $"Click two opposite corners of the “{ZoneKind.Label}” zone; no snapping to the grid. Esc to cancel.");
         Status = "";
         RefreshCommandStates();
     }
@@ -699,12 +705,12 @@ public sealed partial class MapManagerViewModel : ObservableObject
         LeaveModes();
         if (Math.Abs(a.X - b.X) < MinimumZoneSide - MapShapes.Tolerance || Math.Abs(a.Y - b.Y) < MinimumZoneSide - MapShapes.Tolerance)
         {
-            Status = "Zone trop étroite : il faut au moins 20 cm de côté.";
+            Status = T("Zone trop étroite : il faut au moins 20 cm de côté.", "Zone too narrow: each side needs at least 20 cm.");
             return;
         }
         var zones = CurrentZones();
         zones.Add(new RestrictionZone(kind, MapShapes.Rectangle(a, b)));
-        await SendZonesAsync($"zone « {kind.Label} » ajoutée", zones);
+        await SendZonesAsync(T($"zone « {kind.Label} » ajoutée", $"“{kind.Label}” zone added"), zones);
     }
 
     [RelayCommand(CanExecute = nameof(CanChangeZoneKind))]
@@ -713,16 +719,16 @@ public sealed partial class MapManagerViewModel : ObservableObject
         if (SelectedZone is not { } chosen) return;
         var kind = ZoneKind;
         var zones = OrderedZones().Select(z => new RestrictionZone(ReferenceEquals(z, chosen) ? kind : z.Kind!, z.Corners)).ToList();
-        await SendZonesAsync($"zone changée en « {kind.Label} »", zones);
+        await SendZonesAsync(T($"zone changée en « {kind.Label} »", $"zone changed to “{kind.Label}”"), zones);
     }
 
     [RelayCommand(CanExecute = nameof(CanDeleteZone))]
     private async Task DeleteZoneAsync()
     {
         if (SelectedZone is not { } chosen) return;
-        if (!await _hub.Dialogs.ConfirmAsync("Supprimer la zone", $"Supprimer la zone « {chosen.Label} » ({chosen.SizeText}) ?")) return;
+        if (!await _hub.Dialogs.ConfirmAsync(T("Supprimer la zone", "Delete the zone"), T($"Supprimer la zone « {chosen.Label} » ({chosen.SizeText}) ?", $"Delete the “{chosen.Label}” zone ({chosen.SizeText})?"))) return;
         var zones = OrderedZones().Where(z => !ReferenceEquals(z, chosen)).Select(z => new RestrictionZone(z.Kind!, z.Corners)).ToList();
-        await SendZonesAsync($"zone « {chosen.Label} » supprimée", zones);
+        await SendZonesAsync(T($"zone « {chosen.Label} » supprimée", $"“{chosen.Label}” zone deleted"), zones);
     }
 
     /// <summary>The zones in the cloud's order rather than the list's alphabetical one, so a change moves nothing else around.</summary>
@@ -733,7 +739,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     private async Task SendZonesAsync(string label, IReadOnlyList<RestrictionZone> zones)
     {
         if (SelectedMap is not { } map || !TryMapId(map, out var mapId)) return;
-        await EditAsync(label, c => c.SetRestrictionsAsync(mapId, zones, _hub.Ct), refused: "Le robot a refusé les zones.");
+        await EditAsync(label, c => c.SetRestrictionsAsync(mapId, zones, _hub.Ct), refused: T("Le robot a refusé les zones.", "The robot refused the zones."));
     }
 
     // ---- Furniture commands --------------------------------------------------------
@@ -742,7 +748,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     private void AddFurniture()
     {
         PlacingFurniture = true;
-        Hint = $"Cliquez l'endroit où poser « {FurnitureKind.Label} » (le centre du meuble). Échap pour annuler.";
+        Hint = T($"Cliquez l'endroit où poser « {FurnitureKind.Label} » (le centre du meuble). Échap pour annuler.", $"Click where to place the “{FurnitureKind.Label}” (the centre of the piece). Esc to cancel.");
         Status = "";
         RefreshCommandStates();
     }
@@ -756,7 +762,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         var pieces = CurrentFurniture();
         var index = pieces.Count == 0 ? 1 : pieces.Max(f => f.Index) + 1;
         pieces.Add(new FurniturePiece(index, kind, MapShapes.Centred(p, kind.Length, kind.Width)));
-        await SendFurnitureAsync($"« {kind.Label} » ajouté", pieces);
+        await SendFurnitureAsync(T($"« {kind.Label} » ajouté", $"“{kind.Label}” added"), pieces);
     }
 
     /// <summary>
@@ -773,7 +779,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         }
         var (length, width) = MapShapes.Sides(chosen.Corners);
         var corners = MapShapes.Oriented(MapShapes.Centre(chosen.Corners), length, width, quarterTurns);
-        await SendFurnitureAsync($"« {chosen.Label} » tourné à {quarterTurns * 90}°", ReplaceCorners(chosen, corners));
+        await SendFurnitureAsync(T($"« {chosen.Label} » tourné à {quarterTurns * 90}°", $"“{chosen.Label}” turned to {quarterTurns * 90}°"), ReplaceCorners(chosen, corners));
         // Refused or not sent: the list goes back to how the piece really stands.
         if (ReferenceEquals(SelectedFurniture, chosen)) ShowOrientation(chosen);
     }
@@ -782,8 +788,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
     private async Task DeleteFurnitureAsync()
     {
         if (SelectedFurniture is not { } chosen) return;
-        if (!await _hub.Dialogs.ConfirmAsync("Supprimer le meuble", $"Retirer « {chosen.Label} » de la carte ?")) return;
-        await SendFurnitureAsync($"« {chosen.Label} » retiré", CurrentFurniture().Where(f => f.Index != chosen.Index).ToList());
+        if (!await _hub.Dialogs.ConfirmAsync(T("Supprimer le meuble", "Remove the furniture"), T($"Retirer « {chosen.Label} » de la carte ?", $"Remove the “{chosen.Label}” from the map?"))) return;
+        await SendFurnitureAsync(T($"« {chosen.Label} » retiré", $"“{chosen.Label}” removed"), CurrentFurniture().Where(f => f.Index != chosen.Index).ToList());
     }
 
     /// <summary>The furniture in index order, the order the cloud lists it in, whatever the list on screen shows.</summary>
@@ -793,7 +799,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         [.. CurrentFurniture().Select(f => f.Index == chosen.Index ? f with { Corners = corners } : f)];
 
     private Task SendFurnitureAsync(string label, IReadOnlyList<FurniturePiece> pieces) =>
-        EditAsync(label, c => c.AdjustFurnitureAsync(pieces, ct: _hub.Ct), refused: "Le robot a refusé les meubles.");
+        EditAsync(label, c => c.AdjustFurnitureAsync(pieces, ct: _hub.Ct), refused: T("Le robot a refusé les meubles.", "The robot refused the furniture."));
 
     // ---- Map commands ------------------------------------------------------------
 
@@ -802,18 +808,18 @@ public sealed partial class MapManagerViewModel : ObservableObject
     {
         if (SelectedMap is not { } map || map.Metadata.IsCurrentMap) return;
         if (!TryMapId(map, out var mapId)) return;
-        await EditAsync($"carte active : {map.Metadata.Name}", c => c.ActivateMapAsync(mapId, _hub.Ct));
+        await EditAsync(T($"carte active : {map.Metadata.Name}", $"active map: {map.Metadata.Name}"), c => c.ActivateMapAsync(mapId, _hub.Ct));
     }
 
     [RelayCommand(CanExecute = nameof(HasMap))]
     private async Task RenameMapAsync()
     {
         if (SelectedMap is not { } map) return;
-        var name = await _hub.Dialogs.AskTextAsync("Renommer la carte", "Nom de la carte :", map.Metadata.Name ?? "");
+        var name = await _hub.Dialogs.AskTextAsync(T("Renommer la carte", "Rename the map"), T("Nom de la carte :", "Map name:"), map.Metadata.Name ?? "");
         if (string.IsNullOrWhiteSpace(name) || name == map.Metadata.Name) return;
         if (!TryMapId(map, out var mapId)) return;
 
-        await EditAsync($"carte renommée en « {name.Trim()} »", c => c.RenameMapAsync(mapId, name.Trim(), _hub.Ct));
+        await EditAsync(T($"carte renommée en « {name.Trim()} »", $"map renamed to “{name.Trim()}”"), c => c.RenameMapAsync(mapId, name.Trim(), _hub.Ct));
     }
 
     [RelayCommand(CanExecute = nameof(HasMap))]
@@ -822,29 +828,29 @@ public sealed partial class MapManagerViewModel : ObservableObject
         if (SelectedMap is not { } map || !TryMapId(map, out var mapId)) return;
         var name = map.Metadata.Name ?? map.Id;
         var active = map.Metadata.IsCurrentMap
-            ? "\n\nC'est la carte active : le robot en choisira une autre de lui-même."
+            ? T("\n\nC'est la carte active : le robot en choisira une autre de lui-même.", "\n\nThis is the active map: the robot will pick another one by itself.")
             : "";
-        if (!await _hub.Dialogs.ConfirmAsync("Supprimer la carte",
-                $"Supprimer définitivement la carte « {name} », avec ses pièces et leurs réglages ?{active}\n\nCette action ne peut pas être annulée.")) return;
+        if (!await _hub.Dialogs.ConfirmAsync(T("Supprimer la carte", "Delete the map"),
+                T($"Supprimer définitivement la carte « {name} », avec ses pièces et leurs réglages ?{active}\n\nCette action ne peut pas être annulée.", $"Permanently delete the “{name}” map, with its rooms and their settings?{active}\n\nThis cannot be undone."))) return;
 
         // Reloaded without a preference: the deleted map is gone, so the list falls back on the
         // active one, which the robot may just have changed.
-        await EditAsync($"carte « {name} » supprimée", c => c.DeleteMapAsync(mapId, _hub.Ct), reloadOn: null);
+        await EditAsync(T($"carte « {name} » supprimée", $"“{name}” map deleted"), c => c.DeleteMapAsync(mapId, _hub.Ct), reloadOn: null);
     }
 
     [RelayCommand(CanExecute = nameof(NotBusy))]
     private async Task StartMappingAsync()
     {
-        if (!await _hub.Dialogs.ConfirmAsync("Nouvelle carte",
-                "Le robot va parcourir le logement pour le cartographier, sans nettoyer. " +
-                "Dégagez le sol et ouvrez les portes des pièces à inclure.\n\nLancer la cartographie ?")) return;
+        if (!await _hub.Dialogs.ConfirmAsync(T("Nouvelle carte", "New map"),
+                T("Le robot va parcourir le logement pour le cartographier, sans nettoyer. ", "The robot will go round the home to map it, without cleaning. ") +
+                T("Dégagez le sol et ouvrez les portes des pièces à inclure.\n\nLancer la cartographie ?", "Clear the floor and open the doors of the rooms to include.\n\nStart mapping?"))) return;
 
         Busy = true;
-        Status = "Cartographie lancée ; le robot explore le logement.";
+        Status = T("Cartographie lancée ; le robot explore le logement.", "Mapping started; the robot is exploring the home.");
         try
         {
             // The map language names the rooms the scan finds: the account's, as the phone sends it.
-            await _hub.RunAsync("cartographie lancée", c => c.StartMappingAsync(_hub.Culture, _hub.Ct));
+            await _hub.RunAsync(T("cartographie lancée", "mapping started"), c => c.StartMappingAsync(_hub.Culture, _hub.Ct));
         }
         finally { Busy = false; }
     }
@@ -860,7 +866,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
 
         // A free name travels as type "custom", which is what the app sends too.
-        await EditAsync($"pièce renommée en « {answer.Name.Trim()} »",
+        await EditAsync(T($"pièce renommée en « {answer.Name.Trim()} »", $"room renamed to “{answer.Name.Trim()}”"),
             c => c.RenameRoomAsync(mapId, room.NumericId, answer.Name.Trim(), answer.Type ?? "custom", _hub.Ct));
     }
 
@@ -880,7 +886,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
                 _mergeSet.Add(first);
                 first.IsChosen = true;
             }
-            Hint = "Cliquez les pièces à fusionner, sur la carte ou dans la liste. « Fusionner » à nouveau pour valider, Échap pour annuler.";
+            Hint = T("Cliquez les pièces à fusionner, sur la carte ou dans la liste. « Fusionner » à nouveau pour valider, Échap pour annuler.", "Click the rooms to merge, on the map or in the list. “Merge” again to confirm, Esc to cancel.");
             UpdateMergeLabel();
             RebuildScene();
             return;
@@ -888,29 +894,29 @@ public sealed partial class MapManagerViewModel : ObservableObject
 
         if (SelectedMap is not { } map || !TryMapId(map, out var mapId)) return;
         var rooms = _mergeSet.Where(r => r.NumericId >= 0).ToList();
-        if (rooms.Count < 2) { Status = "Choisissez au moins deux pièces à fusionner."; return; }
-        if (!await _hub.Dialogs.ConfirmAsync("Fusionner les pièces",
-                $"Fusionner {string.Join(", ", rooms.Select(p => p.DisplayName))} en une seule pièce ?")) return;
+        if (rooms.Count < 2) { Status = T("Choisissez au moins deux pièces à fusionner.", "Choose at least two rooms to merge."); return; }
+        if (!await _hub.Dialogs.ConfirmAsync(T("Fusionner les pièces", "Merge the rooms"),
+                T($"Fusionner {string.Join(", ", rooms.Select(p => p.DisplayName))} en une seule pièce ?", $"Merge {string.Join(", ", rooms.Select(p => p.DisplayName))} into a single room?"))) return;
 
         LeaveModes();
-        await EditAsync($"{rooms.Count} pièces fusionnées", c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
-            refused: "Le robot a refusé la fusion : les pièces doivent se toucher.");
+        await EditAsync(T($"{rooms.Count} pièces fusionnées", $"{rooms.Count} rooms merged"), c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
+            refused: T("Le robot a refusé la fusion : les pièces doivent se toucher.", "The robot refused the merge: the rooms must touch."));
     }
 
     private void UpdateMergeLabel()
     {
-        MergeButtonLabel = !Merging ? "Fusionner des pièces…"
-            : _mergeSet.Count < 2 ? "Fusionner (choisissez 2 pièces ou plus)"
-            : $"Fusionner les {_mergeSet.Count} pièces";
+        MergeButtonLabel = !Merging ? T("Fusionner des pièces…", "Merge rooms…")
+            : _mergeSet.Count < 2 ? T("Fusionner (choisissez 2 pièces ou plus)", "Merge (choose 2 rooms or more)")
+            : T($"Fusionner les {_mergeSet.Count} pièces", $"Merge the {_mergeSet.Count} rooms");
         MergeCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(HasRoom))]
     private void StartSplit()
     {
-        if (SelectedRoom is null) { Status = "Choisissez d'abord la pièce à diviser."; return; }
+        if (SelectedRoom is null) { Status = T("Choisissez d'abord la pièce à diviser.", "First choose the room to split."); return; }
         Splitting = true;
-        Hint = "Cliquez les deux extrémités du trait de coupe ; il se cale sur la grille de 5 cm du robot, visible en zoomant. Échap pour annuler.";
+        Hint = T("Cliquez les deux extrémités du trait de coupe ; il se cale sur la grille de 5 cm du robot, visible en zoomant. Échap pour annuler.", "Click both ends of the cutting line; it snaps to the robot's 5 cm grid, visible when zoomed in. Esc to cancel.");
         Status = "";
         RefreshCommandStates();
     }
@@ -924,8 +930,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
         if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
 
         // A cut that misses the room, or that the robot will not make, comes back refused.
-        await EditAsync($"pièce {room.DisplayName} divisée", c => c.SplitRoomAsync(mapId, room.NumericId, from, to, MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
-            refused: "Le robot a refusé la division : la pièce est sans doute trop petite à cet endroit, ou le trait ne la traverse pas.");
+        await EditAsync(T($"pièce {room.DisplayName} divisée", $"room {room.DisplayName} split"), c => c.SplitRoomAsync(mapId, room.NumericId, from, to, MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
+            refused: T("Le robot a refusé la division : la pièce est sans doute trop petite à cet endroit, ou le trait ne la traverse pas.", "The robot refused the split: the room is probably too small there, or the line does not cross it."));
     }
 
     /// <summary>Escape, or the cancel button: leaves splitting or merging without doing anything.</summary>
@@ -961,7 +967,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     /// </summary>
     private async Task EditAsync(string label, Func<RobotMqttClient, Task<MapEditResult?>> edit, string? reloadOn = "", string? refused = null)
     {
-        if (_hub.Session?.Client is not { IsConnected: true } client) { Status = "Robot non connecté."; return; }
+        if (_hub.Session?.Client is not { IsConnected: true } client) { Status = T("Robot non connecté.", "Robot not connected."); return; }
         Busy = true;
         Status = "";
         try
@@ -970,8 +976,8 @@ public sealed partial class MapManagerViewModel : ObservableObject
             var result = await edit(client);
             if (result is null)
             {
-                Status = refused ?? "Le robot a refusé la modification.";
-                _hub.AddLog($"{label} : refusé par le robot");
+                Status = refused ?? T("Le robot a refusé la modification.", "The robot refused the change.");
+                _hub.AddLog(T($"{label} : refusé par le robot", $"{label}: refused by the robot"));
                 return;
             }
             _hub.AddLog(label);
@@ -988,7 +994,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         catch (Exception ex)
         {
             Status = ex.Message;
-            _hub.AddLog($"{label} : {ex.Message}");
+            _hub.AddLog(T($"{label} : {ex.Message}", $"{label}: {ex.Message}"));
         }
         finally { Busy = false; }
     }
@@ -1019,7 +1025,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     private bool TryMapId(MapItem map, out long id)
     {
         if (long.TryParse(map.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out id)) return true;
-        Status = $"Identifiant de carte inattendu : {map.Id}";
+        Status = T($"Identifiant de carte inattendu : {map.Id}", $"Unexpected map id: {map.Id}");
         return false;
     }
 }

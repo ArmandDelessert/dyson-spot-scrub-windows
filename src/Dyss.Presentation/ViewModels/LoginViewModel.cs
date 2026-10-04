@@ -7,6 +7,8 @@ using CommunityToolkit.Mvvm.Input;
 using Dyss.Presentation.Services;
 using Dyss.Core;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Presentation.ViewModels;
 
 /// <summary>A country a MyDyson account can belong to: its ISO code, named in the user's language.</summary>
@@ -103,6 +105,8 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
     /// </summary>
     private static string NameOf(RegionInfo region)
     {
+        // Windows names countries in its own language; .NET knows their English names.
+        if (IsEnglish) return region.EnglishName;
         try
         {
             var buffer = new char[128];
@@ -154,7 +158,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrWhiteSpace(Email) || SelectedCulture is null)
         {
-            Say("Indiquez l'e-mail du compte, son pays et sa langue.", isError: true);
+            Say(T("Indiquez l'e-mail du compte, son pays et sa langue.", "Enter the account's e-mail, its country and its language."), isError: true);
             return;
         }
         Busy = true;
@@ -167,12 +171,12 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
             var status = await _api.GetUserStatusAsync(Email.Trim());
             if (!string.Equals(status.AccountStatus, "ACTIVE", StringComparison.OrdinalIgnoreCase))
             {
-                Say($"Aucun compte MyDyson actif avec cette adresse pour ce pays ({SelectedCountry.Name}). Vérifiez l'adresse et le pays choisi lors de la création du compte.", isError: true);
+                Say(T($"Aucun compte MyDyson actif avec cette adresse pour ce pays ({SelectedCountry.Name}). Vérifiez l'adresse et le pays choisi lors de la création du compte.", $"No active MyDyson account with this address for this country ({SelectedCountry.Name}). Check the address and the country chosen when the account was created."), isError: true);
                 return;
             }
             _challengeId = (await _api.BeginLoginAsync(Email.Trim())).ChallengeId;
             CodeSent = true;
-            Say("Un code à usage unique vous a été envoyé par e-mail. Saisissez-le avec votre mot de passe.", isError: false);
+            Say(T("Un code à usage unique vous a été envoyé par e-mail. Saisissez-le avec votre mot de passe.", "A one-time code has been sent to you by e-mail. Enter it with your password."), isError: false);
         }
         catch (Exception ex)
         {
@@ -191,7 +195,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
         if (_api is null || _challengeId is null) return;
         if (string.IsNullOrWhiteSpace(OtpCode) || string.IsNullOrEmpty(password))
         {
-            Say("Saisissez le mot de passe et le code reçu.", isError: true);
+            Say(T("Saisissez le mot de passe et le code reçu.", "Enter the password and the code you received."), isError: true);
             return;
         }
         Busy = true;
@@ -232,15 +236,15 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
     internal static string Describe(Exception ex, bool verifying) => ex switch
     {
         HttpRequestException or TaskCanceledException =>
-            "Impossible de joindre le cloud Dyson. Vérifiez la connexion à Internet, puis réessayez.",
+            T("Impossible de joindre le cloud Dyson. Vérifiez la connexion à Internet, puis réessayez.", "Cannot reach the Dyson cloud. Check the Internet connection, then try again."),
         DysonApiException { StatusCode: HttpStatusCode.TooManyRequests } =>
-            "Trop de tentatives : patientez quelques minutes avant de réessayer.",
+            T("Trop de tentatives : patientez quelques minutes avant de réessayer.", "Too many attempts: wait a few minutes before trying again."),
         DysonApiException { StatusCode: HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden } when verifying =>
-            "Mot de passe ou code incorrect, ou code expiré. Vérifiez-les, ou recommencez pour recevoir un nouveau code.",
+            T("Mot de passe ou code incorrect, ou code expiré. Vérifiez-les, ou recommencez pour recevoir un nouveau code.", "Wrong password or code, or the code has expired. Check them, or start again to get a new code."),
         DysonApiException { StatusCode: HttpStatusCode.BadRequest or HttpStatusCode.NotFound } =>
-            "Le cloud Dyson a refusé la demande. Vérifiez l'adresse e-mail, ainsi que le pays et la langue du compte.",
+            T("Le cloud Dyson a refusé la demande. Vérifiez l'adresse e-mail, ainsi que le pays et la langue du compte.", "The Dyson cloud refused the request. Check the e-mail address, and the account's country and language."),
         DysonApiException { StatusCode: { } status } =>
-            $"Le cloud Dyson a répondu par une erreur (HTTP {(int)status}). Réessayez dans un moment.",
-        _ => $"La connexion a échoué : {ex.Message}",
+            T($"Le cloud Dyson a répondu par une erreur (HTTP {(int)status}). Réessayez dans un moment.", $"The Dyson cloud answered with an error (HTTP {(int)status}). Try again in a moment."),
+        _ => T($"La connexion a échoué : {ex.Message}", $"Login failed: {ex.Message}"),
     };
 }

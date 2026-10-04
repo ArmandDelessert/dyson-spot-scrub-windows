@@ -5,6 +5,8 @@ using Dyss.Presentation.Map;
 using Dyss.Presentation.Services;
 using Dyss.Core;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Presentation.ViewModels;
 
 /// <summary>
@@ -65,7 +67,7 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, Disp
                 History.Add(new CleanItem(c));
         }
         catch (OperationCanceledException) when (hub.IsShuttingDown) { }
-        catch (Exception ex) { hub.AddLog($"historique: {ex.Message}"); }
+        catch (Exception ex) { hub.AddLog(T($"historique: {ex.Message}", $"history: {ex.Message}")); }
     }
 
 
@@ -111,7 +113,7 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, Disp
                 item.Rooms = DescribeRooms(detail);
             }
             catch (OperationCanceledException) when (hub.IsShuttingDown) { return; }
-            catch (Exception ex) { item.Rooms = ""; hub.AddLog($"pièces du nettoyage {item.Summary.CleanId}: {ex.Message}"); }
+            catch (Exception ex) { item.Rooms = ""; hub.AddLog(T($"pièces du nettoyage {item.Summary.CleanId}: {ex.Message}", $"rooms of clean {item.Summary.CleanId}: {ex.Message}")); }
         }
     }
 
@@ -162,28 +164,28 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, Disp
             _dirt = detail.Dirt;
             // The REST clean list has no overall success/failure field (see docs/protocole.md); the
             // closest thing is each zone's own status from this per-clean detail call. Only surface
-            // zones that didn't simply complete, so an ordinary clean just reads "Terminé".
+            // zones that didn't simply complete, so an ordinary clean just reads T("Terminé", "Done").
             var problems = detail.Zones?
                 .Where(z => z.CleanStatus is not (null or "CLEAN_NOT_REQUESTED" or "CLEAN_COMPLETE"))
                 .Select(z => $"{RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)} : {CleanStatusLabels.Resolve(z.CleanStatus)}")
                 .ToList() ?? [];
-            ResultText = problems.Count > 0 ? string.Join(", ", problems) : "Terminé";
+            ResultText = problems.Count > 0 ? string.Join(", ", problems) : T("Terminé", "Done");
             item.Rooms = DescribeRooms(detail);
             var mapId = detail.PersistentMapId ?? item.Summary.PersistentMapId;
             _map = null;
             if (mapId is not null)
             {
                 try { _map = await maps.GetMapAsync(mapId); }
-                catch (Exception ex) when (!hub.IsShuttingDown) { hub.AddLog($"carte {mapId} du nettoyage: {ex.Message}"); }
+                catch (Exception ex) when (!hub.IsShuttingDown) { hub.AddLog(T($"carte {mapId} du nettoyage: {ex.Message}", $"map {mapId} of the clean: {ex.Message}")); }
             }
             // Reads inside "Trajet du nettoyage sélectionné sur la carte …". A clean can name a map
             // the account no longer has, deleted or replaced since; saying so beats printing a raw
             // id at the user, which is what the missing-map case used to do.
-            MapName = maps.NameOf(mapId) ?? (mapId is null ? "inconnue" : "supprimée");
+            MapName = maps.NameOf(mapId) ?? (mapId is null ? T("inconnue", "unknown") : T("supprimée", "deleted"));
             RebuildScene();
         }
         catch (OperationCanceledException) when (hub.IsShuttingDown) { }
-        catch (Exception ex) { hub.AddLog($"nettoyage: {ex.Message}"); }
+        catch (Exception ex) { hub.AddLog(T($"nettoyage: {ex.Message}", $"clean: {ex.Message}")); }
     }
 
     public void RebuildScene()

@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Core;
 
 public enum RobotConnectionStatus { Disconnected, Connecting, Connected, Reconnecting }
@@ -68,7 +70,7 @@ public sealed class RobotSession : IAsyncDisposable
         var client = new RobotMqttClient(Serial, TopicPrefix, MqttEndpoint.FromCustomAuthorizerTls(iot));
         client.MessageReceived += OnMessage;
         client.PrefixChanged += p => TopicPrefix = p;
-        client.ListenerFailed += ex => _log?.Invoke($"message non traité : {ex.Message}");
+        client.ListenerFailed += ex => _log?.Invoke(T($"message non traité : {ex.Message}", $"message not handled: {ex.Message}"));
         client.Disconnected += reason => _ = OnDisconnectedAsync(client, reason);
 
         try
@@ -94,9 +96,9 @@ public sealed class RobotSession : IAsyncDisposable
     private void OnMessage(RobotMessage message)
     {
         try { MessageReceived?.Invoke(message); }
-        catch (Exception ex) { _log?.Invoke($"message {message.Topic} : {ex.Message}"); }
+        catch (Exception ex) { _log?.Invoke(T($"message {message.Topic} : {ex.Message}", $"message {message.Topic}: {ex.Message}")); }
         try { Tracker.Apply(message); }
-        catch (Exception ex) { _log?.Invoke($"message {message.Topic} ignoré : {ex.Message}"); }
+        catch (Exception ex) { _log?.Invoke(T($"message {message.Topic} ignoré : {ex.Message}", $"message {message.Topic} ignored: {ex.Message}")); }
     }
 
     private async Task OnDisconnectedAsync(RobotMqttClient source, string reason)
@@ -131,7 +133,7 @@ public sealed class RobotSession : IAsyncDisposable
             catch (DysonAuthException ex)
             {
                 _log?.Invoke($"reconnect refused, token no longer valid: {ex.Message}");
-                SetStatus(RobotConnectionStatus.Disconnected, "session expirée");
+                SetStatus(RobotConnectionStatus.Disconnected, T("session expirée", "session expired"));
                 AuthenticationLost?.Invoke(ex.Message);
                 return;
             }

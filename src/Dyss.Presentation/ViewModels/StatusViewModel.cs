@@ -4,13 +4,15 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dyss.Core;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Presentation.ViewModels;
 
 /// <summary>Consumable as shown by the app: percentage of life left, replace at 0.</summary>
 public sealed record ConsumableItem(string Name, int? Usage, bool? NeedsRefill)
 {
     public int Remaining => Usage is { } u ? Math.Clamp(100 - u, 0, 100) : 100;
-    public string Display => Usage is { } ? $"{Remaining} %" : NeedsRefill == true ? "à recharger" : "prêt";
+    public string Display => Usage is { } ? $"{Remaining} %" : NeedsRefill == true ? T("à recharger", "to refill") : T("prêt", "ready");
 }
 
 /// <summary>
@@ -33,8 +35,8 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
     [ObservableProperty] private bool _canPause;
     [ObservableProperty] private bool _canAbort;
     [ObservableProperty] private bool _dockBusy;
-    [ObservableProperty] private string _washDryLabel = "Laver et sécher";
-    [ObservableProperty] private string _pauseResumeLabel = "Pause";
+    [ObservableProperty] private string _washDryLabel = T("Laver et sécher", "Wash and dry");
+    [ObservableProperty] private string _pauseResumeLabel = T("Pause", "Pause");
     /// <summary>The clean is paused: the pause button resumes it, and shows it with its icon.</summary>
     [ObservableProperty] private bool _paused;
 
@@ -48,9 +50,9 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
         StateText = Describe(s.State);
         ActionText = s.FullCleanAction switch
         {
-            "VACUUMING" => "aspiration",
-            "VACUUMING_AND_MOPPING" => "aspiration et lavage",
-            "MOPPING" => "lavage",
+            "VACUUMING" => T("aspiration", "vacuuming"),
+            "VACUUMING_AND_MOPPING" => T("aspiration et lavage", "vacuuming and mopping"),
+            "MOPPING" => T("lavage", "mopping"),
             null or "NONE" => "",
             var a => a,
         };
@@ -59,10 +61,10 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
         DockBusy = s.IsDockBusy;
         WashDryLabel = s.DockState switch
         {
-            "WASHING_MOP" => "Arrêter le lavage",
-            "DRYING_MOP" => "Arrêter le séchage",
-            "COLLECTING_DUST" => "Arrêter le vidage",
-            _ => "Laver et sécher",
+            "WASHING_MOP" => T("Arrêter le lavage", "Stop washing"),
+            "DRYING_MOP" => T("Arrêter le séchage", "Stop drying"),
+            "COLLECTING_DUST" => T("Arrêter le vidage", "Stop emptying"),
+            _ => T("Laver et sécher", "Wash and dry"),
         };
         if (s.BatteryChargeLevel is { } b) Battery = b;
         LastUpdate = DateTime.Now.ToString("HH:mm:ss", CultureInfo.CurrentCulture);
@@ -70,12 +72,12 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
         var real = s.RealFaults.ToList();
         HasRealFault = real.Count > 0;
         FaultText = real.Count > 0
-            ? string.Join(", ", real.Select(f => $"faute {f.FaultCode}" + (f.FaultCode == "589" ? " (localisation impossible)" : "")))
+            ? string.Join(", ", real.Select(f => T($"faute {f.FaultCode}", $"fault {f.FaultCode}") + (f.FaultCode == "589" ? T(" (localisation impossible)", " (cannot locate itself)") : "")))
             : "";
 
         CanPause = s.IsCleaning; // true whether running or already paused: this is the pause/resume toggle
         Paused = s.IsPaused;
-        PauseResumeLabel = s.IsPaused ? "Reprendre" : "Pause";
+        PauseResumeLabel = s.IsPaused ? T("Reprendre", "Resume") : T("Pause", "Pause");
         CanAbort = s.IsCleaning || s.IsPaused || s.IsMapping;
 
         if (s.Consumables is { } cons)
@@ -110,17 +112,17 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
     {
         var text = DescribeDock(_dockState);
         if (_dockState == "DRYING_MOP" && _dryingRemaining is { } r)
-            text += $", {FormatRemaining(r)} restantes";
+            text += T($", {FormatRemaining(r)} restantes", $", {FormatRemaining(r)} left");
         DockText = text;
     }
 
     [RelayCommand]
     private Task PauseResumeAsync() => hub.Session?.Tracker.State?.IsPaused == true
-        ? hub.RunAsync("reprise", c => c.ResumeAsync(hub.Session!.Tracker.State?.CurrentCleaningMode ?? "zoneConfigured"))
-        : hub.RunAsync("pause", c => c.PauseAsync());
+        ? hub.RunAsync(T("reprise", "resume"), c => c.ResumeAsync(hub.Session!.Tracker.State?.CurrentCleaningMode ?? "zoneConfigured"))
+        : hub.RunAsync(T("pause", "pause"), c => c.PauseAsync());
 
     [RelayCommand]
-    private Task AbortAsync() => hub.RunAsync("retour à la station", async c =>
+    private Task AbortAsync() => hub.RunAsync(T("retour à la station", "return to the dock"), async c =>
     {
         var st = hub.Session!.Tracker.State;
         await c.AbortAsync(st?.State ?? "FULL_CLEAN_RUNNING", st?.CurrentCleaningMode ?? "zoneConfigured");
@@ -128,31 +130,31 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
 
     [RelayCommand]
     private Task WashDryAsync() => DockBusy
-        ? hub.RunAsync("arrêt de l'action de la station", c => c.StopDockActionAsync(_dockState))
-        : hub.RunAsync("laver et sécher", c => c.WashAndDryMopAsync());
+        ? hub.RunAsync(T("arrêt de l'action de la station", "stopping the dock's action"), c => c.StopDockActionAsync(_dockState))
+        : hub.RunAsync(T("laver et sécher", "wash and dry"), c => c.WashAndDryMopAsync());
 
-    [RelayCommand] private Task CollectDustAsync() => hub.RunAsync("vidage du collecteur", c => c.CollectDustAsync());
+    [RelayCommand] private Task CollectDustAsync() => hub.RunAsync(T("vidage du collecteur", "emptying the bin"), c => c.CollectDustAsync());
 
     // ---- Text helpers ---------------------------------------------------------
 
     private static string Describe(string? state) => state switch
     {
-        "INACTIVE_CHARGING" => "En charge sur la station",
-        "INACTIVE_CHARGED" => "Chargé, sur la station",
-        "INACTIVE_DISCHARGING" => "Au repos, hors station",
-        "FULL_CLEAN_INITIATED" or "FULL_CLEAN_STARTING" => "Démarrage",
-        "FULL_CLEAN_DISCOVERING" => "Localisation",
-        "FULL_CLEAN_RUNNING" => "Nettoyage en cours",
-        "FULL_CLEAN_PAUSED" => "En pause",
-        "FULL_CLEAN_PAUSING" => "Mise en pause",
-        "FULL_CLEAN_RESUMING" => "Reprise",
-        "FULL_CLEAN_CHARGING" => "Recharge avant de continuer",
-        "FULL_CLEAN_NEEDS_CHARGE" => "Batterie insuffisante",
-        "FULL_CLEAN_FINISHED" => "Nettoyage terminé",
-        "FULL_CLEAN_ABORTED" or "ABORTED" => "Nettoyage abandonné",
-        "FULL_CLEAN_ABANDONED" => "Nettoyage interrompu",
-        "MAPPING_RUNNING" => "Cartographie en cours",
-        "MAPPING_FINISHED" => "Cartographie terminée",
+        "INACTIVE_CHARGING" => T("En charge sur la station", "Charging on the dock"),
+        "INACTIVE_CHARGED" => T("Chargé, sur la station", "Charged, on the dock"),
+        "INACTIVE_DISCHARGING" => T("Au repos, hors station", "Idle, off the dock"),
+        "FULL_CLEAN_INITIATED" or "FULL_CLEAN_STARTING" => T("Démarrage", "Starting"),
+        "FULL_CLEAN_DISCOVERING" => T("Localisation", "Locating itself"),
+        "FULL_CLEAN_RUNNING" => T("Nettoyage en cours", "Cleaning"),
+        "FULL_CLEAN_PAUSED" => T("En pause", "Paused"),
+        "FULL_CLEAN_PAUSING" => T("Mise en pause", "Pausing"),
+        "FULL_CLEAN_RESUMING" => T("Reprise", "Resuming"),
+        "FULL_CLEAN_CHARGING" => T("Recharge avant de continuer", "Recharging before carrying on"),
+        "FULL_CLEAN_NEEDS_CHARGE" => T("Batterie insuffisante", "Battery too low"),
+        "FULL_CLEAN_FINISHED" => T("Nettoyage terminé", "Clean finished"),
+        "FULL_CLEAN_ABORTED" or "ABORTED" => T("Nettoyage abandonné", "Clean abandoned"),
+        "FULL_CLEAN_ABANDONED" => T("Nettoyage interrompu", "Clean interrupted"),
+        "MAPPING_RUNNING" => T("Cartographie en cours", "Mapping"),
+        "MAPPING_FINISHED" => T("Cartographie terminée", "Mapping finished"),
         null => "",
         var s => s,
     };
@@ -160,21 +162,21 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
     private static string DescribeDock(string? dock) => dock switch
     {
         "IDLE" or null => "",
-        "WASHING_MOP" => "Station : lavage du rouleau humide",
-        "DRYING_MOP" => "Station : séchage du rouleau humide",
-        "COLLECTING_DUST" => "Station : vidage du collecteur",
-        var d => $"Station : {d}",
+        "WASHING_MOP" => T("Station : lavage du rouleau humide", "Dock: washing the mop roller"),
+        "DRYING_MOP" => T("Station : séchage du rouleau humide", "Dock: drying the mop roller"),
+        "COLLECTING_DUST" => T("Station : vidage du collecteur", "Dock: emptying the bin"),
+        var d => T($"Station : {d}", $"Dock: {d}"),
     };
 
     private static string DescribeConsumable(string type) => type switch
     {
-        "brushBar" => "Brosse",
-        "mopRoller" => "Rouleau humide",
-        "sideBrushes" => "Brosses latérales",
-        "robotFilter" => "Filtre du robot",
-        "dockFilter" => "Filtre de la station",
-        "ioniserCartridge" => "Cartouche ioniseur",
-        "cleaningSolution" => "Produit de nettoyage",
+        "brushBar" => T("Brosse", "Brush bar"),
+        "mopRoller" => T("Rouleau humide", "Mop roller"),
+        "sideBrushes" => T("Brosses latérales", "Side brushes"),
+        "robotFilter" => T("Filtre du robot", "Robot filter"),
+        "dockFilter" => T("Filtre de la station", "Dock filter"),
+        "ioniserCartridge" => T("Cartouche ioniseur", "Ioniser cartridge"),
+        "cleaningSolution" => T("Produit de nettoyage", "Cleaning solution"),
         var t => t,
     };
 

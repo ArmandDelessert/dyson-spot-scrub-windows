@@ -47,10 +47,10 @@
                 <StackPanel Visibility="{x:Bind IsExpanded, Mode=OneWay}" Spacing="6" Margin="0,4,0,0">
                     <ComboBox ItemsSource="{x:Bind vm:ZoneItem.CleanTypeOptions}" SelectedItem="{x:Bind SelectedCleanType, Mode=TwoWay}"
                               ItemTemplate="{StaticResource CleanTypeItem}" HorizontalAlignment="Stretch"
-                              AutomationProperties.Name="Type de nettoyage"/>
+                              AutomationProperties.Name='{local:Tr Fr="Type de nettoyage", En="Cleaning type"}'/>
                     <ComboBox ItemsSource="{x:Bind vm:ZoneItem.StrategyOptions}" SelectedItem="{x:Bind SelectedStrategy, Mode=TwoWay}"
                               ItemTemplate="{StaticResource StrategyItem}" HorizontalAlignment="Stretch"
-                              Visibility="{x:Bind HasVacuum, Mode=OneWay}" AutomationProperties.Name="Mode d'aspiration"/>
+                              Visibility="{x:Bind HasVacuum, Mode=OneWay}" AutomationProperties.Name='{local:Tr Fr="Mode d&apos;aspiration", En="Suction mode"}'/>
                     <Grid ColumnSpacing="8" Visibility="{x:Bind HasMop, Mode=OneWay}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition/>
@@ -58,10 +58,10 @@
                         </Grid.ColumnDefinitions>
                         <ComboBox ItemsSource="{x:Bind vm:ZoneItem.WaterLevelOptions}" SelectedItem="{x:Bind SelectedWaterLevel, Mode=TwoWay}"
                                   ItemTemplate="{StaticResource WaterLevelItem}" HorizontalAlignment="Stretch"
-                                  AutomationProperties.Name="Niveau d'hydratation"/>
+                                  AutomationProperties.Name='{local:Tr Fr="Niveau d&apos;hydratation", En="Water level"}'/>
                         <ComboBox Grid.Column="1" ItemsSource="{x:Bind vm:ZoneItem.MopPassesOptions}" SelectedItem="{x:Bind SelectedMopPasses, Mode=TwoWay}"
                                   ItemTemplate="{StaticResource MopPassesItem}" HorizontalAlignment="Stretch"
-                                  AutomationProperties.Name="Répétitions de lavage"/>
+                                  AutomationProperties.Name='{local:Tr Fr="Répétitions de lavage", En="Mopping passes"}'/>
                     </Grid>
                 </StackPanel>
             </StackPanel>

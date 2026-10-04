@@ -5,6 +5,8 @@ using Dyss.Presentation.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.App;
 
 /// <summary>Small conversions for compiled bindings: x:Bind calls functions where classic bindings needed value converters.</summary>
@@ -30,11 +32,11 @@ internal static class Ui
 
     public static string Area(double squareMetres) => string.Create(CultureInfo.CurrentCulture, $"({squareMetres:F1} m²)");
 
-    public static string Updated(string time) => string.IsNullOrEmpty(time) ? "" : $"mis à jour {time}";
+    public static string Updated(string time) => string.IsNullOrEmpty(time) ? "" : T($"mis à jour {time}", $"updated {time}");
 
-    public static string SettingsOf(string room) => $"Réglages de {room}";
+    public static string SettingsOf(string room) => T($"Réglages de {room}", $"Settings of {room}");
 
-    public static string ScheduleSwitch(string time) => $"Horaire de {time} activé";
+    public static string ScheduleSwitch(string time) => T($"Horaire de {time} activé", $"{time} schedule on");
 
     /// <summary>Only another map than the active one can be made active.</summary>
     public static bool CanSetActive(MapItem? map) => map is { Metadata.IsCurrentMap: false };

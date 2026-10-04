@@ -1,19 +1,20 @@
 <UserControl x:Class="Dyss.App.Views.ConnectionWaitView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:Dyss.App">
     <Border Style="{StaticResource Card}" Width="480" Padding="28" Margin="16,48" HorizontalAlignment="Center" VerticalAlignment="Top">
         <StackPanel Spacing="12">
-            <TextBlock Text="Impossible de joindre le cloud Dyson" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBlock Text='{local:Tr Fr="Impossible de joindre le cloud Dyson", En="Cannot reach the Dyson cloud"}' Style="{StaticResource SubtitleTextBlockStyle}"/>
             <TextBlock x:Name="Reason" Style="{StaticResource Muted}"/>
             <TextBlock TextWrapping="Wrap"
-                       Text="Le réseau n'est peut-être pas encore connecté. L'application réessaie d'elle-même, et tout de suite dès que Windows signale le retour du réseau."/>
+                       Text='{local:Tr Fr="Le réseau n&apos;est peut-être pas encore connecté. L&apos;application réessaie d&apos;elle-même, et tout de suite dès que Windows signale le retour du réseau.", En="The network may not be connected yet. The application keeps trying by itself, and right away as soon as Windows reports the network is back."}'/>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <ProgressRing IsActive="True" Width="16" Height="16"/>
                 <TextBlock x:Name="Countdown" Style="{StaticResource Muted}" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
-                <Button Content="Quitter" Click="Quit_Click" MinWidth="100"/>
-                <Button Content="Réessayer maintenant" Click="Retry_Click" Style="{StaticResource AccentButtonStyle}" MinWidth="100"/>
+                <Button Content='{local:Tr Fr="Quitter", En="Quit"}' Click="Quit_Click" MinWidth="100"/>
+                <Button Content='{local:Tr Fr="Réessayer maintenant", En="Try again now"}' Click="Retry_Click" Style="{StaticResource AccentButtonStyle}" MinWidth="100"/>
             </StackPanel>
         </StackPanel>
     </Border>

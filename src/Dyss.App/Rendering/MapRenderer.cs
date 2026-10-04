@@ -10,6 +10,8 @@ using Windows.Graphics.DirectX;
 using Windows.UI;
 using CorePoint = Dyss.Core.Point;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.App.Rendering;
 
 /// <summary>
@@ -43,7 +45,7 @@ internal static class MapRenderer
         ds.Clear(palette.Background.ToColor());
         if (worldToScreen is not { } m)
         {
-            DrawCentredText(ds, "Aucune carte", size, palette.LabelText.ToColor());
+            DrawCentredText(ds, T("Aucune carte", "No map"), size, palette.LabelText.ToColor());
             return;
         }
 

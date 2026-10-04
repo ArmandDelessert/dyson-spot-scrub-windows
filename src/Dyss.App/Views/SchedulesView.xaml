@@ -13,16 +13,16 @@
         <StackPanel Spacing="8" MaxWidth="900" HorizontalAlignment="Left">
             <TextBlock Text="{x:Bind ViewModel.Heading, Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}"/>
             <TextBlock Style="{StaticResource Muted}"
-                       Text="Les horaires de la carte active, tels que le cloud Dyson les garde : ceux créés ici comme ceux de l'application mobile. Le robot n'exécute que ceux de la carte active ; ceux des autres cartes réapparaissent quand elle le redevient."/>
+                       Text='{local:Tr Fr="Les horaires de la carte active, tels que le cloud Dyson les garde : ceux créés ici comme ceux de l&apos;application mobile. Le robot n&apos;exécute que ceux de la carte active ; ceux des autres cartes réapparaissent quand elle le redevient.", En="The active map&apos;s schedules, as the Dyson cloud keeps them: those created here as well as those from the mobile app. The robot only runs the active map&apos;s schedules; another map&apos;s come back when it is active again."}'/>
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <Button Command="{x:Bind ViewModel.NewCommand}" Style="{StaticResource AccentButtonStyle}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE710;" FontSize="14"/>
-                        <TextBlock Text="Nouvel horaire…"/>
+                        <TextBlock Text='{local:Tr Fr="Nouvel horaire…", En="New schedule…"}'/>
                     </StackPanel>
                 </Button>
                 <TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center"
-                           Text="Un horaire planifie un nettoyage de la carte active ; le robot doit être connecté."/>
+                           Text='{local:Tr Fr="Un horaire planifie un nettoyage de la carte active ; le robot doit être connecté.", En="A schedule plans a clean of the active map; the robot must be connected."}'/>
             </StackPanel>
             <TextBlock Text="{x:Bind ViewModel.EmptyText, Mode=OneWay}" Style="{StaticResource Muted}"
                        Visibility="{x:Bind local:Ui.IfAny(ViewModel.EmptyText), Mode=OneWay}"/>
@@ -30,7 +30,7 @@
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <ItemsControl ItemsSource="{x:Bind ViewModel.Items}" IsTabStop="False" MaxWidth="900" HorizontalAlignment="Left"
-                          AutomationProperties.Name="Horaires de la carte active">
+                          AutomationProperties.Name='{local:Tr Fr="Horaires de la carte active", En="Schedules of the active map"}'>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:ScheduleItem">
                         <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="16,12">
@@ -56,8 +56,8 @@
                                                Visibility="{x:Bind local:Ui.IfAny(OverlapText)}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
-                                    <Button Content="Modifier…" Click="Edit_Click" Tag="{x:Bind}"/>
-                                    <Button Content="Supprimer…" Click="Delete_Click" Tag="{x:Bind}"/>
+                                    <Button Content='{local:Tr Fr="Modifier…", En="Edit…"}' Click="Edit_Click" Tag="{x:Bind}"/>
+                                    <Button Content='{local:Tr Fr="Supprimer…", En="Delete…"}' Click="Delete_Click" Tag="{x:Bind}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>

@@ -4,24 +4,24 @@
                xmlns:local="using:Dyss.App"
                xmlns:vm="using:Dyss.Presentation.ViewModels"
                Title="{x:Bind ViewModel.Title}"
-               PrimaryButtonText="Enregistrer" CloseButtonText="Annuler" DefaultButton="Primary"
+               PrimaryButtonText='{local:Tr Fr="Enregistrer", En="Save"}' CloseButtonText='{local:Tr Fr="Annuler", En="Cancel"}' DefaultButton="Primary"
                IsPrimaryButtonEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}">
     <StackPanel Spacing="12" Width="560">
         <TextBlock Text="{x:Bind ViewModel.MapText}" Style="{StaticResource Muted}"/>
 
         <!-- Start time and days -->
         <StackPanel Spacing="6">
-            <TextBlock Text="Heure de début"/>
+            <TextBlock Text='{local:Tr Fr="Heure de début", En="Start time"}'/>
             <StackPanel Orientation="Horizontal" Spacing="6">
-                <ComboBox x:Name="HourBox" Width="90" SelectedIndex="{x:Bind ViewModel.Hour, Mode=TwoWay}" AutomationProperties.Name="Heure"/>
+                <ComboBox x:Name="HourBox" Width="90" SelectedIndex="{x:Bind ViewModel.Hour, Mode=TwoWay}" AutomationProperties.Name='{local:Tr Fr="Heure", En="Hour"}'/>
                 <TextBlock Text=":" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                <ComboBox x:Name="MinuteBox" Width="90" SelectedIndex="{x:Bind ViewModel.Minute, Mode=TwoWay}" AutomationProperties.Name="Minutes"/>
+                <ComboBox x:Name="MinuteBox" Width="90" SelectedIndex="{x:Bind ViewModel.Minute, Mode=TwoWay}" AutomationProperties.Name='{local:Tr Fr="Minutes", En="Minutes"}'/>
             </StackPanel>
         </StackPanel>
 
         <StackPanel Spacing="6">
-            <TextBlock Text="Jours"/>
-            <ItemsControl ItemsSource="{x:Bind ViewModel.Days}" IsTabStop="False" AutomationProperties.Name="Jours de la semaine">
+            <TextBlock Text='{local:Tr Fr="Jours", En="Days"}'/>
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Days}" IsTabStop="False" AutomationProperties.Name='{local:Tr Fr="Jours de la semaine", En="Days of the week"}'>
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6"/></ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
@@ -39,12 +39,12 @@
                 <ColumnDefinition/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="Pièces, dans l'ordre de passage. Cochez-les, puis réglez chacune comme pour un nettoyage lancé à la main."
+            <TextBlock Text='{local:Tr Fr="Pièces, dans l&apos;ordre de passage. Cochez-les, puis réglez chacune comme pour un nettoyage lancé à la main.", En="Rooms, in cleaning order. Tick them, then set each one as for a clean started by hand."}'
                        TextWrapping="Wrap" VerticalAlignment="Bottom"/>
-            <Button Grid.Column="1" Content="Tout décocher" Command="{x:Bind ViewModel.ClearRoomsCommand}" VerticalAlignment="Bottom"/>
+            <Button Grid.Column="1" Content='{local:Tr Fr="Tout décocher", En="Untick all"}' Command="{x:Bind ViewModel.ClearRoomsCommand}" VerticalAlignment="Bottom"/>
         </Grid>
         <ItemsControl ItemsSource="{x:Bind ViewModel.Rooms}" ItemTemplate="{StaticResource RoomSettingsRow}" IsTabStop="False"
-                      AutomationProperties.Name="Pièces de la carte"/>
+                      AutomationProperties.Name='{local:Tr Fr="Pièces de la carte", En="Rooms of the map"}'/>
 
         <!-- Why saving is not possible yet, and what the schedule will take. -->
         <StackPanel Spacing="2">

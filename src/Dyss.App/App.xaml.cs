@@ -7,6 +7,8 @@ using Dyss.Presentation.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.App;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
@@ -20,6 +22,13 @@ public partial class App : Application
 
     public App()
     {
+        // The language comes first: the XAML resources loaded just below already carry texts.
+        Translation.Current = Option(Environment.GetCommandLineArgs(), "--lang") switch
+        {
+            "fr" => AppLanguage.French,
+            "en" => AppLanguage.English,
+            _ => DisplaySettings.Load().ChosenLanguage,
+        };
         InitializeComponent();
         // Last resort for anything a command or event handler lets escape: tell the user and keep
         // the window open rather than vanishing without a word. Real bugs still surface — as a
@@ -30,7 +39,7 @@ public partial class App : Application
             Console.Error.WriteLine(e.Exception);
             ErrorLog.Write("interface", e.Exception);
             e.Handled = true;
-            _ = ShowErrorAsync("Erreur inattendue", e.Exception.Message);
+            _ = ShowErrorAsync(T("Erreur inattendue", "Unexpected error"), e.Exception.Message);
         };
         // Off the UI thread nothing can be saved any more — the process is going down — but the
         // log at least says why.
@@ -59,7 +68,7 @@ public partial class App : Application
             // is what an unreachable network used to do.
             Console.Error.WriteLine(ex);
             ErrorLog.Write("démarrage", ex);
-            if (await ShowErrorAsync("DySS Cockpit", $"L'application n'a pas pu démarrer : {ex.Message}")) _window?.Close();
+            if (await ShowErrorAsync("DySS Cockpit", T($"L'application n'a pas pu démarrer : {ex.Message}", $"The application could not start: {ex.Message}"))) _window?.Close();
             else Exit();
         }
     }
@@ -87,7 +96,7 @@ public partial class App : Application
             try { Environment.ExitCode = await ExportMapAsync(exportPath, Option(args, "--serial"), Option(args, "--map-id"), theme); }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Export impossible : {ex.Message}");
+                Console.Error.WriteLine(T($"Export impossible : {ex.Message}", $"Export failed: {ex.Message}"));
                 Environment.ExitCode = 1;
             }
             Exit();
@@ -154,7 +163,7 @@ public partial class App : Application
             try
             {
                 if (await ctx.LoadDevicesAsync() is not null) return ctx;
-                await ShowErrorAsync("DySS Cockpit", "Aucun appareil sur ce compte.");
+                await ShowErrorAsync("DySS Cockpit", T("Aucun appareil sur ce compte.", "No device on this account."));
                 await ctx.DisposeAsync();
                 return null;
             }
@@ -204,15 +213,15 @@ public partial class App : Application
     private static async Task<int> ExportMapAsync(string path, string? serial, string? mapId, ElementTheme theme)
     {
         var ctx = RobotContext.FromStoredSession();
-        if (ctx is null) { Console.Error.WriteLine("Aucune session. Lancez l'application et connectez-vous d'abord."); return 2; }
+        if (ctx is null) { Console.Error.WriteLine(T("Aucune session. Lancez l'application et connectez-vous d'abord.", "No session. Start the application and log in first.")); return 2; }
         await using var _ = ctx;
         var robot = await ctx.LoadDevicesAsync(serial);
-        if (robot is null) { Console.Error.WriteLine("Robot introuvable."); return 2; }
+        if (robot is null) { Console.Error.WriteLine(T("Robot introuvable.", "Robot not found.")); return 2; }
         var s = robot.SerialNumber;
 
         var maps = await ctx.Api.GetMapMetadataAsync(s);
         var current = mapId is not null
-            ? maps.FirstOrDefault(m => m.Id == mapId) ?? throw new InvalidOperationException($"Carte {mapId} introuvable.")
+            ? maps.FirstOrDefault(m => m.Id == mapId) ?? throw new InvalidOperationException(T($"Carte {mapId} introuvable.", $"Map {mapId} not found."))
             : maps.FirstOrDefault(m => m.IsCurrentMap) ?? maps.First();
         var map = await ctx.Api.GetPersistentMapAsync(s, current.Id);
         // The occupancy grid and the live robot position/path only ever describe the currently
@@ -234,7 +243,7 @@ public partial class App : Application
             Dock = map.DockLocation, Robot = robotPos, Path = cleanPath, Obstacles = obstacles, DirtSpots = dirt,
         };
         await MapImage.ExportPngAsync(scene, 1200, 1400, path, theme == ElementTheme.Light ? MapPalette.Light : MapPalette.Dark);
-        Console.WriteLine($"Carte {current.Name} exportée vers {path}");
+        Console.WriteLine(T($"Carte {current.Name} exportée vers {path}", $"Map {current.Name} exported to {path}"));
         return 0;
     }
 

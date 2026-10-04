@@ -3,6 +3,8 @@ using Dyss.Presentation.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.App.Views;
 
 /// <summary>
@@ -17,7 +19,7 @@ public sealed partial class RoomNameDialog : ContentDialog
     public RoomNameDialog(ManagedRoom room, IReadOnlyList<RoomTypeOption> types)
     {
         InitializeComponent();
-        Intro.Text = $"Pièce « {room.DisplayName} », {room.AreaText}.";
+        Intro.Text = T($"Pièce « {room.DisplayName} », {room.AreaText}.", $"Room “{room.DisplayName}”, {room.AreaText}.");
         TypeBox.ItemsSource = types;
         TypeBox.SelectedItem = types.FirstOrDefault(t => t.Type == room.Zone.Type) ?? types[0];
         NameBox.Text = room.Zone.Name ?? room.DisplayName;

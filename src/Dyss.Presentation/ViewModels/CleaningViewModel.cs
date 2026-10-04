@@ -6,6 +6,8 @@ using Dyss.Presentation.Map;
 using Dyss.Presentation.Services;
 using Dyss.Core;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Presentation.ViewModels;
 
 /// <summary>
@@ -114,7 +116,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
                 ?? Maps.FirstOrDefault();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { _hub.AddLog($"cartes: {ex.Message}"); }
+        catch (Exception ex) { _hub.AddLog(T($"cartes: {ex.Message}", $"maps: {ex.Message}")); }
     }
 
     partial void OnSelectedMapChanged(MapItem? value)
@@ -227,7 +229,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             RebuildScene();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { _hub.AddLog($"carte {mapId}: {ex.Message}"); }
+        catch (Exception ex) { _hub.AddLog(T($"carte {mapId}: {ex.Message}", $"map {mapId}: {ex.Message}")); }
     }
 
     public void RebuildScene()
@@ -291,12 +293,12 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
                 // Once it is on the wire a newer edit no longer cancels it: that edit queues its own
                 // PUT behind this one, and only shutting down aborts the request.
                 await _hub.Api.UpdateMapZonesAsync(_hub.Serial, map.Id, zones.Select(z => z.ToMetadata()).ToList(), _hub.Ct);
-                _hub.AddLog("réglages des pièces enregistrés");
+                _hub.AddLog(T("réglages des pièces enregistrés", "room settings saved"));
             }
             finally { _persistZonesLock.Release(); }
         }
         catch (OperationCanceledException) when (pending.IsCancellationRequested) { } // superseded, or shutting down
-        catch (Exception ex) { _hub.AddLog($"réglages des pièces: {ex.Message}"); }
+        catch (Exception ex) { _hub.AddLog(T($"réglages des pièces: {ex.Message}", $"room settings: {ex.Message}")); }
     }
 
     // ---- Cleaning a zone drawn on the map --------------------------------------
@@ -312,9 +314,10 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _canStartSpot;
 
     public bool HasSpot => SpotCorners is not null;
-    public string DrawSpotLabel => DrawingSpot ? "Annuler le tracé" : HasSpot ? "Tracer une autre zone…" : "Tracer une zone…";
+    public string DrawSpotLabel => DrawingSpot ? T("Annuler le tracé", "Cancel drawing") : HasSpot ? T("Tracer une autre zone…", "Draw another zone…") : T("Tracer une zone…", "Draw a zone…");
     public string SpotSizeText => SpotCorners is { } c
-        ? string.Create(CultureInfo.CurrentCulture, $"Zone de {MapShapes.Sides(c).First:0.0} × {MapShapes.Sides(c).Second:0.0} m")
+        ? T(string.Create(CultureInfo.CurrentCulture, $"Zone de {MapShapes.Sides(c).First:0.0} × {MapShapes.Sides(c).Second:0.0} m"),
+            string.Create(CultureInfo.CurrentCulture, $"Zone of {MapShapes.Sides(c).First:0.0} × {MapShapes.Sides(c).Second:0.0} m"))
         : "";
 
     // The same four choices as a room, from the same lists.
@@ -376,7 +379,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         DrawingSpot = false;
         if (Math.Abs(a.X - b.X) < MinimumSpotSide - MapShapes.Tolerance || Math.Abs(a.Y - b.Y) < MinimumSpotSide - MapShapes.Tolerance)
         {
-            _hub.Message = "Zone trop étroite : il faut au moins 30 cm de côté.";
+            _hub.Message = T("Zone trop étroite : il faut au moins 30 cm de côté.", "Zone too narrow: each side needs at least 30 cm.");
             return;
         }
         _hub.Message = "";
@@ -393,7 +396,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         var (a, b) = (corners[0], corners[2]);
         if (Math.Abs(a.X - b.X) < MinimumSpotSide - MapShapes.Tolerance || Math.Abs(a.Y - b.Y) < MinimumSpotSide - MapShapes.Tolerance)
         {
-            _hub.Message = "Zone trop étroite : il faut au moins 30 cm de côté.";
+            _hub.Message = T("Zone trop étroite : il faut au moins 30 cm de côté.", "Zone too narrow: each side needs at least 30 cm.");
             SpotCorners = [.. SpotCorners];   // a new list, so the map drops its preview and shows the zone as it was
             return;
         }
@@ -407,11 +410,11 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         if (SpotCorners is not { } corners || SelectedMap is null) return Task.CompletedTask;
         if (!long.TryParse(SelectedMap.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapId))
         {
-            _hub.Message = $"Identifiant de carte inattendu : {SelectedMap.Id}";
+            _hub.Message = T($"Identifiant de carte inattendu : {SelectedMap.Id}", $"Unexpected map id: {SelectedMap.Id}");
             return Task.CompletedTask;
         }
         var settings = new RoomSettings(SpotCleanType.Value, SpotStrategy.Value, SpotWaterLevel.Value, SpotMopPass.Value);
-        return _hub.RunAsync($"nettoyage de la zone ({SpotSizeText.ToLower(CultureInfo.CurrentCulture)})",
+        return _hub.RunAsync(T($"nettoyage de la zone ({SpotSizeText.ToLower(CultureInfo.CurrentCulture)})", $"cleaning the zone ({SpotSizeText.ToLower(CultureInfo.CurrentCulture)})"),
             c => SpotCleanSequence.StartAsync(c, mapId, corners, settings, ct: _hub.Ct));
     }
 
@@ -422,15 +425,15 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     {
         var rooms = Zones.Where(z => z.Selected).OrderBy(z => z.Order)
             .Select(z => new RoomSelection(z.Id, z.Settings, z.Order)).ToList();
-        if (rooms.Count == 0 || SelectedMap is null) { _hub.Message = "Sélectionnez au moins une pièce."; return Task.CompletedTask; }
+        if (rooms.Count == 0 || SelectedMap is null) { _hub.Message = T("Sélectionnez au moins une pièce.", "Select at least one room."); return Task.CompletedTask; }
         // Outside RunAsync's try, so a non-numeric id must not throw: that would surface as an
         // unhandled exception in the command dispatch rather than a message.
         if (!long.TryParse(SelectedMap.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapId))
         {
-            _hub.Message = $"Identifiant de carte inattendu : {SelectedMap.Id}";
+            _hub.Message = T($"Identifiant de carte inattendu : {SelectedMap.Id}", $"Unexpected map id: {SelectedMap.Id}");
             return Task.CompletedTask;
         }
-        return _hub.RunAsync($"démarrage de {rooms.Count} pièce(s)", c => CleaningSequence.StartAsync(c, mapId, rooms));
+        return _hub.RunAsync(T($"démarrage de {rooms.Count} pièce(s)", $"starting {rooms.Count} room(s)"), c => CleaningSequence.StartAsync(c, mapId, rooms));
     }
 
     /// <summary>Makes the selected map the account's active map, as the phone app does from its map picker.</summary>
@@ -438,15 +441,15 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     private async Task SetActiveMapAsync()
     {
         if (SelectedMap is not { } map || map.Metadata.IsCurrentMap) return;
-        await _hub.RunAsync($"carte active : {map.Metadata.Name}", c => c.SetCurrentMapAsync(long.Parse(map.Id, CultureInfo.InvariantCulture)));
+        await _hub.RunAsync(T($"carte active : {map.Metadata.Name}", $"active map: {map.Metadata.Name}"), c => c.SetCurrentMapAsync(long.Parse(map.Id, CultureInfo.InvariantCulture)));
         await LoadMapsAsync();
     }
 
     [RelayCommand]
     private async Task ExportMapAsync()
     {
-        if (await _hub.Dialogs.SaveMapImageAsync(Scene, $"carte-{SelectedMap?.Metadata.Name ?? "robot"}.png") is { } path)
-            _hub.AddLog($"carte exportée vers {path}");
+        if (await _hub.Dialogs.SaveMapImageAsync(Scene, $"{T("carte", "map")}-{SelectedMap?.Metadata.Name ?? "robot"}.png") is { } path)
+            _hub.AddLog(T($"carte exportée vers {path}", $"map exported to {path}"));
     }
 
     /// <summary>

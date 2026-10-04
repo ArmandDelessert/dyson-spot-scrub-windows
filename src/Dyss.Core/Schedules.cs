@@ -4,6 +4,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
+using static Dyss.Core.Translation;
+
 namespace Dyss.Core;
 
 /// <summary>The days a schedule runs on: jdm "day", one bit per day, Monday first (confirmed on 2026-09-26).</summary>
@@ -274,10 +276,12 @@ public static class CleanDurationEstimate
     }
 }
 
-/// <summary>Short French names for the days, and a compact text for a set of them.</summary>
+/// <summary>Short names for the days in the current language, and a compact text for a set of them.</summary>
 public static class ScheduleDayLabels
 {
-    public static readonly IReadOnlyList<(ScheduleDays Day, string Letter, string Short, string Long)> All =
+    public static IReadOnlyList<(ScheduleDays Day, string Letter, string Short, string Long)> All => IsEnglish ? English : French;
+
+    private static readonly (ScheduleDays, string, string, string)[] French =
     [
         (ScheduleDays.Monday, "L", "lun.", "lundi"),
         (ScheduleDays.Tuesday, "M", "mar.", "mardi"),
@@ -288,13 +292,24 @@ public static class ScheduleDayLabels
         (ScheduleDays.Sunday, "D", "dim.", "dimanche"),
     ];
 
+    private static readonly (ScheduleDays, string, string, string)[] English =
+    [
+        (ScheduleDays.Monday, "M", "Mon", "Monday"),
+        (ScheduleDays.Tuesday, "T", "Tue", "Tuesday"),
+        (ScheduleDays.Wednesday, "W", "Wed", "Wednesday"),
+        (ScheduleDays.Thursday, "T", "Thu", "Thursday"),
+        (ScheduleDays.Friday, "F", "Fri", "Friday"),
+        (ScheduleDays.Saturday, "S", "Sat", "Saturday"),
+        (ScheduleDays.Sunday, "S", "Sun", "Sunday"),
+    ];
+
     public static string Describe(ScheduleDays days) => days switch
     {
-        ScheduleDays.None => "aucun jour",
-        ScheduleDays.All => "tous les jours",
-        ScheduleDays.Weekdays => "du lundi au vendredi",
-        ScheduleDays.Weekend => "le week-end",
-        _ when All.Count(d => days.HasFlag(d.Day)) == 1 => "le " + All.First(d => days.HasFlag(d.Day)).Long,
+        ScheduleDays.None => T("aucun jour", "no day"),
+        ScheduleDays.All => T("tous les jours", "every day"),
+        ScheduleDays.Weekdays => T("du lundi au vendredi", "Monday to Friday"),
+        ScheduleDays.Weekend => T("le week-end", "at weekends"),
+        _ when All.Count(d => days.HasFlag(d.Day)) == 1 => T("le ", "on ") + All.First(d => days.HasFlag(d.Day)).Long,
         _ => string.Join(", ", All.Where(d => days.HasFlag(d.Day)).Select(d => d.Short)),
     };
 
