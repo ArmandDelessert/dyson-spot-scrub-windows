@@ -213,3 +213,7 @@ Une compilation locale porte la version `0.0.0-dev`.
 - [UNsync3D/ha-dyson-spot-scrub](https://github.com/UNsync3D/ha-dyson-spot-scrub)
 - [libdyson-wg/appapi](https://github.com/libdyson-wg/appapi)
 - [Diagnostic des connexions AWS IoT](https://docs.aws.amazon.com/iot/latest/developerguide/diagnosing-connectivity-issues.html)
+
+## Licence
+
+[MIT](LICENSE)
