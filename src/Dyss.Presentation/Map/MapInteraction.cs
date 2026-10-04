@@ -541,8 +541,18 @@ public sealed class MapInteraction(TimeProvider? time = null)
     {
         var isTap = totalTranslation.Length < 6 && Math.Abs(totalScale - 1) < 0.03;
         if (_shapeGrip is not null) ReleaseShape(drop: !isTap);
-        if (isTap) HandleClick(origin, IsDoubleClick(origin));
+        if (isTap && ManipulationTaps) HandleClick(origin, IsDoubleClick(origin));
     }
+
+    /// <summary>
+    /// Whether a manipulation that hardly moved counts as a tap, for a UI that only reports taps
+    /// that way (WPF). One that reports them apart, through <see cref="Tap"/>, turns this off so a
+    /// tap is never counted twice — which would read as a double tap.
+    /// </summary>
+    public bool ManipulationTaps { get; set; } = true;
+
+    /// <summary>A tap, from a UI that reports taps apart from manipulations (WinUI).</summary>
+    public void Tap(Vec2 position) => HandleClick(position, IsDoubleClick(position));
 
     // ---- Clicks and taps --------------------------------------------------------------
 

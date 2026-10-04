@@ -1,0 +1,43 @@
+<UserControl x:Class="Dyss.App.Views.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:Dyss.App">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Border Style="{StaticResource Card}" Width="440" Padding="28" Margin="16,48" HorizontalAlignment="Center" VerticalAlignment="Top">
+            <StackPanel Spacing="12">
+                <TextBlock Text="Connexion au compte MyDyson" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                <TextBlock Style="{StaticResource Muted}"
+                           Text="Pour le robot Dyson Spot+Scrub AI. Connexion avec votre compte MyDyson : un code à usage unique vous sera envoyé par e-mail."/>
+
+                <TextBox Header="E-mail" InputScope="EmailSmtpAddress"
+                         Text="{x:Bind ViewModel.Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         IsEnabled="{x:Bind local:Ui.Not(ViewModel.CodeSent), Mode=OneWay}"/>
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Header="Pays (ISO)" Text="{x:Bind ViewModel.Country, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsEnabled="{x:Bind local:Ui.Not(ViewModel.CodeSent), Mode=OneWay}"/>
+                    <TextBox Grid.Column="1" Header="Culture" Text="{x:Bind ViewModel.Culture, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsEnabled="{x:Bind local:Ui.Not(ViewModel.CodeSent), Mode=OneWay}"/>
+                </Grid>
+
+                <Button Content="Envoyer le code" Command="{x:Bind ViewModel.SendCodeCommand}" Style="{StaticResource AccentButtonStyle}"
+                        Visibility="{x:Bind local:Ui.Unless(ViewModel.CodeSent), Mode=OneWay}"/>
+
+                <StackPanel Spacing="12" Visibility="{x:Bind ViewModel.CodeSent, Mode=OneWay}">
+                    <PasswordBox x:Name="Password" Header="Mot de passe"/>
+                    <TextBox Header="Code reçu par e-mail" InputScope="Number"
+                             Text="{x:Bind ViewModel.OtpCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button Content="Se connecter" Click="Verify_Click" Style="{StaticResource AccentButtonStyle}"
+                            IsEnabled="{x:Bind local:Ui.Not(ViewModel.Busy), Mode=OneWay}"/>
+                </StackPanel>
+
+                <InfoBar Severity="Error" IsClosable="False" Message="{x:Bind ViewModel.Message, Mode=OneWay}"
+                         IsOpen="{x:Bind local:Ui.HasText(ViewModel.Message), Mode=OneWay}"/>
+                <ProgressBar IsIndeterminate="True" Visibility="{x:Bind ViewModel.Busy, Mode=OneWay}"/>
+            </StackPanel>
+        </Border>
+    </ScrollViewer>
+</UserControl>

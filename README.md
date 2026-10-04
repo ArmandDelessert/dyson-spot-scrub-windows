@@ -24,7 +24,7 @@ Le robot sur le site de Dyson : [présentation](https://www.dyson.ch/fr_ch/aspir
 
 ## Fonctionnalités
 
-L'application parle au robot comme l'application mobile MyDyson, avec le même compte. Tout ce qui est modifié ici se retrouve sur le téléphone, et inversement. Elle suit le thème clair ou sombre de Windows.
+L'application parle au robot comme l'application mobile MyDyson, avec le même compte. Tout ce qui est modifié ici se retrouve sur le téléphone, et inversement. Elle a l'apparence de Windows 11 (Mica, contrôles Fluent), suit son thème clair ou sombre, et range ses pages dans un volet de navigation : tableau de bord, historique, horaires, réglages, journal et gestion des cartes.
 
 ### Tableau de bord
 
@@ -41,7 +41,7 @@ L'application parle au robot comme l'application mobile MyDyson, avec le même c
 - Le robot et la station dessinés vus de dessus, à l'échelle, et animés selon ce qu'ils font : lumière verte et brosses qui tournent pendant l'aspiration, rouleau qui défile pendant le lavage ; à la station, charge, vidage du collecteur, remplissage d'eau propre, lavage et séchage du rouleau.
 - Le tracé du nettoyage en cours, en temps réel : en gris là où le robot ne fait que se déplacer, dans la couleur du type de nettoyage là où il travaille. Comme sur le téléphone, il quitte la carte une fois le robot revenu et la station a fini son travail ; le nettoyage passe alors dans l'historique.
 - Zoom à la molette ou au pincement, déplacement en glissant, à la souris comme au doigt ; export en PNG.
-- Un menu « Affichage », propre à cette fenêtre : masquer les meubles, masquer les déplacements sans nettoyage, masquer le bouton d'export, lisser les déplacements du robot.
+- Un menu « Affichage », propre à cet ordinateur : masquer les meubles, masquer les déplacements sans nettoyage, masquer le bouton d'export, lisser les déplacements du robot.
 
 Une pièce porte partout son nom sur le compte, là où l'application mobile n'affiche que son type (« Salon » au lieu de « Salon12 »).
 
@@ -55,7 +55,7 @@ Les nettoyages planifiés de la carte active, triés par jour de la semaine puis
 
 ### Gérer les cartes
 
-Une fenêtre dédiée pour :
+Une page dédiée, d'où le bouton retour de la barre de titre ramène à la précédente, pour :
 
 - **les cartes** : définir la carte active, renommer, supprimer, lancer une cartographie, tourner la carte par quarts de tour ;
 - **les pièces** : renommer (l'un des trente types du robot ou un nom libre), diviser d'un trait tracé sur la carte, fusionner plusieurs pièces ;
@@ -74,7 +74,7 @@ La connexion se rétablit seule après une coupure de réseau ou une mise en vei
 ## Installation
 
 1. Télécharger le zip de la [dernière version](https://github.com/ArmandDelessert/dyson-spot-scrub-windows/releases/latest), pour processeur x64 ou ARM64.
-2. Le décompresser et lancer `DyssCockpit.exe`. Rien d'autre à installer : .NET est embarqué.
+2. Le décompresser et lancer `DyssCockpit.exe`, dans le dossier. Rien d'autre à installer : .NET et le Windows App SDK sont embarqués.
 3. Se connecter avec son compte MyDyson (e-mail, mot de passe, puis code reçu par e-mail). Le robot doit déjà être enregistré dans l'application mobile.
 
 L'exécutable n'est pas signé : au premier lancement, Windows SmartScreen demande une confirmation (« Informations complémentaires », puis « Exécuter quand même »).
@@ -149,13 +149,13 @@ dotnet run --project src/Dyss.App
 |---|---|
 | `src/Dyss.Core` | Bibliothèque sans interface : client REST (`DysonCloudClient`), client MQTT (`RobotMqttClient`), session longue durée avec reconnexion (`RobotSession`), modèle d'état des deux dialectes, cartes et grille d'occupation, séquences de commandes (`CleaningSequence`, `SpotCleanSequence`), horaires, session chiffrée par DPAPI (`SessionStore`). |
 | `src/Dyss.Presentation` | Tout ce que montrent les fenêtres, sans dépendre d'un framework d'interface : un modèle de vue par onglet, qui partagent un `RobotHub` (session, journal, envoi de commandes, dialogues) et un `MapCatalog` (cartes et géométrie) ; la géométrie de la carte (`MapGeometry`, `RobotMarkerLayout`), ses couleurs, et ses gestes (`MapInteraction` : zoom, déplacement, clics, tracés). L'interface fournit le fil d'interface (`IUiDispatcher`) et les dialogues (`IDialogService`). |
-| `src/Dyss.App` | Application WPF (`DyssCockpit.exe`) : fenêtres, implémentations WPF des dialogues, contrôle `MapView` ; `MapRenderer` et `RobotMarkers` dessinent la carte, le robot et la station. |
+| `src/Dyss.App` | Application WinUI 3 (`DyssCockpit.exe`) : la fenêtre et ses vues, les dialogues (`ContentDialog`), les notifications, le contrôle `MapView` ; `MapRenderer` et `RobotMarkers` dessinent la carte, le robot et la station avec Win2D. |
 | `src/Dyss.Cli` | Ligne de commande `dyss`, pour explorer le protocole. |
 | `tests/` | Tests xUnit de `Dyss.Core` et de `Dyss.Presentation`, exécutés en CI sans bureau. |
 
 Les tests portent d'abord sur ce qui a été retrouvé par rétro-ingénierie et qu'aucune documentation ne permettrait de retrouver : formes exactes des messages, correspondances entre les deux dialectes, décodage de la grille. Les modèles de vue sont testés sur des réponses HTTP simulées.
 
-WPF a été préféré à WinUI 3 parce qu'il se compile et se lance sans outillage supplémentaire sur une machine ARM64.
+L'interface est en WinUI 3, avec le Windows App SDK 1.8 embarqué dans l'application (aucun runtime à installer) ; elle se compile avec le seul SDK .NET, sur x64 comme sur ARM64. Seul ce projet dépend de WinUI : les modèles de vue, la géométrie de la carte et ses gestes sont dans `Dyss.Presentation`, testés sans interface.
 
 ### Ligne de commande
 
@@ -179,9 +179,10 @@ DyssCockpit.exe --export-map carte.png
 DyssCockpit.exe --export-icon app.ico
 DyssCockpit.exe --screenshot ecran.png --after 15 --tab 0 --theme light --zones 11,13
 DyssCockpit.exe --screenshot editeur.png --after 15 --edit-schedule
+DyssCockpit.exe --screenshot connexion.png --after 3 --login
 ```
 
-`--manage-maps` photographie la fenêtre « Gérer les cartes » (onglet `--layer 0` à `2`, carte `--map-id`). `--export-icon` régénère l'icône à partir du dessin du robot ; [assets/logo.svg](assets/logo.svg) en est la version vectorielle.
+`--tab` choisit la page (`0` tableau de bord, `1` historique, `2` horaires, `3` réglages, `4` journal). `--manage-maps` photographie la gestion des cartes (onglet `--layer 0` à `2`, carte `--map-id`). `--login` montre la connexion sans toucher à la session enregistrée. `--export-icon` régénère l'icône à partir du dessin du robot ; [assets/logo.svg](assets/logo.svg) en est la version vectorielle.
 
 ### Outillage
 
@@ -191,7 +192,7 @@ DyssCockpit.exe --screenshot editeur.png --after 15 --edit-schedule
 
 ### Publier une version
 
-Le numéro de version vient du tag Git. Pousser un tag `vX.Y.Z` (ou `vX.Y.Z-beta.1` pour une pré-version) compile cette version, lance les tests, puis crée la release GitHub avec un exécutable autonome pour x64 et pour ARM64, chacun dans un zip, et leurs empreintes SHA-256 :
+Le numéro de version vient du tag Git. Pousser un tag `vX.Y.Z` (ou `vX.Y.Z-beta.1` pour une pré-version) compile cette version, lance les tests, puis crée la release GitHub avec l'application autonome pour x64 et pour ARM64, chacune dans un zip, et leurs empreintes SHA-256 :
 
 ```bash
 git tag v1.0.0

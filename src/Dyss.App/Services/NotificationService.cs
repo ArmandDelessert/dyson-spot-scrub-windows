@@ -1,36 +1,47 @@
-using System.Drawing;
-using System.Windows.Forms;
+using Dyss.Presentation.Services;
+using Microsoft.UI.Dispatching;
+using Microsoft.Windows.AppNotifications;
+using Microsoft.Windows.AppNotifications.Builder;
 
 namespace Dyss.App.Services;
 
 /// <summary>
-/// Windows Action Center notifications for robot events, via a tray icon's balloon tip. Simpler
-/// than a packaged toast (no MSIX, no AppUserModelID) and enough for a desktop app: Windows renders
-/// NotifyIcon balloons as ordinary toasts on 10/11.
+/// Windows notifications for robot events, through the Windows App SDK: they land in the
+/// notification centre, and a click on one brings the window back. If Windows refuses the
+/// registration, robot events simply go without a notification.
 /// </summary>
-public sealed class NotificationService : IDisposable
+internal sealed class NotificationService : IDisposable
 {
-    private readonly NotifyIcon _icon;
+    private readonly bool _registered;
     private Action? _onClick;
 
-    public NotificationService()
+    public NotificationService(DispatcherQueue ui)
     {
-        Icon appIcon;
-        try { appIcon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!) ?? SystemIcons.Application; }
-        catch { appIcon = SystemIcons.Application; }
-
-        _icon = new NotifyIcon { Icon = appIcon, Text = "DySS Cockpit", Visible = true };
-        _icon.BalloonTipClicked += (_, _) => _onClick?.Invoke();
+        try
+        {
+            var manager = AppNotificationManager.Default;
+            // Raised on a background thread; subscribed before registering, as the SDK requires.
+            manager.NotificationInvoked += (_, _) => ui.TryEnqueue(() => _onClick?.Invoke());
+            manager.Register();
+            _registered = true;
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write("notifications", ex);
+        }
     }
 
-    /// <summary>Shows a balloon; <paramref name="onClick"/> runs once if the user clicks it.</summary>
+    /// <summary>Shows a notification; <paramref name="onClick"/> runs if the user clicks it.</summary>
     public void Show(string title, string text, Action? onClick = null)
     {
+        if (!_registered) return;
         _onClick = onClick;
-        _icon.BalloonTipTitle = title;
-        _icon.BalloonTipText = text;
-        _icon.ShowBalloonTip(8000);
+        AppNotificationManager.Default.Show(new AppNotificationBuilder().AddText(title).AddText(text).BuildNotification());
     }
 
-    public void Dispose() => _icon.Dispose();
+    /// <summary>A notification clicked once the application has closed has nothing left to bring back.</summary>
+    public void Dispose()
+    {
+        if (_registered) AppNotificationManager.Default.Unregister();
+    }
 }

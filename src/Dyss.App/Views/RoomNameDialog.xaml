@@ -1,0 +1,21 @@
+<ContentDialog x:Class="Dyss.App.Views.RoomNameDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               Title="Renommer la pièce"
+               PrimaryButtonText="Renommer" CloseButtonText="Annuler" DefaultButton="Primary">
+    <StackPanel Spacing="12" MinWidth="380">
+        <TextBlock x:Name="Intro" TextWrapping="Wrap"/>
+        <ComboBox x:Name="TypeBox" Header="Type de pièce" HorizontalAlignment="Stretch" SelectionChanged="Type_Changed"/>
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="NameBox" Header="Nom affiché"/>
+            <Button x:Name="ResetNameButton" Grid.Column="1" Content="Nom du type" Click="ResetName_Click" VerticalAlignment="Bottom"
+                    ToolTipService.ToolTip="Remet le nom que Dyson donne à ce type de pièce"/>
+        </Grid>
+        <TextBlock Style="{StaticResource Caption}"
+                   Text="Le type sert aux commandes vocales et préremplit le nom ; gardez le nom proposé pour que la pièce s'appelle comme dans l'application mobile, ou écrivez le vôtre."/>
+    </StackPanel>
+</ContentDialog>

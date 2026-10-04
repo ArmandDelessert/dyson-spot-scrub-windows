@@ -34,7 +34,9 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
     [ObservableProperty] private bool _canAbort;
     [ObservableProperty] private bool _dockBusy;
     [ObservableProperty] private string _washDryLabel = "Laver et sécher";
-    [ObservableProperty] private string _pauseResumeLabel = "⏸ Pause";
+    [ObservableProperty] private string _pauseResumeLabel = "Pause";
+    /// <summary>The clean is paused: the pause button resumes it, and shows it with its icon.</summary>
+    [ObservableProperty] private bool _paused;
 
     public ObservableCollection<ConsumableItem> Consumables { get; } = new();
 
@@ -72,7 +74,8 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
             : "";
 
         CanPause = s.IsCleaning; // true whether running or already paused: this is the pause/resume toggle
-        PauseResumeLabel = s.IsPaused ? "▶ Reprendre" : "⏸ Pause";
+        Paused = s.IsPaused;
+        PauseResumeLabel = s.IsPaused ? "Reprendre" : "Pause";
         CanAbort = s.IsCleaning || s.IsPaused || s.IsMapping;
 
         if (s.Consumables is { } cons)

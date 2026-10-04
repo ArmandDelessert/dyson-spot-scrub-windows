@@ -1,207 +1,160 @@
-using System.Windows;
 using Dyss.App.Rendering;
 using Dyss.App.Services;
 using Dyss.App.Views;
 using Dyss.Core;
 using Dyss.Presentation.Map;
 using Dyss.Presentation.Services;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 
 namespace Dyss.App;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
+    Justification = "The application's lifetime is its window's: the notifications are disposed when it closes.")]
 public partial class App : Application
 {
-    protected override async void OnStartup(StartupEventArgs e)
+    private MainWindow? _window;
+    private NotificationService? _notifications;
+    /// <summary>The dashboard, while it is on show.</summary>
+    private ShellView? _shell;
+
+    public App()
     {
-        base.OnStartup(e);
-        // Last resort for anything a command or dispatcher callback lets escape: tell the user and
-        // keep the window open rather than vanishing without a word. Real bugs still surface — as a
-        // message box instead of a crash, and in the error log — so this hides nothing, it just
-        // doesn't lose the session.
-        DispatcherUnhandledException += (_, args) =>
+        InitializeComponent();
+        // Last resort for anything a command or event handler lets escape: tell the user and keep
+        // the window open rather than vanishing without a word. Real bugs still surface — as a
+        // dialog instead of a crash, and in the error log — so this hides nothing, it just doesn't
+        // lose the session.
+        UnhandledException += (_, e) =>
         {
-            Console.Error.WriteLine(args.Exception);
-            ErrorLog.Write("interface", args.Exception);
-            MessageBox.Show(args.Exception.Message, "Erreur inattendue", MessageBoxButton.OK, MessageBoxImage.Error);
-            args.Handled = true;
+            Console.Error.WriteLine(e.Exception);
+            ErrorLog.Write("interface", e.Exception);
+            e.Handled = true;
+            _ = ShowErrorAsync("Erreur inattendue", e.Exception.Message);
         };
         // Off the UI thread nothing can be saved any more — the process is going down — but the
         // log at least says why.
-        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
-            if (args.ExceptionObject is Exception ex) ErrorLog.Write("arrêt brutal", ex);
+            if (e.ExceptionObject is Exception ex) ErrorLog.Write("arrêt brutal", ex);
         };
         // A forgotten task that failed: harmless to the process, but worth a trace.
-        TaskScheduler.UnobservedTaskException += (_, args) =>
+        TaskScheduler.UnobservedTaskException += (_, e) =>
         {
-            ErrorLog.Write("tâche", args.Exception);
-            args.SetObserved();
+            ErrorLog.Write("tâche", e.Exception);
+            e.SetObserved();
         };
+    }
 
-        // The app is set to shut down explicitly (a login window closing must not end it), so
-        // anything escaping start-up would otherwise leave a process running with no window and
-        // nothing to close — which is what an unreachable network used to do.
+    protected override async void OnLaunched(LaunchActivatedEventArgs args)
+    {
+        var argv = Environment.GetCommandLineArgs().Skip(1).ToArray();
         try
         {
-            await RunAsync(e.Args);
+            await RunAsync(argv);
         }
         catch (Exception ex)
         {
+            // Anything escaping start-up would otherwise leave a window with nothing in it, which
+            // is what an unreachable network used to do.
             Console.Error.WriteLine(ex);
             ErrorLog.Write("démarrage", ex);
-            MessageBox.Show($"L'application n'a pas pu démarrer : {ex.Message}", "DySS Cockpit", MessageBoxButton.OK, MessageBoxImage.Error);
-            Shutdown(1);
+            if (await ShowErrorAsync("DySS Cockpit", $"L'application n'a pas pu démarrer : {ex.Message}")) _window?.Close();
+            else Exit();
         }
     }
 
+    private static string? Option(string[] args, string name) =>
+        Array.IndexOf(args, name) is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+
     private async Task RunAsync(string[] args)
     {
-        ThemeService.Start();
-        // --theme light|dark forces a theme, mainly for screenshots.
-        var themeIdx = Array.IndexOf(args, "--theme");
-        if (themeIdx >= 0 && themeIdx + 1 < args.Length)
-            ThemeService.Apply(args[themeIdx + 1].Equals("dark", StringComparison.OrdinalIgnoreCase));
+        // --theme light|dark forces a theme, mainly for screenshots and exports.
+        var theme = Option(args, "--theme") switch
+        {
+            "light" => ElementTheme.Light,
+            "dark" => ElementTheme.Dark,
+            _ => ElementTheme.Default,
+        };
 
         // Headless helper: render a map to a PNG and exit. Used to check the renderer without a
         // window, and handy for sharing a map. Defaults to the current map.
-        //   DyssCockpit.exe --export-map out.png [--serial S] [--map-id ID]
-        var export = Array.IndexOf(args, "--export-map");
-        if (export >= 0 && export + 1 < args.Length)
+        //   DyssCockpit.exe --export-map out.png [--serial S] [--map-id ID] [--theme light]
+        if (Option(args, "--export-map") is { } exportPath)
         {
-            var serialIdx = Array.IndexOf(args, "--serial");
-            var serial = serialIdx >= 0 && serialIdx + 1 < args.Length ? args[serialIdx + 1] : null;
-            var mapIdIdx = Array.IndexOf(args, "--map-id");
-            var mapId = mapIdIdx >= 0 && mapIdIdx + 1 < args.Length ? args[mapIdIdx + 1] : null;
-            // Headless: a failure goes to the console and the exit code, not to a message box
-            // nobody may be there to close.
-            try { Environment.ExitCode = await ExportMapAsync(args[export + 1], serial, mapId); }
+            // Headless: a failure goes to the console and the exit code, not to a dialog nobody
+            // may be there to close.
+            try { Environment.ExitCode = await ExportMapAsync(exportPath, Option(args, "--serial"), Option(args, "--map-id"), theme); }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Export impossible : {ex.Message}");
                 Environment.ExitCode = 1;
             }
-            Shutdown();
+            Exit();
             return;
         }
 
         // Headless helper: writes the application icon, drawn by the map's own code, to an .ico.
         //   DyssCockpit.exe --export-icon app.ico
-        var icon = Array.IndexOf(args, "--export-icon");
-        if (icon >= 0 && icon + 1 < args.Length)
+        if (Option(args, "--export-icon") is { } iconPath)
         {
-            using (var file = System.IO.File.Create(args[icon + 1]))
-                Rendering.AppIcon.WriteIco(file, Rendering.AppIcon.Sizes);
-            Shutdown();
+            await using (var file = File.Create(iconPath))
+                await AppIcon.WriteIcoAsync(file, AppIcon.Sizes);
+            Exit();
             return;
         }
 
-        // Loop so that logging out from the main window (see MainViewModel.LogoutCommand) returns
-        // here to sign in again, instead of only being able to do that once at process start.
+        _window = new MainWindow();
+        if (theme != ElementTheme.Default) _window.ForceTheme(theme);
+        _window.Activate();
+        _notifications = new NotificationService(_window.DispatcherQueue);
+        _window.Closed += (_, _) => _notifications.Dispose();
+        if (Option(args, "--screenshot") is { } shotPath) _ = ScreenshotAsync(args, shotPath);
+
+        // --login starts at the login whatever session is stored, mainly for screenshots: the stored
+        // one stays until another login replaces it.
+        var skipStored = Array.IndexOf(args, "--login") >= 0;
+
+        // Loops so that logging out from the dashboard comes back here to sign in again.
         while (true)
         {
-            var ctx = await OpenAccountAsync(RobotContext.FromStoredSession());
+            var ctx = await OpenAccountAsync(skipStored ? null : RobotContext.FromStoredSession());
+            skipStored = false;
             if (ctx is null)
             {
-                Shutdown();
+                _window.Close();
                 return;
             }
 
-            var main = new MainWindow(ctx);
-            MainWindow = main;
-            var loggedOut = false;
-            main.LoggedOut += () => loggedOut = true;
-            var closed = new TaskCompletionSource();
-            main.Closed += (_, _) => closed.TrySetResult();
-            main.Show();
-
-            // --screenshot out.png [--after 20]: capture the main window once data has arrived, then
-            // exit. Only meaningful on the first pass; Shutdown() below ends the process regardless.
-            var shot = Array.IndexOf(args, "--screenshot");
-            if (shot >= 0 && shot + 1 < args.Length)
-            {
-                var afterIdx = Array.IndexOf(args, "--after");
-                var seconds = afterIdx >= 0 && afterIdx + 1 < args.Length && int.TryParse(args[afterIdx + 1], out var n) ? n : 20;
-                var tabIdx = Array.IndexOf(args, "--tab");
-                var tab = tabIdx >= 0 && tabIdx + 1 < args.Length && int.TryParse(args[tabIdx + 1], out var t) ? t : 0;
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(seconds));
-                        // --zones 11,10 simulates clicks on rooms, in that order.
-                        var zonesIdx = Array.IndexOf(args, "--zones");
-                        await Dispatcher.InvokeAsync(() =>
-                        {
-                            if (zonesIdx >= 0 && zonesIdx + 1 < args.Length)
-                                foreach (var z in args[zonesIdx + 1].Split(',')) main.ClickZone(z);
-                            main.SelectTab(tab);
-                        });
-                        await Task.Delay(500);
-                        // --manage-maps shoots the map manager instead of the dashboard, that window
-                        // being reachable no other way without a person to click the button.
-                        // --layer 1 or 2 opens it on the zones or the furniture tab, --map-id on another map.
-                        if (Array.IndexOf(args, "--manage-maps") >= 0)
-                        {
-                            var layerIdx = Array.IndexOf(args, "--layer");
-                            var layer = layerIdx >= 0 && layerIdx + 1 < args.Length && int.TryParse(args[layerIdx + 1], out var l) ? l : 0;
-                            var mapIdx = Array.IndexOf(args, "--map-id");
-                            var onMap = mapIdx >= 0 && mapIdx + 1 < args.Length ? args[mapIdx + 1] : null;
-                            await Dispatcher.InvokeAsync(() => main.OpenMapManagerForScreenshot(layer, onMap));
-                            await Task.Delay(TimeSpan.FromSeconds(6));
-                            await Dispatcher.InvokeAsync(() => main.SaveMapManagerScreenshot(args[shot + 1]));
-                        }
-                        // --edit-schedule, likewise, shoots the editor of a new schedule.
-                        else if (Array.IndexOf(args, "--edit-schedule") >= 0)
-                        {
-                            await Dispatcher.InvokeAsync(() => main.OpenScheduleEditorForScreenshot());
-                            await Task.Delay(TimeSpan.FromSeconds(2));
-                            await Dispatcher.InvokeAsync(() => main.SaveScheduleEditorScreenshot(args[shot + 1]));
-                        }
-                        else
-                        {
-                            await Dispatcher.InvokeAsync(() => main.SaveScreenshot(args[shot + 1]));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.Error.WriteLine($"--screenshot failed: {ex}");
-                    }
-                    // A diagnostic one-shot process has no reason to wait for a graceful window
-                    // close or MQTT teardown (observed to sometimes hang for minutes against this
-                    // broker): the PNG is already on disk, so exit immediately regardless.
-                    Environment.Exit(0);
-                });
-            }
-
-            await closed.Task;
-            if (!loggedOut)
-            {
-                Shutdown();
-                return;
-            }
-            // else: loop back around and show the login window again.
+            _shell = new ShellView(_window, ctx, _notifications);
+            _window.Show(_shell);
+            var loggedOut = await _shell.Finished;
+            _shell = null;
+            if (!loggedOut) return;   // the window closed
+            // else: back to the login.
         }
     }
 
     /// <summary>
     /// Gets as far as a robot to show: logs in when there is no session or the stored one is
     /// refused, and waits for the network when Dyson cannot be reached. Null when the user gives
-    /// up (closes the login, quits the wait) or the account has no device.
+    /// up (quits the wait) or the account has no device; never returns if the window is closed.
     /// </summary>
-    private static async Task<RobotContext?> OpenAccountAsync(RobotContext? ctx)
+    private async Task<RobotContext?> OpenAccountAsync(RobotContext? ctx)
     {
         while (true)
         {
             if (ctx is null)
             {
-                var login = new LoginWindow();
-                if (login.ShowDialog() != true || login.Result is null) return null;
-                ctx = login.Result;
+                var login = new LoginView();
+                _window!.Show(login);
+                ctx = await login.Result;
             }
 
             try
             {
                 if (await ctx.LoadDevicesAsync() is not null) return ctx;
-                MessageBox.Show("Aucun appareil sur ce compte.", "DySS Cockpit", MessageBoxButton.OK, MessageBoxImage.Warning);
+                await ShowErrorAsync("DySS Cockpit", "Aucun appareil sur ce compte.");
                 await ctx.DisposeAsync();
                 return null;
             }
@@ -216,7 +169,9 @@ public partial class App : Application
             {
                 // No network yet, DNS failing, Dyson down: the same session will do once it is back.
                 ErrorLog.Write("appareils", ex);
-                if (!ConnectionWaitWindow.Ask(ex.Message))
+                var wait = new ConnectionWaitView(ex.Message);
+                _window!.Show(wait);
+                if (!await wait.Decision)
                 {
                     await ctx.DisposeAsync();
                     return null;
@@ -225,10 +180,32 @@ public partial class App : Application
         }
     }
 
-    private static async Task<int> ExportMapAsync(string path, string? serial, string? mapId = null)
+    /// <summary>A message the user has to acknowledge. False when there is no window yet to show it on.</summary>
+    private async Task<bool> ShowErrorAsync(string title, string message)
+    {
+        if (_window?.Content?.XamlRoot is not { } root) return false;
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
+            CloseButtonText = "OK",
+            XamlRoot = root,
+            RequestedTheme = _window.Theme,
+            Style = (Style)Resources["DefaultContentDialogStyle"],
+        };
+        try { await dialog.ShowAsync(); }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            // Another dialog is already open: the error log has it.
+        }
+        return true;
+    }
+
+    private static async Task<int> ExportMapAsync(string path, string? serial, string? mapId, ElementTheme theme)
     {
         var ctx = RobotContext.FromStoredSession();
         if (ctx is null) { Console.Error.WriteLine("Aucune session. Lancez l'application et connectez-vous d'abord."); return 2; }
+        await using var _ = ctx;
         var robot = await ctx.LoadDevicesAsync(serial);
         if (robot is null) { Console.Error.WriteLine("Robot introuvable."); return 2; }
         var s = robot.SerialNumber;
@@ -256,9 +233,49 @@ public partial class App : Application
             Grid = grid, Map = map, ZoneMetadata = current.Zones,
             Dock = map.DockLocation, Robot = robotPos, Path = cleanPath, Obstacles = obstacles, DirtSpots = dirt,
         };
-        MapRenderer.ExportPng(scene, 1200, 1400, path);
+        await MapImage.ExportPngAsync(scene, 1200, 1400, path, theme == ElementTheme.Light ? MapPalette.Light : MapPalette.Dark);
         Console.WriteLine($"Carte {current.Name} exportée vers {path}");
-        await ctx.DisposeAsync();
         return 0;
+    }
+
+    /// <summary>
+    /// --screenshot out.png [--after 20]: renders the window once data has arrived — or whatever it
+    /// shows by then, the login for one — then exits. On the dashboard, --tab 1 shows another page,
+    /// --zones 11,10 clicks rooms in that order, --manage-maps shoots the map manager instead
+    /// (--layer 1 or 2 on the zones or furniture tab, --map-id on another map), and --edit-schedule
+    /// the editor of a new schedule.
+    /// </summary>
+    private async Task ScreenshotAsync(string[] args, string path)
+    {
+        try
+        {
+            var seconds = int.TryParse(Option(args, "--after"), out var n) ? n : 20;
+            await Task.Delay(TimeSpan.FromSeconds(seconds));
+            UIElement shot = _window!.View;
+            if (_shell is { } shell)
+            {
+                foreach (var zone in Option(args, "--zones")?.Split(',') ?? []) shell.ClickZone(zone);
+                shell.SelectTab(int.TryParse(Option(args, "--tab"), out var tab) ? tab : 0);
+                await Task.Delay(500);
+                if (Array.IndexOf(args, "--manage-maps") >= 0)
+                {
+                    shell.OpenMapManagerForScreenshot(int.TryParse(Option(args, "--layer"), out var layer) ? layer : 0, Option(args, "--map-id"));
+                    await Task.Delay(TimeSpan.FromSeconds(6));
+                }
+                else if (Array.IndexOf(args, "--edit-schedule") >= 0 && shell.OpenScheduleEditorForScreenshot() is { } dialog)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(2));
+                    shot = dialog;
+                }
+            }
+            await Screenshot.SaveAsync(shot, path, _window.Theme);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"--screenshot failed: {ex}");
+        }
+        // A diagnostic one-shot process has no reason to wait for a graceful close or for the
+        // broker to say goodbye: the PNG is already on disk.
+        Environment.Exit(0);
     }
 }

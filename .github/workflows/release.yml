@@ -1,8 +1,8 @@
 name: Release
 
 # Pushing a tag v1.2.3 builds that version, runs the tests, and publishes a GitHub release with the
-# application for x64 and ARM64: one self-contained executable each, nothing to install. A tag with
-# a suffix (v1.2.3-beta.1) gives a pre-release.
+# application for x64 and ARM64: a self-contained folder each, zipped, carrying .NET and the
+# Windows App SDK, with nothing to install. A tag with a suffix (v1.2.3-beta.1) gives a pre-release.
 on:
   push:
     tags: ['v*']
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   release:
-    # WPF only builds on Windows.
+    # WinUI only builds on Windows.
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,9 +40,8 @@ jobs:
           $version = '${{ steps.version.outputs.version }}'
           New-Item -ItemType Directory -Force dist | Out-Null
           foreach ($rid in 'win-x64', 'win-arm64') {
-            # One compressed executable carrying .NET and WPF's native libraries.
+            # A folder carrying .NET and the Windows App SDK: WinUI does not run from a single file.
             dotnet publish src/Dyss.App/Dyss.App.csproj --configuration Release --runtime $rid --self-contained `
-              -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
               -p:DebugType=none -p:Version=$version --output "publish/$rid"
             if ($LASTEXITCODE -ne 0) { throw "Publication $rid impossible." }
             Copy-Item README.md, LICENSE "publish/$rid"

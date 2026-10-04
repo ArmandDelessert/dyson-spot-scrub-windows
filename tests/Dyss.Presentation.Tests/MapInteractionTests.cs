@@ -137,6 +137,21 @@ public class MapInteractionTests
     }
 
     [Fact]
+    public void TapsReportedApartAreNotAlsoTakenFromTheManipulation()
+    {
+        var map = Map();
+        map.ManipulationTaps = false;
+        var zones = new List<string>();
+        map.ZoneClicked += zones.Add;
+        var at = At(map, 0.5, 1);
+
+        map.ManipulationCompleted(at, new Vec2(1, 1), 1);
+        Assert.Empty(zones);
+        map.Tap(at);
+        Assert.Equal(["10"], zones);
+    }
+
+    [Fact]
     public void TheWheelZoomsAboutThePointer()
     {
         var map = Map();

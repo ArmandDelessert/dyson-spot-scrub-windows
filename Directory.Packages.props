@@ -7,6 +7,9 @@
 
   <ItemGroup>
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Foundation" Version="1.8.260803002" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.WinUI" Version="1.8.260803003" />
     <PackageVersion Include="MQTTnet" Version="5.2.0.1603" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />

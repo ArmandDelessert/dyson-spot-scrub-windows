@@ -1,0 +1,71 @@
+<UserControl x:Class="Dyss.App.Views.SchedulesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:Dyss.App"
+             xmlns:vm="using:Dyss.Presentation.ViewModels">
+    <Grid Padding="16,0,16,16" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Spacing="8" MaxWidth="900" HorizontalAlignment="Left">
+            <TextBlock Text="{x:Bind ViewModel.Heading, Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBlock Style="{StaticResource Muted}"
+                       Text="Les horaires de la carte active, tels que le cloud Dyson les garde : ceux créés ici comme ceux de l'application mobile. Le robot n'exécute que ceux de la carte active ; ceux des autres cartes réapparaissent quand elle le redevient."/>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button Command="{x:Bind ViewModel.NewCommand}" Style="{StaticResource AccentButtonStyle}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE710;" FontSize="14"/>
+                        <TextBlock Text="Nouvel horaire…"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center"
+                           Text="Un horaire planifie un nettoyage de la carte active ; le robot doit être connecté."/>
+            </StackPanel>
+            <TextBlock Text="{x:Bind ViewModel.EmptyText, Mode=OneWay}" Style="{StaticResource Muted}"
+                       Visibility="{x:Bind local:Ui.IfAny(ViewModel.EmptyText), Mode=OneWay}"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Items}" IsTabStop="False" MaxWidth="900" HorizontalAlignment="Left"
+                          AutomationProperties.Name="Horaires de la carte active">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ScheduleItem">
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="16,12">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- On means the robot will run it; turning it off sends the same schedule with enable 0. -->
+                                <ToggleSwitch IsOn="{x:Bind Enabled}" Toggled="Toggle_Toggled" Tag="{x:Bind}" OnContent="" OffContent=""
+                                              MinWidth="0" VerticalAlignment="Top"
+                                              AutomationProperties.Name="{x:Bind local:Ui.ScheduleSwitch(TimeText)}"/>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock>
+                                        <Run Text="{x:Bind TimeText}" FontSize="20" FontWeight="SemiBold"/>
+                                        <Run Text="  "/>
+                                        <Run Text="{x:Bind DaysText}"/>
+                                    </TextBlock>
+                                    <TextBlock Text="{x:Bind RoomsText}" Style="{StaticResource Muted}"/>
+                                    <TextBlock Text="{x:Bind DurationText}" Style="{StaticResource Caption}"/>
+                                    <TextBlock Text="{x:Bind OverlapText}" Style="{StaticResource Warning}"
+                                               Visibility="{x:Bind local:Ui.IfAny(OverlapText)}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                                    <Button Content="Modifier…" Click="Edit_Click" Tag="{x:Bind}"/>
+                                    <Button Content="Supprimer…" Click="Delete_Click" Tag="{x:Bind}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="2" Text="{x:Bind ViewModel.Status, Mode=OneWay}" TextWrapping="Wrap"/>
+    </Grid>
+</UserControl>

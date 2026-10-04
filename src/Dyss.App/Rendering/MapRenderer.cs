@@ -1,431 +1,284 @@
 using System.Globalization;
-using System.IO;
-using System.Windows;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using System.Numerics;
 using Dyss.Core;
 using Dyss.Presentation.Map;
-using Point = System.Windows.Point;
+using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Geometry;
+using Microsoft.Graphics.Canvas.Text;
+using Windows.Foundation;
+using Windows.Graphics.DirectX;
+using Windows.UI;
 using CorePoint = Dyss.Core.Point;
 
 namespace Dyss.App.Rendering;
 
 /// <summary>
-/// Draws a <see cref="MapScene"/> onto a DrawingContext, with the geometry and the colours
-/// <see cref="MapGeometry"/> and <see cref="MapPalette"/> work out. Shared by the on-screen control
-/// and the PNG export, so both agree.
+/// Draws a <see cref="MapScene"/> with Win2D, with the geometry and the colours
+/// <see cref="MapGeometry"/> and <see cref="MapPalette"/> work out. Shared by the on-screen
+/// <see cref="Controls.MapView"/> and the PNG export, so both agree. Everything is placed in screen
+/// pixels: points go through the world-to-screen transform, lines keep their width whatever the zoom.
 /// </summary>
-public static class MapRenderer
+internal static class MapRenderer
 {
-    /// <summary>The colours of the current theme; see <see cref="Services.ThemeService"/>.</summary>
-    public static MapPalette Palette { get; set; } = MapPalette.Dark;
+    private static readonly CanvasStrokeStyle RoundJoin = new() { LineJoin = CanvasLineJoin.Round };
+    private static readonly CanvasStrokeStyle RoundEnds = new() { StartCap = CanvasCapStyle.Round, EndCap = CanvasCapStyle.Round };
+    /// <summary>What is being aimed: dashed so it reads as a proposal, not as map data. Dashes are in line widths, as in WPF.</summary>
+    private static readonly CanvasStrokeStyle Dashed = new() { CustomDashStyle = [4, 3], LineJoin = CanvasLineJoin.Round };
 
-    /// <summary>
-    /// Frozen brushes and pens, built once per palette instead of on every frame: a new
-    /// SolidColorBrush per draw call is cheap individually but adds up over the hundreds of calls
-    /// a pan gesture triggers per second. Frozen objects are also cheaper for WPF to render.
-    /// </summary>
-    private sealed class Resources
-    {
-        public readonly Brush Background;
-        public readonly Brush LabelText;
-        public readonly Brush LabelBackground;
-        public readonly Pen FurniturePen;
-        public readonly Brush FurnitureFill;
-        public readonly Pen GridPen;
-        public readonly Pen PathPen;
-        public readonly Pen[] ActionPens;   // indexed by (int)CleanType, like MapPalette.ActionColors
-        private readonly MapPalette _palette;
-        private readonly Dictionary<(int Id, bool Dimmed), Brush> _zoneBrushes = [];
+    private static readonly CanvasTextFormat LabelFont = new() { FontFamily = "Segoe UI", FontSize = 12, WordWrapping = CanvasWordWrapping.NoWrap };
+    private static readonly CanvasTextFormat BadgeFont = new() { FontFamily = "Segoe UI", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, WordWrapping = CanvasWordWrapping.NoWrap };
+    private static readonly CanvasTextFormat MessageFont = new() { FontFamily = "Segoe UI", FontSize = 16, WordWrapping = CanvasWordWrapping.NoWrap };
 
-        /// <summary>One colour per kind of restriction zone; see <see cref="MapColors.Restriction"/>.</summary>
-        public static readonly Dictionary<string, (Pen Pen, Brush Fill)> Restrictions = new[] { "keepOut", "climbObstacle", "brushBarOff", "noMop" }
-            .ToDictionary(b => b, b => RestrictionStyle(MapColors.Restriction(b)));
-        public static readonly (Pen Pen, Brush Fill) UnknownRestriction = RestrictionStyle(MapColors.Restriction(null));
-        public static readonly Pen HandlePen = Frozen(new Pen(Brushes.Black, 1.5));
-        public static readonly Brush SpotFill = Solid(MapColors.SpotFill);
-        /// <summary>What the map manager has chosen: a thick outline over whatever it is.</summary>
-        public static readonly Pen SelectionPen = Frozen(new Pen(Solid(MapColors.Selection), 3) { LineJoin = PenLineJoin.Round });
+    /// <summary>A text layout this wide never wraps nor clips the one-line texts drawn on the map.</summary>
+    private const float Unbounded = 10_000;
 
-        private static (Pen, Brush) RestrictionStyle(ArgbColor c) =>
-            (Frozen(new Pen(Solid(c), 2)), Solid(c.WithAlpha(MapColors.RestrictionFillAlpha)));
-        public static readonly Brush DirtFill = Solid(MapColors.Dirt);
-        public static readonly Brush ObstacleFill = Solid(MapColors.ObstacleFill);
-        public static readonly Pen ObstacleMark = Frozen(new Pen(Brushes.Black, 1.5) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round });
-        public static readonly Pen BlackPen = Frozen(new Pen(Brushes.Black, 1));
-        /// <summary>The cut being aimed while splitting a room: dashed so it reads as a proposal, not as map data.</summary>
-        public static readonly Pen CutPen = Frozen(new Pen(Solid(MapColors.Pending), 2)
-        {
-            DashStyle = new DashStyle([4, 3], 0),
-            LineJoin = PenLineJoin.Round,
-        });
-        public static readonly Typeface LabelFont = new("Segoe UI");
-        public static readonly Typeface BadgeFont = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
-
-        public Resources(MapPalette p)
-        {
-            _palette = p;
-            Background = Solid(p.Background);
-            LabelText = Solid(p.LabelText);
-            LabelBackground = Solid(p.LabelBackground);
-            FurniturePen = Frozen(new Pen(Solid(p.Furniture), 1));
-            FurnitureFill = Solid(p.Furniture.WithAlpha(MapColors.FurnitureFillAlpha));
-            GridPen = Frozen(new Pen(Solid(p.LabelText.WithAlpha(MapColors.GridLineAlpha)), 1));
-            PathPen = LinePen(p.Path);
-            ActionPens = [.. p.ActionColors.Select(LinePen)];
-        }
-
-        public Brush ZoneBrush(int zoneId, bool dimmed)
-        {
-            if (!_zoneBrushes.TryGetValue((zoneId, dimmed), out var brush))
-            {
-                var c = _palette.ZoneColor(zoneId);
-                _zoneBrushes[(zoneId, dimmed)] = brush = Solid(dimmed ? _palette.Dim(c) : c);
-            }
-            return brush;
-        }
-
-        private static Pen LinePen(ArgbColor c) => Frozen(new Pen(Solid(c), 2) { LineJoin = PenLineJoin.Round });
-
-        private static SolidColorBrush Solid(ArgbColor c) => Frozen(new SolidColorBrush(c.ToWpf()));
-
-        private static T Frozen<T>(T freezable) where T : Freezable
-        {
-            freezable.Freeze();
-            return freezable;
-        }
-    }
-
-    private static Resources? _resources;
-    private static MapPalette? _resourcesPalette;
-
-    private static Resources Current
-    {
-        get
-        {
-            if (_resources is null || !ReferenceEquals(_resourcesPalette, Palette))
-            {
-                _resources = new Resources(Palette);
-                _resourcesPalette = Palette;
-            }
-            return _resources;
-        }
-    }
+    private static readonly Color Black = ArgbColor.Black.ToColor();
+    private static readonly Color White = ArgbColor.White.ToColor();
+    private static readonly Color Selection = MapColors.Selection.ToColor();
+    private static readonly Color Pending = MapColors.Pending.ToColor();
 
     /// <summary>Draws the scene through <paramref name="worldToScreen"/> (see <see cref="MapGeometry.WorldToScreen"/>), or says there is no map when it is null.</summary>
-    public static void Render(DrawingContext dc, MapScene scene, Size size, MapTransform? worldToScreen)
+    public static void Render(CanvasDrawingSession ds, MapScene scene, Size2 size, MapTransform? worldToScreen, MapPalette palette)
     {
-        var res = Current;
-        dc.DrawRectangle(res.Background, null, new Rect(size));
-        if (worldToScreen is not { } t)
+        ds.Clear(palette.Background.ToColor());
+        if (worldToScreen is not { } m)
         {
-            DrawCentredText(dc, "Aucune carte", size);
+            DrawCentredText(ds, "Aucune carte", size, palette.LabelText.ToColor());
             return;
         }
-        var m = t.ToWpf();
 
         if (scene.Grid is { } grid)
-            DrawGrid(dc, grid, t, scene.SelectedZoneIds, scene.Orientation);
+            DrawGrid(ds, grid, m, scene.SelectedZoneIds, scene.Orientation, palette);
         else
-            DrawVisitedPoints(dc, scene, t);
+            DrawVisitedPoints(ds, scene, m, palette);
 
+        var furniturePen = palette.Furniture.ToColor();
+        var furnitureFill = palette.Furniture.WithAlpha(MapColors.FurnitureFillAlpha).ToColor();
         foreach (var f in scene.ShowFurniture ? scene.Map?.Furniture ?? [] : [])
-            DrawPolygon(dc, f.Points, m, f.Id == scene.SelectedFurnitureId ? Resources.SelectionPen : res.FurniturePen, res.FurnitureFill);
+        {
+            var chosen = f.Id == scene.SelectedFurnitureId;
+            DrawPolygon(ds, f.Points, m, chosen ? Selection : furniturePen, chosen ? 3 : 1, furnitureFill);
+        }
 
         foreach (var r in scene.Map?.Restrictions ?? [])
         {
-            var (pen, fill) = r.Behavior is { } b && Resources.Restrictions.TryGetValue(b, out var style) ? style : Resources.UnknownRestriction;
-            DrawPolygon(dc, r.Points, m, r.Id == scene.SelectedRestrictionId ? Resources.SelectionPen : pen, fill);
+            var colour = MapColors.Restriction(r.Behavior);
+            var chosen = r.Id == scene.SelectedRestrictionId;
+            DrawPolygon(ds, r.Points, m, chosen ? Selection : colour.ToColor(), chosen ? 3 : 2, colour.WithAlpha(MapColors.RestrictionFillAlpha).ToColor());
         }
 
         // The zone about to be cleaned: the selection yellow over a light wash, so it reads as a
         // choice rather than as map data.
         if (scene.SpotZone is { Count: > 2 } spot)
-            DrawPolygon(dc, [.. spot], m, Resources.SelectionPen, Resources.SpotFill);
+            DrawPolygon(ds, [.. spot], m, Selection, 3, MapColors.SpotFill.ToColor());
 
         if (scene.Path is { Count: > 1 } path)
-            DrawActionPath(dc, res, scene, path, m);
+            DrawActionPath(ds, scene, path, m, palette);
 
-        var obstacleSize = MapGeometry.ObstacleMarkerSize(t);
+        var obstacleSize = (float)MapGeometry.ObstacleMarkerSize(m);
         foreach (var o in scene.Obstacles ?? [])
-            DrawObstacleMarker(dc, m.Transform(new Point(o.X, o.Y)), obstacleSize);
+            DrawObstacleMarker(ds, m.Transform(o).ToVector2(), obstacleSize);
 
         foreach (var d in scene.DirtSpots ?? [])
-            DrawDirtMarker(dc, m.Transform(new Point(d.X, d.Y)));
+        {
+            var at = m.Transform(d.X, d.Y).ToVector2();
+            ds.FillCircle(at, 5, MapColors.Dirt.ToColor());
+            ds.DrawCircle(at, 5, Black, 1);
+        }
 
         foreach (var z in scene.Map?.Zones ?? [])
         {
             if (z.NameLocation is not { } n) continue;
             var meta = scene.ZoneMetadata?.FirstOrDefault(zm => zm.Id == z.Id);
             var label = RoomTypeLabels.Resolve(meta?.Type ?? z.Type, meta?.Name ?? z.Name, z.Id);
-            var at = m.Transform(new Point(n.X, n.Y));
-            var labelRect = DrawLabel(dc, label, at);
+            var at = m.Transform(n).ToVector2();
+            var labelRect = DrawLabel(ds, label, at, palette);
             if (scene.ZoneOrder is { } order && order.TryGetValue(z.Id, out var rank))
-                DrawBadge(dc, rank.ToString(CultureInfo.InvariantCulture), new Point(labelRect.Left - 12, at.Y));
+                DrawBadge(ds, rank.ToString(CultureInfo.InvariantCulture), new Vector2((float)labelRect.Left - 12, at.Y));
         }
     }
 
     /// <summary>
-    /// Draws the driven path run by run (see <see cref="MapScene.PathRuns"/>): in the plain path
-    /// colour where the robot was only repositioning (point's "update" is 0 or missing, e.g. path
-    /// data with no such field), otherwise in the colour of the clean type of the room it was in.
+    /// The driven path run by run (see <see cref="MapScene.PathRuns"/>): in the plain path colour
+    /// where the robot was only repositioning, otherwise in the colour of the clean type of the
+    /// room it was in.
     /// </summary>
-    private static void DrawActionPath(DrawingContext dc, Resources res, MapScene scene, IReadOnlyList<CorePoint> path, Matrix m)
+    private static void DrawActionPath(CanvasDrawingSession ds, MapScene scene, IReadOnlyList<CorePoint> path, MapTransform m, MapPalette palette)
     {
         foreach (var run in scene.PathRuns)
         {
+            if (run.To <= run.From) continue;
+            ArgbColor colour;
             if (run.Action is not { } t)
             {
                 if (!scene.ShowTravelPath) continue;
-                DrawPathRun(dc, path, run.From, run.To, res.PathPen, m);
-                continue;
+                colour = palette.Path;
             }
-            DrawPathRun(dc, path, run.From, run.To, res.ActionPens[(int)t % res.ActionPens.Length], m);
+            else colour = palette.ActionColors[(int)t % palette.ActionColors.Length];
+
+            using var builder = new CanvasPathBuilder(ds);
+            builder.BeginFigure(m.Transform(path[run.From]).ToVector2());
+            for (var j = run.From + 1; j <= run.To; j++) builder.AddLine(m.Transform(path[j]).ToVector2());
+            builder.EndFigure(CanvasFigureLoop.Open);
+            using var line = CanvasGeometry.CreatePath(builder);
+            ds.DrawGeometry(line, colour.ToColor(), 2, RoundJoin);
         }
     }
 
-    /// <summary>Draws points [from, to] (inclusive) as one polyline; a single point has nothing to join, so it's skipped.</summary>
-    private static void DrawPathRun(DrawingContext dc, IReadOnlyList<CorePoint> path, int from, int to, Pen pen, Matrix m)
+    private static void DrawObstacleMarker(CanvasDrawingSession ds, Vector2 p, float half)
     {
-        if (to <= from) return;
-        var geo = new StreamGeometry();
-        using (var g = geo.Open())
-        {
-            g.BeginFigure(m.Transform(new Point(path[from].X, path[from].Y)), false, false);
-            for (var j = from + 1; j <= to; j++)
-                g.LineTo(m.Transform(new Point(path[j].X, path[j].Y)), true, false);
-        }
-        geo.Freeze();
-        dc.DrawGeometry(null, pen, geo);
-    }
-
-    private static void DrawObstacleMarker(DrawingContext dc, Point p, double half)
-    {
-        var geo = new StreamGeometry();
-        using (var g = geo.Open())
-        {
-            g.BeginFigure(new Point(p.X, p.Y - half * 7 / 6), true, true);
-            g.LineTo(new Point(p.X + half, p.Y + half * 5 / 6), true, true);
-            g.LineTo(new Point(p.X - half, p.Y + half * 5 / 6), true, true);
-        }
-        geo.Freeze();
-        dc.DrawGeometry(Resources.ObstacleFill, Resources.BlackPen, geo);
+        using var triangle = CanvasGeometry.CreatePolygon(ds,
+        [
+            new(p.X, p.Y - half * 7 / 6),
+            new(p.X + half, p.Y + half * 5 / 6),
+            new(p.X - half, p.Y + half * 5 / 6),
+        ]);
+        ds.FillGeometry(triangle, MapColors.ObstacleFill.ToColor());
+        ds.DrawGeometry(triangle, Black, 1);
         // The exclamation mark: a stroke and a dot.
-        dc.DrawLine(Resources.ObstacleMark, new Point(p.X, p.Y - half * 0.45), new Point(p.X, p.Y + half * 0.2));
-        dc.DrawEllipse(Brushes.Black, null, new Point(p.X, p.Y + half * 0.5), half * 0.1, half * 0.1);
+        ds.DrawLine(p.X, p.Y - half * 0.45f, p.X, p.Y + half * 0.2f, Black, 1.5f, RoundEnds);
+        ds.FillCircle(p.X, p.Y + half * 0.5f, half * 0.1f, Black);
     }
-
-    /// <summary>
-    /// A plain green dot, matching the colour of the app's own splash icon for "liquid" (the only
-    /// stain type confirmed so far; the app shows several distinct icons by type, but the others
-    /// haven't been observed in a capture yet, so there's nothing to distinguish them by here).
-    /// </summary>
-    private static void DrawDirtMarker(DrawingContext dc, Point p) =>
-        dc.DrawEllipse(Resources.DirtFill, Resources.BlackPen, p, 5, 5);
 
     // ---- What is drawn over the map while something is aimed or dragged -------------
 
     /// <summary>Draws <see cref="MapInteraction.Overlay"/>: it belongs to an interaction rather than to the map, so it goes over the finished scene.</summary>
-    public static void DrawOverlay(DrawingContext dc, MapOverlay overlay, MapTransform worldToScreen, Size size)
+    public static void DrawOverlay(CanvasDrawingSession ds, MapOverlay overlay, MapTransform worldToScreen, Size2 size, MapPalette palette)
     {
         if (overlay.Grid is { } grid)
-            DrawGridLines(dc, MapGeometry.GridLines(worldToScreen, grid, new Size2(size.Width, size.Height)));
+        {
+            var gridColour = palette.LabelText.WithAlpha(MapColors.GridLineAlpha).ToColor();
+            foreach (var (from, to) in MapGeometry.GridLines(worldToScreen, grid, size))
+                ds.DrawLine(from.ToVector2(), to.ToVector2(), gridColour, 1);
+        }
         if (overlay.SnapMarker is { } snap)
-            DrawSnapMarker(dc, snap.ToWpf());
-        if (overlay.CutFrom is { } cut)
-            DrawPendingCut(dc, cut.ToWpf(), overlay.CutTo?.ToWpf());
-        if (overlay.RectangleFrom is { } corner)
-            DrawPendingRectangle(dc, corner.ToWpf(), overlay.RectangleTo?.ToWpf());
-        if (overlay.PendingShape is { } shape)
-            DrawPendingShape(dc, [.. shape.Select(p => p.ToWpf())]);
-        if (overlay.Handles is { } handles)
-            DrawHandles(dc, [.. handles.Select(p => p.ToWpf())]);
-    }
-
-    /// <summary>The cut being aimed while splitting a room: the first end as a ring, and the line to the cursor once there is one.</summary>
-    private static void DrawPendingCut(DrawingContext dc, Point from, Point? to)
-    {
-        if (to is { } end) dc.DrawLine(Resources.CutPen, from, end);
-        dc.DrawEllipse(null, Resources.CutPen, from, 5, 5);
-        if (to is { } e2) dc.DrawEllipse(null, Resources.CutPen, e2, 5, 5);
-    }
-
-    /// <summary>The zone being drawn: its first corner, then the upright rectangle to the cursor.</summary>
-    private static void DrawPendingRectangle(DrawingContext dc, Point from, Point? to)
-    {
-        dc.DrawEllipse(null, Resources.CutPen, from, 5, 5);
-        if (to is { } end) dc.DrawRectangle(null, Resources.CutPen, new Rect(from, end));
-    }
-
-    /// <summary>Where a piece of furniture would land, or where a dragged shape would: its outline.</summary>
-    private static void DrawPendingShape(DrawingContext dc, IReadOnlyList<Point> corners)
-    {
-        if (corners.Count < 3) return;
-        var geo = new StreamGeometry();
-        using (var g = geo.Open())
         {
-            g.BeginFigure(corners[0], false, true);
-            for (var i = 1; i < corners.Count; i++) g.LineTo(corners[i], true, false);
+            var at = snap.ToVector2();
+            ds.DrawLine(at.X - 6, at.Y, at.X + 6, at.Y, Pending, 2, Dashed);
+            ds.DrawLine(at.X, at.Y - 6, at.X, at.Y + 6, Pending, 2, Dashed);
         }
-        geo.Freeze();
-        dc.DrawGeometry(null, Resources.CutPen, geo);
-    }
-
-    /// <summary>The robot's cell grid over the visible part of the map.</summary>
-    private static void DrawGridLines(DrawingContext dc, IReadOnlyList<(Vec2 From, Vec2 To)> lines)
-    {
-        if (lines.Count == 0) return;
-        var geo = new StreamGeometry();
-        using (var g = geo.Open())
+        if (overlay.CutFrom is { } cutFrom)
         {
-            foreach (var (from, to) in lines)
+            var from = cutFrom.ToVector2();
+            if (overlay.CutTo is { } cutTo)
             {
-                g.BeginFigure(from.ToWpf(), false, false);
-                g.LineTo(to.ToWpf(), true, false);
+                ds.DrawLine(from, cutTo.ToVector2(), Pending, 2, Dashed);
+                ds.DrawCircle(cutTo.ToVector2(), 5, Pending, 2, Dashed);
             }
+            ds.DrawCircle(from, 5, Pending, 2, Dashed);
         }
-        geo.Freeze();
-        dc.DrawGeometry(null, Current.GridPen, geo);
-    }
-
-    /// <summary>A small cross where the pointer lands on the grid.</summary>
-    private static void DrawSnapMarker(DrawingContext dc, Point at)
-    {
-        dc.DrawLine(Resources.CutPen, new Point(at.X - 6, at.Y), new Point(at.X + 6, at.Y));
-        dc.DrawLine(Resources.CutPen, new Point(at.X, at.Y - 6), new Point(at.X, at.Y + 6));
-    }
-
-    /// <summary>Square grips on the corners of a shape that can be resized.</summary>
-    private static void DrawHandles(DrawingContext dc, IReadOnlyList<Point> corners)
-    {
-        foreach (var c in corners)
-            dc.DrawRectangle(Brushes.White, Resources.HandlePen, new Rect(c.X - 5, c.Y - 5, 10, 10));
+        if (overlay.RectangleFrom is { } corner)
+        {
+            ds.DrawCircle(corner.ToVector2(), 5, Pending, 2, Dashed);
+            if (overlay.RectangleTo is { } other)
+                ds.DrawRectangle(Rect2.FromCorners(corner, other).ToRect(), Pending, 2, Dashed);
+        }
+        if (overlay.PendingShape is { Count: > 2 } shape)
+        {
+            using var outline = CanvasGeometry.CreatePolygon(ds, [.. shape.Select(p => p.ToVector2())]);
+            ds.DrawGeometry(outline, Pending, 2, Dashed);
+        }
+        foreach (var c in overlay.Handles ?? [])
+        {
+            var handle = new Rect(c.X - 5, c.Y - 5, 10, 10);
+            ds.FillRectangle(handle, White);
+            ds.DrawRectangle(handle, Black, 1.5f);
+        }
     }
 
     // ---- The occupancy grid -------------------------------------------------------------
 
-    // Panning/zooming re-renders every frame but never changes the grid's own pixels, only where
-    // they're drawn: rebuilding an 84 000-cell bitmap on every single frame (as this used to do)
-    // made dragging noticeably less smooth, touch manipulation especially, which reports move deltas
-    // more eagerly than the mouse. Cached across calls since MapRenderer is already static/UI-thread-
-    // only; invalidated only when the grid instance or the selected set actually changes.
+    // Panning and zooming redraw the map on every frame but never change the grid's own pixels,
+    // only where they go, so the bitmap is kept until the grid, the selection, the colours or the
+    // graphics device change.
+    private static CanvasDevice? _cachedDevice;
     private static MapGrid? _cachedGrid;
     private static IReadOnlySet<string>? _cachedSelected;
     private static MapPalette? _cachedPalette;
-    private static WriteableBitmap? _cachedGridBitmap;
+    private static CanvasBitmap? _cachedBitmap;
 
-    private static WriteableBitmap BuildGridBitmap(MapGrid grid, IReadOnlySet<string>? selected)
+    private static CanvasBitmap GridBitmap(CanvasDrawingSession ds, MapGrid grid, IReadOnlySet<string>? selected, MapPalette palette)
     {
-        // The palette is part of the key: the pixels bake in zone and obstacle colours, and a theme
-        // switch replaces the palette without touching the grid instance or the selection.
-        if (_cachedGridBitmap is not null && ReferenceEquals(_cachedGrid, grid) && ReferenceEquals(_cachedPalette, Palette)
-            && MapGeometry.SameSelection(_cachedSelected, selected))
-            return _cachedGridBitmap;
+        if (_cachedBitmap is not null && ReferenceEquals(_cachedDevice, ds.Device) && ReferenceEquals(_cachedGrid, grid)
+            && ReferenceEquals(_cachedPalette, palette) && MapGeometry.SameSelection(_cachedSelected, selected))
+            return _cachedBitmap;
 
-        var bmp = new WriteableBitmap(grid.Width, grid.Height, 96, 96, PixelFormats.Bgra32, null);
-        bmp.WritePixels(new Int32Rect(0, 0, grid.Width, grid.Height), MapGeometry.GridPixels(grid, selected, Palette), grid.Width * 4, 0);
-        RenderOptions.SetBitmapScalingMode(bmp, BitmapScalingMode.NearestNeighbor); // before Freeze: a frozen bitmap is read-only
-        bmp.Freeze();
-
+        // Win2D's bitmaps hold premultiplied colours: a transparent cell has to be all zeros.
+        var pixels = MapGeometry.GridPixels(grid, selected, palette);
+        var bytes = new byte[pixels.Length * 4];
+        for (var i = 0; i < pixels.Length; i++)
+        {
+            var p = pixels[i];
+            if ((uint)p >> 24 == 0) continue;
+            BitConverter.TryWriteBytes(bytes.AsSpan(i * 4), p);   // little-endian: B, G, R, A
+        }
+        _cachedBitmap?.Dispose();
+        _cachedBitmap = CanvasBitmap.CreateFromBytes(ds, bytes, grid.Width, grid.Height, DirectXPixelFormat.B8G8R8A8UIntNormalized);
+        _cachedDevice = ds.Device;
         _cachedGrid = grid;
         _cachedSelected = selected;
-        _cachedPalette = Palette;
-        _cachedGridBitmap = bmp;
-        return bmp;
+        _cachedPalette = palette;
+        return _cachedBitmap;
     }
 
-    private static void DrawGrid(DrawingContext dc, MapGrid grid, MapTransform m, IReadOnlySet<string>? selected, int orientation = 0)
+    private static void DrawGrid(CanvasDrawingSession ds, MapGrid grid, MapTransform m, IReadOnlySet<string>? selected, int orientation, MapPalette palette)
     {
-        var bmp = BuildGridBitmap(grid, selected);
+        var bitmap = GridBitmap(ds, grid, selected, palette);
         var place = MapGeometry.PlaceGrid(grid, m, orientation);
-
-        // NearestNeighbor on the bitmap keeps each 5 cm cell a sharp block instead of a smooth
-        // gradient, but WPF's compositor still anti-aliases the drawn image's own edges unless told
-        // not to. EdgeMode is scoped to this DrawingGroup rather than set on the MapView itself, so
-        // labels, the robot and the path stay anti-aliased as normal.
-        var group = new DrawingGroup();
-        RenderOptions.SetEdgeMode(group, EdgeMode.Aliased);
-        RenderOptions.SetBitmapScalingMode(group, BitmapScalingMode.NearestNeighbor);
-        using (var gdc = group.Open())
-        {
-            if (place.Orientation != 0) gdc.PushTransform(new RotateTransform(place.Orientation, place.Centre.X, place.Centre.Y));
-            gdc.DrawImage(bmp, place.Destination.ToWpf());
-            if (place.Orientation != 0) gdc.Pop();
-        }
-        group.Freeze();
-        dc.DrawDrawing(group);
+        // Each 5 cm cell a sharp block rather than a smooth gradient, its edges too.
+        var transform = ds.Transform;
+        var antialiasing = ds.Antialiasing;
+        ds.Antialiasing = CanvasAntialiasing.Aliased;
+        if (place.Orientation != 0)
+            ds.Transform = Matrix3x2.CreateRotation((float)(place.Orientation * Math.PI / 180), place.Centre.ToVector2()) * transform;
+        ds.DrawImage(bitmap, place.Destination.ToRect(), bitmap.Bounds, 1, CanvasImageInterpolation.NearestNeighbor);
+        ds.Transform = transform;
+        ds.Antialiasing = antialiasing;
     }
 
     /// <summary>Without a grid (maps other than the current one), the visited points give the rooms' shape.</summary>
-    private static void DrawVisitedPoints(DrawingContext dc, MapScene scene, MapTransform t)
+    private static void DrawVisitedPoints(CanvasDrawingSession ds, MapScene scene, MapTransform m, MapPalette palette)
     {
-        var m = t.ToWpf();
-        var r = MapGeometry.VisitedDotRadius(t);
+        var r = (float)MapGeometry.VisitedDotRadius(m);
         foreach (var z in scene.Map?.Zones ?? [])
         {
-            if (z.Visited is not { Count: > 0 } pts || !int.TryParse(z.Id, out var id)) continue;
+            if (z.Visited is not { Count: > 0 } pts || !int.TryParse(z.Id, CultureInfo.InvariantCulture, out var id)) continue;
             var dimmed = scene.SelectedZoneIds is { Count: > 0 } sel && !sel.Contains(z.Id);
-            var brush = Current.ZoneBrush(id, dimmed);
-            foreach (var p in pts)
-                dc.DrawEllipse(brush, null, m.Transform(new Point(p.X, p.Y)), r, r);
+            var colour = palette.ZoneColor(id);
+            var fill = (dimmed ? palette.Dim(colour) : colour).ToColor();
+            foreach (var p in pts) ds.FillCircle(m.Transform(p).ToVector2(), r, fill);
         }
     }
 
-    private static void DrawPolygon(DrawingContext dc, List<CorePoint>? points, Matrix m, Pen pen, Brush fill)
+    private static void DrawPolygon(CanvasDrawingSession ds, List<CorePoint>? points, MapTransform m, Color stroke, float width, Color fill)
     {
         if (points is not { Count: > 2 }) return;
-        var geo = new StreamGeometry();
-        using (var g = geo.Open())
-        {
-            g.BeginFigure(m.Transform(new Point(points[0].X, points[0].Y)), true, true);
-            for (var i = 1; i < points.Count; i++)
-                g.LineTo(m.Transform(new Point(points[i].X, points[i].Y)), true, false);
-        }
-        geo.Freeze();
-        dc.DrawGeometry(fill, pen, geo);
+        using var polygon = CanvasGeometry.CreatePolygon(ds, [.. points.Select(p => m.Transform(p).ToVector2())]);
+        ds.FillGeometry(polygon, fill);
+        ds.DrawGeometry(polygon, stroke, width, RoundJoin);
     }
 
-    private static Rect DrawLabel(DrawingContext dc, string text, Point at)
+    private static Rect DrawLabel(CanvasDrawingSession ds, string text, Vector2 at, MapPalette palette)
     {
-        var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-            Resources.LabelFont, 12, Current.LabelText, 1.0);
-        var rect = new Rect(at.X - ft.Width / 2 - 4, at.Y - ft.Height / 2 - 2, ft.Width + 8, ft.Height + 4);
-        dc.DrawRoundedRectangle(Current.LabelBackground, null, rect, 3, 3);
-        dc.DrawText(ft, new Point(rect.X + 4, rect.Y + 2));
+        using var layout = new CanvasTextLayout(ds, text, LabelFont, Unbounded, Unbounded);
+        var (w, h) = ((float)layout.LayoutBounds.Width, (float)layout.LayoutBounds.Height);
+        var rect = new Rect(at.X - w / 2 - 4, at.Y - h / 2 - 2, w + 8, h + 4);
+        ds.FillRoundedRectangle(rect, 3, 3, palette.LabelBackground.ToColor());
+        ds.DrawTextLayout(layout, (float)rect.X + 4, (float)rect.Y + 2, palette.LabelText.ToColor());
         return rect;
     }
 
-    private static void DrawBadge(DrawingContext dc, string text, Point at)
+    private static void DrawBadge(CanvasDrawingSession ds, string text, Vector2 at)
     {
-        var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-            Resources.BadgeFont, 11, Brushes.Black, 1.0);
-        dc.DrawEllipse(Brushes.White, Resources.BlackPen, at, 9, 9);
-        dc.DrawText(ft, new Point(at.X - ft.Width / 2, at.Y - ft.Height / 2));
+        using var layout = new CanvasTextLayout(ds, text, BadgeFont, Unbounded, Unbounded);
+        ds.FillCircle(at, 9, White);
+        ds.DrawCircle(at, 9, Black, 1);
+        ds.DrawTextLayout(layout, at.X - (float)layout.LayoutBounds.Width / 2, at.Y - (float)layout.LayoutBounds.Height / 2, Black);
     }
 
-    private static void DrawCentredText(DrawingContext dc, string text, Size size)
+    private static void DrawCentredText(CanvasDrawingSession ds, string text, Size2 size, Color colour)
     {
-        var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-            Resources.LabelFont, 16, Current.LabelText, 1.0);
-        dc.DrawText(ft, new Point((size.Width - ft.Width) / 2, (size.Height - ft.Height) / 2));
-    }
-
-    /// <summary>Renders the scene to a PNG file, for sharing or for checking the renderer without a window.</summary>
-    public static void ExportPng(MapScene scene, int width, int height, string path)
-    {
-        var visual = new DrawingVisual();
-        using (var dc = visual.RenderOpen())
-        {
-            var size = new Size(width, height);
-            var m = MapGeometry.WorldToScreen(scene, new Size2(width, height));
-            Render(dc, scene, size, m);
-            RobotMarkers.Draw(dc, scene, m ?? MapTransform.Identity, 0);
-        }
-        var rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-        rtb.Render(visual);
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(rtb));
-        using var fs = File.Create(path);
-        encoder.Save(fs);
+        using var layout = new CanvasTextLayout(ds, text, MessageFont, Unbounded, Unbounded);
+        ds.DrawTextLayout(layout, (float)(size.Width - layout.LayoutBounds.Width) / 2, (float)(size.Height - layout.LayoutBounds.Height) / 2, colour);
     }
 }

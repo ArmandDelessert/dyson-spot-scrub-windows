@@ -1,7 +1,7 @@
-using System.Windows;
-using System.Windows.Controls;
-using Dyss.Presentation.ViewModels;
 using Dyss.Core;
+using Dyss.Presentation.ViewModels;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 
 namespace Dyss.App.Views;
 
@@ -10,11 +10,11 @@ namespace Dyss.App.Views;
 /// the wire field is always {"type": …, "name": …}, with type "custom" for a free name — so one
 /// dialog covers what the phone app splits across two screens.
 /// </summary>
-public partial class RoomNameWindow : Window
+public sealed partial class RoomNameDialog : ContentDialog
 {
     private bool _nameEdited;
 
-    private RoomNameWindow(ManagedRoom room, IReadOnlyList<RoomTypeOption> types)
+    public RoomNameDialog(ManagedRoom room, IReadOnlyList<RoomTypeOption> types)
     {
         InitializeComponent();
         Intro.Text = $"Pièce « {room.DisplayName} », {room.AreaText}.";
@@ -27,18 +27,18 @@ public partial class RoomNameWindow : Window
             _nameEdited = true;
             // An empty name is not something to send, and Enter on a blank field should not look
             // like a working action.
-            OkButton.IsEnabled = !string.IsNullOrWhiteSpace(NameBox.Text);
+            IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(NameBox.Text);
         };
-        Loaded += (_, _) => { NameBox.Focus(); NameBox.SelectAll(); _nameEdited = false; };
+        Opened += (_, _) =>
+        {
+            NameBox.Focus(FocusState.Programmatic);
+            NameBox.SelectAll();
+            _nameEdited = false;
+        };
     }
 
-    /// <summary>Returns the chosen name and type (null type meaning a free name), or null when cancelled.</summary>
-    public static (string Name, string? Type)? Ask(Window? owner, ManagedRoom room, IReadOnlyList<RoomTypeOption> types)
-    {
-        var w = new RoomNameWindow(room, types) { Owner = owner };
-        if (w.ShowDialog() != true) return null;
-        return (w.NameBox.Text, (w.TypeBox.SelectedItem as RoomTypeOption)?.Type);
-    }
+    /// <summary>The chosen name and type (null type meaning a free name), once the user has pressed "Renommer".</summary>
+    public (string Name, string? Type) Answer => (NameBox.Text, (TypeBox.SelectedItem as RoomTypeOption)?.Type);
 
     private void Type_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -56,11 +56,5 @@ public partial class RoomNameWindow : Window
         if (RoomTypeLabels.DefaultNameFor((TypeBox.SelectedItem as RoomTypeOption)?.Type) is not { } label) return;
         NameBox.Text = label;
         _nameEdited = false;
-    }
-
-    private void Ok_Click(object sender, RoutedEventArgs e)
-    {
-        if (string.IsNullOrWhiteSpace(NameBox.Text)) { NameBox.Focus(); return; }
-        DialogResult = true;
     }
 }

@@ -1,0 +1,41 @@
+<UserControl x:Class="Dyss.App.Views.JournalView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Padding="16,0,16,16" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <TextBlock Style="{StaticResource Muted}" MaxWidth="900" HorizontalAlignment="Left"
+                   Text="Le journal affiche les événements notables signalés par le robot (fautes, fin de nettoyage, changement de carte…) et le résultat des commandes envoyées depuis cette fenêtre. Il ne montre pas chaque message échangé avec le robot : activez l'enregistrement ci-dessous pour tous les garder, un fichier par jour, gardé 30 jours. Cela aide à repérer des messages encore non identifiés."/>
+
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0" Padding="16,8">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Enregistrer tous les messages" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock Text="{x:Bind ViewModel.RecordInfo, Mode=OneWay}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="Ouvrir le dossier" Command="{x:Bind ViewModel.OpenRecordFolderCommand}" VerticalAlignment="Center"
+                        ToolTipService.ToolTip="{x:Bind ViewModel.RecordFolder}"/>
+                <ToggleSwitch Grid.Column="2" IsOn="{x:Bind ViewModel.RecordMessages, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                              VerticalAlignment="Center" AutomationProperties.Name="Enregistrer tous les messages"/>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0" Padding="0,8">
+            <ListView ItemsSource="{x:Bind ViewModel.Log}" SelectionMode="None" AutomationProperties.Name="Journal">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{x:Bind}" FontFamily="Cascadia Mono, Consolas" FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Border>
+    </Grid>
+</UserControl>

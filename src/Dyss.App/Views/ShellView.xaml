@@ -1,0 +1,81 @@
+<UserControl x:Class="Dyss.App.Views.ShellView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:Dyss.App">
+    <!-- The dashboard: a page per subject, picked from the pane, under a header that says which
+         robot this is and how the link to it stands, whatever page is on show. -->
+    <NavigationView x:Name="Nav" PaneDisplayMode="Left" OpenPaneLength="230" IsSettingsVisible="False"
+                    IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False"
+                    SelectionChanged="Nav_SelectionChanged">
+        <NavigationView.MenuItems>
+            <NavigationViewItem x:Name="DashboardItem" Content="Tableau de bord" Tag="dashboard">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE80F;"/></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="HistoryItem" Content="Historique" Tag="history">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE81C;"/></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="SchedulesItem" Content="Horaires" Tag="schedules">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE787;"/></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="SettingsItem" Content="Réglages du robot" Tag="settings">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="JournalItem" Content="Journal" Tag="journal">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE8FD;"/></NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.MenuItems>
+        <NavigationView.FooterMenuItems>
+            <NavigationViewItem x:Name="MapsItem" Content="Gérer les cartes" Tag="maps"
+                                ToolTipService.ToolTip="Renommer les cartes et les pièces, fusionner ou diviser des pièces, zones et meubles, lancer une cartographie">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE81E;"/></NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.FooterMenuItems>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Padding="16,12,8,12" ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ViewModel.RobotName}" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                    <TextBlock Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap">
+                        <Run Text="Numéro de série"/> <Run Text="{x:Bind ViewModel.Serial}"/> · <Run Text="Firmware"/> <Run Text="{x:Bind ViewModel.Firmware}"/> · <Run Text="Compte"/> <Run Text="{x:Bind ViewModel.AccountEmail}"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
+                    <Grid VerticalAlignment="Center">
+                        <Ellipse Width="10" Height="10" Fill="{ThemeResource SystemFillColorSuccessBrush}" Visibility="{x:Bind ViewModel.Hub.Connected, Mode=OneWay}"/>
+                        <Ellipse Width="10" Height="10" Fill="{ThemeResource SystemFillColorCriticalBrush}" Visibility="{x:Bind local:Ui.Unless(ViewModel.Hub.Connected), Mode=OneWay}"/>
+                    </Grid>
+                    <TextBlock Text="{x:Bind ViewModel.Hub.Connection, Mode=OneWay}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{x:Bind local:Ui.Updated(ViewModel.Status.LastUpdate), Mode=OneWay}" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
+                    <CommandBar DefaultLabelPosition="Right" Background="Transparent" IsOpen="False" VerticalAlignment="Center">
+                        <AppBarButton Label="Actualiser" Command="{x:Bind ViewModel.RefreshCommand}">
+                            <AppBarButton.Icon><FontIcon Glyph="&#xE72C;"/></AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton Label="Se déconnecter" Command="{x:Bind ViewModel.LogoutCommand}">
+                            <AppBarButton.Icon><FontIcon Glyph="&#xF3B1;"/></AppBarButton.Icon>
+                        </AppBarButton>
+                    </CommandBar>
+                </StackPanel>
+            </Grid>
+
+            <!-- A command in flight, and what went wrong with the last one. -->
+            <StackPanel Grid.Row="1" Padding="16,0,16,8" Spacing="8">
+                <ProgressBar IsIndeterminate="True" Visibility="{x:Bind ViewModel.Hub.Busy, Mode=OneWay}"/>
+                <InfoBar Severity="Error" Message="{x:Bind ViewModel.Hub.Message, Mode=OneWay}"
+                         IsOpen="{x:Bind local:Ui.HasText(ViewModel.Hub.Message), Mode=OneWay}" CloseButtonClick="Message_Closed"/>
+            </StackPanel>
+
+            <ContentControl x:Name="Page" Grid.Row="2" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" IsTabStop="False"/>
+        </Grid>
+    </NavigationView>
+</UserControl>

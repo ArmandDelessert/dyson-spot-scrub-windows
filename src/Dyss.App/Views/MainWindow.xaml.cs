@@ -1,101 +1,68 @@
-using System.Windows;
-using System.Windows.Input;
-using Dyss.App.Services;
-using Dyss.Presentation.Services;
-using Dyss.Presentation.ViewModels;
+using System.Runtime.InteropServices;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Windows.Graphics;
 
 namespace Dyss.App.Views;
 
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
-    Justification = "A Window's lifetime is its own Closed event, which is where both fields are disposed; making the window IDisposable would suggest a second, competing lifetime.")]
-public partial class MainWindow : Window
+/// <summary>
+/// The application's one window: a Mica backdrop under its own title bar, and whichever view the
+/// application is at — login, waiting for the network, the dashboard.
+/// </summary>
+public sealed partial class MainWindow : Window
 {
-    private readonly MainViewModel _vm;
-    private readonly NotificationService _notifications = new();
-
-    /// <summary>Raised when the user logs out from within the window, just before it closes.</summary>
-    public event Action? LoggedOut;
-
-    public MainWindow(RobotContext ctx)
+    public MainWindow()
     {
         InitializeComponent();
-        _vm = new MainViewModel(ctx, new WpfUiDispatcher(Dispatcher), new WpfDialogService());
-        DataContext = _vm;
-        // Escape puts back a zone being dragged; otherwise, on the dashboard, it gives up the
-        // drawing or erases the drawn zone. A drag is checked first, on the way down, so nothing
-        // else on the way can take the key from it; the rest waits for an open list to close itself.
-        PreviewKeyDown += (_, e) =>
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "app.ico"));
+
+        // Sized in pixels: 1240 × 820 at 100 % scaling, centred on the screen it opens on.
+        var scale = GetDpiForWindow(Win32Interop.GetWindowFromWindowId(AppWindow.Id)) / 96.0;
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
-            if (e.Key == Key.Escape && MapCanvas.CancelGesture()) e.Handled = true;
-        };
-        KeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Escape && Tabs.SelectedIndex == 0 && _vm.Cleaning.CancelSpot()) e.Handled = true;
-        };
-        _vm.LoggedOut += () => { LoggedOut?.Invoke(); Close(); };
-        _vm.NotifyRequested += (title, text) => _notifications.Show(title, text, onClick: () =>
-        {
-            Show();
-            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
-            Activate();
-            SelectTab(1);
-        });
-        _vm.MapManagerRequested += OpenMapManager;
-        Loaded += async (_, _) => await _vm.StartAsync();
-        Closing += async (_, _) => await _vm.ShutdownAsync();
-        Closed += (_, _) => { _notifications.Dispose(); _vm.Dispose(); };
+            presenter.PreferredMinimumWidth = (int)(960 * scale);
+            presenter.PreferredMinimumHeight = (int)(640 * scale);
+        }
+        var size = new SizeInt32((int)(1240 * scale), (int)(820 * scale));
+        var area = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+        AppWindow.MoveAndResize(new RectInt32(
+            area.X + Math.Max(0, (area.Width - size.Width) / 2), area.Y + Math.Max(0, (area.Height - size.Height) / 2),
+            Math.Min(size.Width, area.Width), Math.Min(size.Height, area.Height)));
     }
 
-    /// <summary>Opens the map manager, and refreshes the dashboard afterwards so renames show up there too.</summary>
-    private void OpenMapManager()
+    /// <summary>The title bar, whose pane and back buttons the dashboard drives.</summary>
+    public TitleBar TitleBar => AppTitleBar;
+
+    /// <summary>The theme everything is drawn in: the system's, unless one was asked for (see <see cref="ForceTheme"/>).</summary>
+    public ElementTheme Theme => Root.ActualTheme;
+
+    /// <summary>Light or dark whatever the system says, for screenshots.</summary>
+    public void ForceTheme(ElementTheme theme) => Root.RequestedTheme = theme;
+
+    /// <summary>The window's content, for screenshots.</summary>
+    public FrameworkElement View => Root;
+
+    /// <summary>Puts <paramref name="view"/> in the window, in place of whatever was there.</summary>
+    public void Show(UIElement view)
     {
-        var window = new MapManagerWindow(_vm.CreateMapManager(), _vm.Cleaning.SelectedMap?.Id) { Owner = this };
-        window.MapsChanged += () => _ = _vm.ReloadMapsAsync();
-        window.ShowDialog();
+        AppTitleBar.IsBackButtonVisible = false;
+        AppTitleBar.IsPaneToggleButtonVisible = false;
+        Host.Content = view;
     }
 
-    private void ResetZoom_Click(object sender, RoutedEventArgs e) => MapCanvas.ResetView();
-    private void ResetHistoryZoom_Click(object sender, RoutedEventArgs e) => HistoryCanvas.ResetView();
-
-    public void ClickZone(string zoneId) => _vm.Cleaning.ToggleZone(zoneId);
-
-    public void SelectTab(int index)
+    /// <summary>Back to the front: restored if minimised, then activated.</summary>
+    public void BringToFront()
     {
-        if (index >= 0 && index < Tabs.Items.Count) Tabs.SelectedIndex = index;
-        if (index == 1) _vm.History.SelectFirstClean();
+        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter) presenter.Restore();
+        AppWindow.Show();
+        Activate();
     }
 
-    private MapManagerWindow? _mapManager;
-
-    /// <summary>Diagnostics only: opens the map manager without waiting for it, so a screenshot run can shoot it.</summary>
-    public void OpenMapManagerForScreenshot(int layer = 0, string? mapId = null)
-    {
-        var vm = _vm.CreateMapManager();
-        vm.LayerIndex = layer;
-        _mapManager = new MapManagerWindow(vm, mapId ?? _vm.Cleaning.SelectedMap?.Id) { Owner = this };
-        _mapManager.Show();
-    }
-
-    /// <summary>Diagnostics only: renders the map manager to a PNG.</summary>
-    public void SaveMapManagerScreenshot(string path) => _mapManager?.SaveScreenshot(path);
-
-    private ScheduleEditorWindow? _scheduleEditor;
-
-    /// <summary>
-    /// Diagnostics only: opens the editor of a new schedule, already filled in (Monday and Thursday,
-    /// the first two rooms) so the shot shows the estimate and the settings rows.
-    /// </summary>
-    public void OpenScheduleEditorForScreenshot()
-    {
-        if (_vm.Schedules.NewEditor() is not { } editor) return;
-        editor.Days[0].IsChecked = true;
-        editor.Days[3].IsChecked = true;
-        foreach (var room in editor.Rooms.Take(2)) room.Selected = true;
-        _scheduleEditor = ScheduleEditorWindow.ShowForScreenshot(this, editor);
-    }
-
-    public void SaveScheduleEditorScreenshot(string path) => _scheduleEditor?.SaveScreenshot(path);
-
-    /// <summary>Renders the window content to a PNG, for documentation and for checking the layout without a screen.</summary>
-    public void SaveScreenshot(string path) => WindowScreenshot.Save(this, path);
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
 }

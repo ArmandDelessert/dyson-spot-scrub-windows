@@ -4,10 +4,8 @@ using Dyss.Presentation.ViewModels;
 namespace Dyss.Presentation;
 
 /// <summary>
-/// The questions the view models put to the user, answered by whichever UI hosts them. Everything
-/// is asynchronous, even where WPF answers synchronously with a modal window, so a UI whose dialogs
-/// are awaited (WinUI's ContentDialog, its file pickers) fits without changing the view models.
-/// Each dialog belongs to the window the user is working in.
+/// The questions the view models put to the user, answered by the UI that hosts them. Everything is
+/// asynchronous, as WinUI's content dialogs and file pickers are awaited.
 /// </summary>
 public interface IDialogService
 {

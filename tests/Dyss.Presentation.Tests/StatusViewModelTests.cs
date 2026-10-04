@@ -45,12 +45,14 @@ public class StatusViewModelTests
         vm.Apply(State("""{"msg":"CURRENT-STATE","state":"FULL_CLEAN_RUNNING"}"""));
         Assert.True(vm.CanPause);
         Assert.True(vm.CanAbort);
-        Assert.Equal("⏸ Pause", vm.PauseResumeLabel);
+        Assert.Equal("Pause", vm.PauseResumeLabel);
+        Assert.False(vm.Paused);
 
         // Still "can pause": the one button toggles, and only the label says which way.
         vm.Apply(State("""{"msg":"CURRENT-STATE","state":"FULL_CLEAN_PAUSED"}"""));
         Assert.True(vm.CanPause);
-        Assert.Equal("▶ Reprendre", vm.PauseResumeLabel);
+        Assert.Equal("Reprendre", vm.PauseResumeLabel);
+        Assert.True(vm.Paused);
     }
 
     [Fact]

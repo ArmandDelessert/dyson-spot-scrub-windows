@@ -2,8 +2,8 @@ namespace Dyss.Presentation;
 
 /// <summary>
 /// The UI thread, as the view models see it: whatever pushes data from elsewhere (the MQTT thread,
-/// a network event) goes through here before touching anything bound to the screen. Each UI
-/// framework provides its own: WPF's Dispatcher, WinUI's DispatcherQueue.
+/// a network event) goes through here before touching anything bound to the screen. The UI provides
+/// it: WinUI's DispatcherQueue, or an inline one in the tests.
 /// </summary>
 public interface IUiDispatcher
 {

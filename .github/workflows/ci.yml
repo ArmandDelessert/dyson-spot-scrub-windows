@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    # WPF only builds on Windows.
+    # WinUI only builds on Windows.
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

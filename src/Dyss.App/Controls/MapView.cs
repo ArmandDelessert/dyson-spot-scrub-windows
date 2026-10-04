@@ -1,23 +1,27 @@
-using System.Windows;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Threading;
 using Dyss.App.Rendering;
-using Dyss.App.Services;
 using Dyss.Presentation.Map;
+using Microsoft.Graphics.Canvas.UI.Xaml;
+using Microsoft.UI.Input;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Windows.UI.ViewManagement;
 
 namespace Dyss.App.Controls;
 
 /// <summary>
-/// Shows a map: draws the scene of its <see cref="Interaction"/> and hands it the mouse and touch
-/// input, which it turns into zoom, pan, clicks and drags (see <see cref="MapInteraction"/>). What
-/// is left here is WPF's part: drawing, the pointer capture, the cursor, and animating the robot.
+/// Shows a map: draws the scene of its <see cref="Interaction"/> and hands it the pointer input,
+/// which it turns into zoom, pan, clicks and drags (see <see cref="MapInteraction"/>). What is left
+/// here is WinUI's part: drawing with Win2D, the pointer capture, the cursor, the theme's colours,
+/// and animating the robot. Mouse and pen come through the pointer events; touch through the
+/// manipulation events, which report a pan and a pinch as one gesture.
 /// </summary>
-public sealed class MapView : FrameworkElement
+public sealed partial class MapView : UserControl
 {
     public static readonly DependencyProperty InteractionProperty = DependencyProperty.Register(
         nameof(Interaction), typeof(MapInteraction), typeof(MapView),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, (d, e) => ((MapView)d).Attach((MapInteraction?)e.OldValue, (MapInteraction?)e.NewValue)));
+        new PropertyMetadata(null, (d, e) => ((MapView)d).Attach((MapInteraction?)e.OldValue, (MapInteraction?)e.NewValue)));
 
     /// <summary>The map's state and gestures, owned by a view model.</summary>
     public MapInteraction? Interaction
@@ -26,50 +30,67 @@ public sealed class MapView : FrameworkElement
         set => SetValue(InteractionProperty, value);
     }
 
-    // The user's own double-click speed from Windows settings (500 ms by default). Anyone who needs
-    // a slower double click will have set it there, so the deferred clear waits exactly that long.
-    private static readonly TimeSpan DoubleClickWindow = TimeSpan.FromMilliseconds(System.Windows.Forms.SystemInformation.DoubleClickTime);
+    private static readonly UISettings Settings = new();
+
+    /// <summary>The map itself, redrawn when something on it changes.</summary>
+    private readonly CanvasControl _map = new();
+    /// <summary>The robot and its dock, on a layer of their own: redrawing only this one each frame of their animation leaves the map, much heavier to draw, untouched.</summary>
+    private readonly CanvasControl _markers = new() { IsHitTestVisible = false, ClearColor = Microsoft.UI.Colors.Transparent };
 
     public MapView()
     {
-        Focusable = true;
-        ClipToBounds = true;
-        IsManipulationEnabled = true;
-        AddVisualChild(_markers);
-        IsVisibleChanged += (_, _) => UpdateAnimation();
-        // The map's colours follow the Windows theme; the scene does not change with it.
-        Loaded += (_, _) =>
-        {
-            ThemeService.Changed -= OnThemeChanged;
-            ThemeService.Changed += OnThemeChanged;
-            UpdateAnimation();
-        };
-        Unloaded += (_, _) => { ThemeService.Changed -= OnThemeChanged; StopAnimation(); };
+        var root = new Grid { Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
+        root.Children.Add(_map);
+        root.Children.Add(_markers);
+        Content = root;
+        IsTabStop = false;
+        ManipulationMode = ManipulationModes.TranslateX | ManipulationModes.TranslateY | ManipulationModes.Scale;
+
+        _map.Draw += (_, e) => DrawMap(e.DrawingSession);
+        _markers.Draw += (_, e) => DrawMarkers(e.DrawingSession);
+        SizeChanged += (_, _) => UpdateSize();
+        ActualThemeChanged += (_, _) => Redraw();
+        Loaded += (_, _) => UpdateAnimation();
+        Unloaded += (_, _) => StopAnimation();
     }
+
+    /// <summary>The map's colours, which follow the theme of the window.</summary>
+    private MapPalette Palette => ActualTheme == ElementTheme.Light ? MapPalette.Light : MapPalette.Dark;
 
     private void Attach(MapInteraction? old, MapInteraction? map)
     {
         if (old is not null)
         {
-            old.Invalidated -= InvalidateVisual;
+            old.Invalidated -= Redraw;
             old.SceneChanged -= UpdateAnimation;
             old.CursorChanged -= UpdateCursor;
         }
         if (map is not null)
         {
-            map.DoubleClickTime = DoubleClickWindow;
-            map.Size = new Size2(CurrentSize.Width, CurrentSize.Height);
-            map.Invalidated += InvalidateVisual;
+            // The user's own double-click speed, from the Windows settings.
+            map.DoubleClickTime = TimeSpan.FromMilliseconds(Settings.DoubleClickTime);
+            // A tap comes as a Tapped event, never as a manipulation: see OnTapped.
+            map.ManipulationTaps = false;
+            map.Invalidated += Redraw;
             map.SceneChanged += UpdateAnimation;
             map.CursorChanged += UpdateCursor;
         }
+        UpdateSize();
         UpdateCursor();
         UpdateAnimation();
+        Redraw();
     }
 
-    private void OnThemeChanged() => InvalidateVisual();
+    private void UpdateSize()
+    {
+        if (Interaction is { } map) map.Size = new Size2(Math.Max(1, ActualWidth), Math.Max(1, ActualHeight));
+    }
 
-    private Size CurrentSize => new(Math.Max(1, ActualWidth), Math.Max(1, ActualHeight));
+    private void Redraw()
+    {
+        _map.Invalidate();
+        _markers.Invalidate();
+    }
 
     public void ResetView() => Interaction?.ResetView();
 
@@ -80,71 +101,68 @@ public sealed class MapView : FrameworkElement
     public bool CancelGesture()
     {
         if (Interaction?.CancelGesture() != true) return false;
-        ReleaseMouseCapture();
+        ReleasePointerCaptures();
         return true;
     }
 
-    private void UpdateCursor() => Cursor = Interaction?.Cursor switch
+    /// <summary>
+    /// Lets go of Win2D's graphics resources for good. For a view that will not be shown again —
+    /// the map manager once closed — since a control merely taken off screen may well come back.
+    /// </summary>
+    public void Release()
     {
-        MapCursor.Cross => Cursors.Cross,
-        MapCursor.Move => Cursors.SizeAll,
-        MapCursor.ResizeNorthwestSoutheast => Cursors.SizeNWSE,
-        MapCursor.ResizeNortheastSouthwest => Cursors.SizeNESW,
+        Interaction = null;
+        StopAnimation();
+        _map.RemoveFromVisualTree();
+        _markers.RemoveFromVisualTree();
+    }
+
+    private void UpdateCursor() => ProtectedCursor = Interaction?.Cursor switch
+    {
+        MapCursor.Cross => InputSystemCursor.Create(InputSystemCursorShape.Cross),
+        MapCursor.Move => InputSystemCursor.Create(InputSystemCursorShape.SizeAll),
+        MapCursor.ResizeNorthwestSoutheast => InputSystemCursor.Create(InputSystemCursorShape.SizeNorthwestSoutheast),
+        MapCursor.ResizeNortheastSouthwest => InputSystemCursor.Create(InputSystemCursorShape.SizeNortheastSouthwest),
         _ => null,
     };
 
     // ---- Drawing --------------------------------------------------------------------------
 
-    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
-    {
-        base.OnRenderSizeChanged(sizeInfo);
-        if (Interaction is { } map) map.Size = new Size2(CurrentSize.Width, CurrentSize.Height);
-        InvalidateVisual();
-    }
+    private Size2 CanvasSize => new(Math.Max(1, _map.ActualWidth), Math.Max(1, _map.ActualHeight));
 
-    protected override void OnRender(DrawingContext drawingContext)
+    private void DrawMap(Microsoft.Graphics.Canvas.CanvasDrawingSession ds)
     {
         if (Interaction is not { } map) return;
-        var size = CurrentSize;
-        MapRenderer.Render(drawingContext, map.Scene, size, map.Transform);
-        MapRenderer.DrawOverlay(drawingContext, map.Overlay, map.WorldToScreen, size);
-        DrawMarkers();
+        var palette = Palette;
+        MapRenderer.Render(ds, map.Scene, CanvasSize, map.Transform, palette);
+        MapRenderer.DrawOverlay(ds, map.Overlay, map.WorldToScreen, CanvasSize, palette);
     }
 
-    // ---- The robot and its dock, on a layer of their own --------------------------------
-    // They are animated by what they are doing; redrawing only this layer each frame leaves the
-    // map itself, much heavier to draw, untouched.
-
-    private readonly DrawingVisual _markers = new();
     private readonly RobotGlide _glide = new();
     private bool _animating;
     private TimeSpan _lastFrame;
     private static readonly TimeSpan FrameInterval = TimeSpan.FromSeconds(1.0 / 30);
     private static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
 
-    protected override int VisualChildrenCount => 1;
-    protected override Visual GetVisualChild(int index) => index == 0 ? _markers : throw new ArgumentOutOfRangeException(nameof(index));
-
-    private void DrawMarkers()
+    private void DrawMarkers(Microsoft.Graphics.Canvas.CanvasDrawingSession ds)
     {
-        using var dc = _markers.RenderOpen();
         if (Interaction is not { } map) return;
         var scene = map.Scene;
-        // Windows' "show animations" setting off: everything stands still.
-        var animate = SystemParameters.ClientAreaAnimation;
+        // Windows' "animation effects" setting off: everything stands still.
+        var animate = Settings.AnimationsEnabled;
         var seconds = animate ? Clock.Elapsed.TotalSeconds : 0;
         var robotAt = animate && scene.SmoothRobotMotion && !scene.RobotDocked && scene.Robot is { } robot
             ? _glide.At(robot, Clock.Elapsed.TotalSeconds)
             : null;
-        RobotMarkers.Draw(dc, scene, map.WorldToScreen, seconds, robotAt);
+        RobotMarkers.Draw(ds, scene, map.WorldToScreen, seconds, robotAt);
         // A new position starts a glide, and one that has arrived stops the frames.
-        if (robotAt is not null) Dispatcher.BeginInvoke(UpdateAnimation, DispatcherPriority.Render);
+        if (robotAt is not null) DispatcherQueue.TryEnqueue(UpdateAnimation);
     }
 
     /// <summary>Keeps redrawing the markers while something moves and the map can be seen, and only then.</summary>
     private void UpdateAnimation()
     {
-        var wanted = IsVisible && IsLoaded && Interaction?.Scene is { } scene && SystemParameters.ClientAreaAnimation
+        var wanted = IsLoaded && Interaction?.Scene is { } scene && Settings.AnimationsEnabled
             && (RobotMarkerLayout.IsAnimated(scene) || (scene.SmoothRobotMotion && _glide.IsGliding(Clock.Elapsed.TotalSeconds)));
         if (wanted == _animating) return;
         if (wanted) CompositionTarget.Rendering += OnFrame;
@@ -159,82 +177,100 @@ public sealed class MapView : FrameworkElement
         _animating = false;
     }
 
-    private void OnFrame(object? sender, EventArgs e)
+    private void OnFrame(object? sender, object e)
     {
         // Rendering fires at the screen's rate; thirty frames a second is plenty for these.
         var now = e is RenderingEventArgs r ? r.RenderingTime : Clock.Elapsed;
         if (now - _lastFrame < FrameInterval) return;
         _lastFrame = now;
-        DrawMarkers();
+        _markers.Invalidate();
     }
 
-    // ---- Mouse ----------------------------------------------------------------------------
+    // ---- Mouse and pen ----------------------------------------------------------------------
 
-    protected override void OnMouseWheel(MouseWheelEventArgs e)
+    private static bool IsTouch(PointerRoutedEventArgs e) => e.Pointer.PointerDeviceType == PointerDeviceType.Touch;
+
+    private Vec2 Position(PointerRoutedEventArgs e) => e.GetCurrentPoint(this).Position.ToVec2();
+
+    protected override void OnPointerWheelChanged(PointerRoutedEventArgs e)
     {
-        Interaction?.PointerWheel(e.GetPosition(this).ToVec2(), e.Delta);
+        base.OnPointerWheelChanged(e);
+        Interaction?.PointerWheel(Position(e), e.GetCurrentPoint(this).Properties.MouseWheelDelta);
         e.Handled = true;
     }
 
-    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+    protected override void OnPointerPressed(PointerRoutedEventArgs e)
     {
-        Focus();
-        Interaction?.PointerPressed(e.GetPosition(this).ToVec2());
-        CaptureMouse();
+        base.OnPointerPressed(e);
+        if (IsTouch(e) || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        Interaction?.PointerPressed(Position(e));
+        CapturePointer(e.Pointer);
         e.Handled = true;
     }
 
-    protected override void OnLostMouseCapture(MouseEventArgs e)
+    protected override void OnPointerMoved(PointerRoutedEventArgs e)
     {
-        base.OnLostMouseCapture(e);
-        Interaction?.PointerCaptureLost();
+        base.OnPointerMoved(e);
+        if (IsTouch(e)) return;
+        Interaction?.PointerMoved(Position(e), e.GetCurrentPoint(this).Properties.IsLeftButtonPressed);
     }
 
-    protected override void OnMouseMove(MouseEventArgs e) =>
-        Interaction?.PointerMoved(e.GetPosition(this).ToVec2(), e.LeftButton == MouseButtonState.Pressed);
-
-    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+    protected override void OnPointerReleased(PointerRoutedEventArgs e)
     {
-        Interaction?.PointerReleased(e.GetPosition(this).ToVec2(), e.ClickCount);
-        // Released only now: letting go of the capture raises LostMouseCapture at once, which would
-        // otherwise drop a dragged shape unsent before the gesture had been read.
-        ReleaseMouseCapture();
+        base.OnPointerReleased(e);
+        if (IsTouch(e)) return;
+        // There is no click count to read here: the interaction tells a double click by its timing.
+        Interaction?.PointerReleased(Position(e), clickCount: 1);
+        // Released only now: letting go of the capture reports it lost, which would otherwise drop
+        // a dragged shape unsent before the gesture had been read.
+        ReleasePointerCapture(e.Pointer);
         e.Handled = true;
     }
 
-    protected override void OnMouseLeave(MouseEventArgs e)
+    protected override void OnPointerCaptureLost(PointerRoutedEventArgs e)
     {
-        base.OnMouseLeave(e);
-        Interaction?.PointerExited();
+        base.OnPointerCaptureLost(e);
+        if (!IsTouch(e)) Interaction?.PointerCaptureLost();
     }
 
-    // ---- Touch: WPF routes all touch through manipulation events rather than promoting it to
-    // mouse events once a control opts in via IsManipulationEnabled. ----
-
-    protected override void OnManipulationStarting(ManipulationStartingEventArgs e)
+    protected override void OnPointerExited(PointerRoutedEventArgs e)
     {
-        base.OnManipulationStarting(e);
-        e.ManipulationContainer = this;
+        base.OnPointerExited(e);
+        if (!IsTouch(e)) Interaction?.PointerExited();
     }
 
-    protected override void OnManipulationStarted(ManipulationStartedEventArgs e)
+    // ---- Touch: a finger that moves pans or pinches, through the manipulation events, which only
+    // begin once it has moved; one that does not is a tap, reported on its own. ----
+
+    protected override void OnTapped(TappedRoutedEventArgs e)
+    {
+        base.OnTapped(e);
+        if (e.PointerDeviceType != PointerDeviceType.Touch) return;
+        Interaction?.Tap(e.GetPosition(this).ToVec2());
+        e.Handled = true;
+    }
+
+    protected override void OnManipulationStarted(ManipulationStartedRoutedEventArgs e)
     {
         base.OnManipulationStarted(e);
-        Interaction?.ManipulationStarted(e.ManipulationOrigin.ToVec2());
-    }
-
-    protected override void OnManipulationDelta(ManipulationDeltaEventArgs e)
-    {
-        base.OnManipulationDelta(e);
-        Interaction?.ManipulationDelta(e.ManipulationOrigin.ToVec2(), e.DeltaManipulation.Translation.ToVec2(),
-            e.DeltaManipulation.Scale.X, e.CumulativeManipulation.Translation.ToVec2());
+        if (e.PointerDeviceType != PointerDeviceType.Touch) return;
+        Interaction?.ManipulationStarted(e.Position.ToVec2());
         e.Handled = true;
     }
 
-    protected override void OnManipulationCompleted(ManipulationCompletedEventArgs e)
+    protected override void OnManipulationDelta(ManipulationDeltaRoutedEventArgs e)
+    {
+        base.OnManipulationDelta(e);
+        if (e.PointerDeviceType != PointerDeviceType.Touch) return;
+        Interaction?.ManipulationDelta(e.Position.ToVec2(), e.Delta.Translation.ToVec2(), e.Delta.Scale, e.Cumulative.Translation.ToVec2());
+        e.Handled = true;
+    }
+
+    protected override void OnManipulationCompleted(ManipulationCompletedRoutedEventArgs e)
     {
         base.OnManipulationCompleted(e);
-        Interaction?.ManipulationCompleted(e.ManipulationOrigin.ToVec2(), e.TotalManipulation.Translation.ToVec2(), e.TotalManipulation.Scale.X);
+        if (e.PointerDeviceType != PointerDeviceType.Touch) return;
+        Interaction?.ManipulationCompleted(e.Position.ToVec2(), e.Cumulative.Translation.ToVec2(), e.Cumulative.Scale);
         e.Handled = true;
     }
 }
