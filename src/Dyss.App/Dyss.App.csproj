@@ -7,6 +7,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" />
     <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" />
     <PackageReference Include="Microsoft.Graphics.Win2D" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
@@ -52,7 +53,7 @@
     own runtime package, the version the full SDK package pins for these components.
   -->
   <PropertyGroup>
-    <WindowsAppRuntimeVersion>1.8.260921001</WindowsAppRuntimeVersion>
+    <WindowsAppRuntimeVersion>2.5.1</WindowsAppRuntimeVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageDownload Include="Microsoft.WindowsAppSDK.Runtime" Version="[$(WindowsAppRuntimeVersion)]" />
@@ -61,15 +62,17 @@
     <!-- Worked out here rather than with the project's properties: the intermediate folder is only
          known once the SDK has set it, and it is per architecture. -->
     <PropertyGroup>
-      <WindowsAppRuntimeMsix>$(NuGetPackageRoot)microsoft.windowsappsdk.runtime/$(WindowsAppRuntimeVersion)/tools/MSIX/win10-$(RuntimeIdentifier.Replace('win-', ''))/Microsoft.WindowsAppRuntime.1.8.msix</WindowsAppRuntimeMsix>
+      <WindowsAppRuntimeMsix>$(NuGetPackageRoot)microsoft.windowsappsdk.runtime/$(WindowsAppRuntimeVersion)/tools/MSIX/win10-$(RuntimeIdentifier.Replace('win-', ''))/Microsoft.WindowsAppRuntime.2.msix</WindowsAppRuntimeMsix>
       <WindowsAppRuntimeExtracted>$(IntermediateOutputPath)WindowsAppRuntime/</WindowsAppRuntimeExtracted>
     </PropertyGroup>
     <Unzip SourceFiles="$(WindowsAppRuntimeMsix)" DestinationFolder="$(WindowsAppRuntimeExtracted)"
            Include="Microsoft.WindowsAppRuntime.Insights.Resource.dll" SkipUnchangedFiles="true" />
+    <!-- Copied when it differs rather than when it is newer: the file keeps its date from the
+         package, and another version of the runtime can carry an older one. -->
     <ItemGroup>
       <None Include="$(WindowsAppRuntimeExtracted)Microsoft.WindowsAppRuntime.Insights.Resource.dll"
             Link="Microsoft.WindowsAppRuntime.Insights.Resource.dll"
-            CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+            CopyToOutputDirectory="IfDifferent" CopyToPublishDirectory="IfDifferent" />
     </ItemGroup>
   </Target>
 
