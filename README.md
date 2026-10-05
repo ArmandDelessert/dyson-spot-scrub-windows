@@ -4,13 +4,24 @@
 
 # DySS Cockpit
 
+*English: see the [English summary](#english-summary).*
+
 **DySS Cockpit** est une application Windows non officielle pour piloter le robot aspirateur et laveur **Dyson Spot+Scrub AI** (nom interne RB05) : nettoyer des pièces ou une zone, suivre le robot en direct sur la carte, gérer cartes, pièces, zones et horaires, consulter l'historique. Son nom vient de **Dy**son **S**pot+**S**crub.
 
 Le robot sur le site de Dyson : [présentation](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai) et [fiche technique](https://www.dyson.ch/fr_ch/aspirateurs/robot/spot-scrub-ai/noir) en français ; [présentation](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai) et [fiche technique](https://www.dyson.com/vacuum-cleaners/robot/spot-scrub-ai/black) en anglais.
 
-> **Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson.** Dyson, Spot+Scrub et MyDyson sont des marques du groupe Dyson, citées ici uniquement pour désigner le robot et l'application avec lesquels ce logiciel communique.
+> **Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson.** Il s'appuie sur une API non documentée, retrouvée par rétro-ingénierie à des fins d'interopérabilité, qui peut changer à tout moment : à utiliser à vos risques. Dyson, Spot+Scrub et MyDyson sont des marques du groupe Dyson, citées ici uniquement pour désigner le robot et l'application avec lesquels ce logiciel communique.
 
 > Ce README, comme l'essentiel du code de ce dépôt, a été rédigé par Claude (Claude Code, Anthropic), sous la direction d'Armand Delessert.
+
+## English summary
+
+**DySS Cockpit** is an unofficial Windows application for the **Dyson Spot+Scrub AI** robot vacuum and mop (RB05). It talks to the robot through Dyson's cloud, with the same MyDyson account as the phone app: clean rooms or a zone drawn on the map, follow the robot live, manage maps, rooms, no-go zones, furniture and schedules, browse the cleaning history. It keeps running in the notification area and raises Windows notifications. The interface is in French or English.
+
+- **Install**: download the zip of the [latest release](https://github.com/ArmandDelessert/dyson-spot-scrub-windows/releases/latest) for x64 or ARM64, unzip it and run `DyssCockpit.exe` (not signed: SmartScreen asks once). Sign in with your MyDyson account (email, password, then a one-time code). Requires Windows 10 version 2004 or later, or Windows 11.
+- **Unofficial**: the API was reverse-engineered from the Android app, for interoperability, and may change at any time. Use at your own risk. Not affiliated with, endorsed or supported by Dyson.
+- **For developers**: the protocol is documented in [docs/protocole.md](docs/protocole.md), in French; its JSON payloads and tables read without translation. The key finding: the custom-authorizer token of `POST /v2/authorize/iot-credentials` only allows publishing commands when it is given as the MQTT username, on a direct TLS connection to port 443 with ALPN `mqtt`, the official app's transport. Over MQTT on WebSocket, the same token can subscribe but not publish (see [Comment ça marche](#comment-ça-marche)).
+- **License**: [MIT](LICENSE).
 
 ## Sommaire
 
@@ -19,8 +30,9 @@ Le robot sur le site de Dyson : [présentation](https://www.dyson.ch/fr_ch/aspir
 - [Limites connues](#limites-connues)
 - [Comment ça marche](#comment-ça-marche)
 - [Développement](#développement)
-- [Avertissements](#avertissements)
 - [Références](#références)
+- [Avertissements](#avertissements)
+- [Licence](#licence)
 
 ## Fonctionnalités
 
@@ -33,7 +45,7 @@ L'application parle au robot comme l'application mobile MyDyson, avec le même c
 - **Nettoyer une zone** : un rectangle tracé sur la carte en cliquant deux coins opposés, puis déplacé ou redimensionné à la souris, nettoyé avec son propre type, sa puissance, son eau et ses passages. Un clic dans le vide de la carte ou la touche Échap l'efface.
 - **Station** : « Vider le collecteur » et « Laver et sécher », qui devient l'arrêt de l'action en cours.
 - **Consommables** : durée de vie restante de chaque pièce d'usure.
-- **Notifications Windows** à la fin d'un nettoyage, ou quand une pièce n'a pas pu être atteinte.
+- **Notifications Windows** à la fin d'un nettoyage, ou quand une pièce n'a pas pu être atteinte, même fenêtre fermée.
 
 ### Carte
 
@@ -71,6 +83,12 @@ Les tracés peuvent se caler sur la grille de 5 cm du robot.
 
 La connexion se rétablit seule après une coupure de réseau ou une mise en veille. Lancée hors ligne, l'application attend le retour du réseau.
 
+### Zone de notification
+
+Fermer la fenêtre ne quitte pas l'application : elle reste dans la zone de notification, connectée au robot, et continue d'envoyer ses notifications. Un clic sur l'icône rouvre la fenêtre ; son menu propose « Ouvrir », « Actualiser » et « Quitter ». L'info-bulle résume l'état du robot et sa batterie, et l'icône porte une pastille rouge tant que le robot signale une faute.
+
+Le menu « Options » de l'en-tête règle ce comportement (la fermeture de la fenêtre peut aussi quitter l'application), active le démarrage avec Windows, directement dans la zone de notification, et propose « Quitter DySS Cockpit ». Une seule instance tourne à la fois : un second lancement, ou un clic sur une notification, ramène la fenêtre existante.
+
 ## Installation
 
 1. Télécharger le zip de la [dernière version](https://github.com/ArmandDelessert/dyson-spot-scrub-windows/releases/latest), pour processeur x64 ou ARM64.
@@ -79,9 +97,9 @@ La connexion se rétablit seule après une coupure de réseau ou une mise en vei
 
 L'exécutable n'est pas signé : au premier lancement, Windows SmartScreen demande une confirmation (« Informations complémentaires », puis « Exécuter quand même »).
 
-La session (chiffrée pour le compte Windows), les préférences et les journaux sont enregistrés dans `%APPDATA%\DySS Cockpit`. Aucune donnée n'est envoyée ailleurs qu'au cloud Dyson.
+La session (chiffrée pour le compte Windows), les préférences, le journal (`journal-AAAA-MM-JJ.log`, un fichier par jour gardé une semaine) et, si l'option est active, l'enregistrement des messages (dossier `messages`) sont dans `%APPDATA%\DySS Cockpit`. Aucune donnée n'est envoyée ailleurs qu'au cloud Dyson.
 
-Configuration requise : Windows 10 ou 11, et un robot Dyson Spot+Scrub AI connecté à Internet.
+Configuration requise : Windows 10 version 2004 (build 19041) ou ultérieure, ou Windows 11, et un robot Dyson Spot+Scrub AI connecté à Internet.
 
 ## Limites connues
 
@@ -135,27 +153,30 @@ Le Lambda authorizer de Dyson ne renvoie la politique complète que par ce canal
 
 ## Développement
 
-Prérequis : Windows 10 ou 11 et le [SDK .NET 10](https://dotnet.microsoft.com/download).
+Prérequis : Windows 10 version 2004 ou ultérieure, ou Windows 11, et le [SDK .NET 10](https://dotnet.microsoft.com/download) (version épinglée par `global.json`).
 
 ```bash
 dotnet build
 dotnet test
+dotnet test --coverage
 dotnet run --project src/Dyss.App
 ```
+
+Les tests utilisent xUnit v3 sur Microsoft.Testing.Platform, activé dans `global.json` : `dotnet test` les lance tous, et `--coverage` mesure en plus la couverture du code.
 
 ### Structure
 
 | Projet | Contenu |
 |---|---|
-| `src/Dyss.Core` | Bibliothèque sans interface : client REST (`DysonCloudClient`), client MQTT (`RobotMqttClient`), session longue durée avec reconnexion (`RobotSession`), modèle d'état des deux dialectes, cartes et grille d'occupation, séquences de commandes (`CleaningSequence`, `SpotCleanSequence`), horaires, session chiffrée par DPAPI (`SessionStore`). |
-| `src/Dyss.Presentation` | Tout ce que montrent les fenêtres, sans dépendre d'un framework d'interface : un modèle de vue par onglet, qui partagent un `RobotHub` (session, journal, envoi de commandes, dialogues) et un `MapCatalog` (cartes et géométrie) ; la géométrie de la carte (`MapGeometry`, `RobotMarkerLayout`), ses couleurs, et ses gestes (`MapInteraction` : zoom, déplacement, clics, tracés). L'interface fournit le fil d'interface (`IUiDispatcher`) et les dialogues (`IDialogService`). |
-| `src/Dyss.App` | Application WinUI 3 (`DyssCockpit.exe`) : la fenêtre et ses vues, les dialogues (`ContentDialog`), les notifications, le contrôle `MapView` ; `MapRenderer` et `RobotMarkers` dessinent la carte, le robot et la station avec Win2D. |
+| `src/Dyss.Core` | Bibliothèque sans interface : client REST (`DysonCloudClient`), client MQTT (`RobotMqttClient`), session longue durée avec reconnexion (`RobotSession`, sur une horloge injectable), modèle d'état des deux dialectes, cartes et grille d'occupation, séquences de commandes (`CleaningSequence`, `SpotCleanSequence`), horaires, session chiffrée par DPAPI (`SessionStore`). |
+| `src/Dyss.Presentation` | Tout ce que montrent les fenêtres, sans dépendre d'un framework d'interface : un modèle de vue par onglet, qui partagent un `RobotHub` (session, journal, envoi de commandes, dialogues) et un `MapCatalog` (cartes et géométrie) ; la géométrie de la carte (`MapGeometry`, `RobotMarkerLayout`), ses couleurs, et ses gestes (`MapInteraction` : zoom, déplacement, clics, tracés). L'interface fournit le fil d'interface (`IUiDispatcher`) et les dialogues (`IDialogService`). Le journal sur disque (`FileLoggerProvider`) et son pont vers l'onglet Journal (`JournalLogger`) y sont aussi. |
+| `src/Dyss.App` | Application WinUI 3 (`DyssCockpit.exe`) : point d'entrée à instance unique (`Program`), la fenêtre et ses vues, les dialogues (`ContentDialog`), les notifications, l'icône de la zone de notification (`TrayIcon`), le contrôle `MapView` ; `MapRenderer` et `RobotMarkers` dessinent la carte, le robot et la station avec Win2D. |
 | `src/Dyss.Cli` | Ligne de commande `dyss`, pour explorer le protocole. |
-| `tests/` | Tests xUnit de `Dyss.Core` et de `Dyss.Presentation`, exécutés en CI sans bureau. |
+| `tests/` | Tests xUnit v3 de `Dyss.Core` et de `Dyss.Presentation`, exécutés en CI sans bureau. |
 
-Les tests portent d'abord sur ce qui a été retrouvé par rétro-ingénierie et qu'aucune documentation ne permettrait de retrouver : formes exactes des messages, correspondances entre les deux dialectes, décodage de la grille. Les modèles de vue sont testés sur des réponses HTTP simulées.
+Les tests portent d'abord sur ce qui a été retrouvé par rétro-ingénierie et qu'aucune documentation ne permettrait de retrouver : formes exactes des messages, correspondances entre les deux dialectes, décodage de la grille. Les modèles de vue sont testés sur des réponses HTTP simulées, et la reconnexion de la session sur une horloge simulée, sans attente réelle.
 
-L'interface est en WinUI 3, avec le Windows App SDK 1.8 embarqué dans l'application (aucun runtime à installer) ; elle se compile avec le seul SDK .NET, sur x64 comme sur ARM64. Seul ce projet dépend de WinUI : les modèles de vue, la géométrie de la carte et ses gestes sont dans `Dyss.Presentation`, testés sans interface.
+L'interface est en WinUI 3, avec le Windows App SDK 2.x embarqué dans l'application (aucun runtime à installer) ; elle se compile avec le seul SDK .NET, sur x64 comme sur ARM64. Seul ce projet dépend de WinUI : les modèles de vue, la géométrie de la carte et ses gestes sont dans `Dyss.Presentation`, testés sans interface.
 
 ### Ligne de commande
 
@@ -177,18 +198,21 @@ Pour vérifier le rendu sans écran et produire les illustrations :
 ```bash
 DyssCockpit.exe --export-map carte.png
 DyssCockpit.exe --export-icon app.ico
+DyssCockpit.exe --export-icon app-alert.ico --alert
 DyssCockpit.exe --screenshot ecran.png --after 15 --tab 0 --theme light --zones 11,13
 DyssCockpit.exe --screenshot editeur.png --after 15 --edit-schedule
 DyssCockpit.exe --screenshot connexion.png --after 3 --login
 DyssCockpit.exe --screenshot dashboard.png --after 15 --lang en
 ```
 
-`--tab` choisit la page (`0` tableau de bord, `1` historique, `2` horaires, `3` réglages, `4` journal). `--manage-maps` photographie la gestion des cartes (onglet `--layer 0` à `2`, carte `--map-id`). `--login` montre la connexion sans toucher à la session enregistrée. `--lang fr` ou `--lang en` impose la langue, sans changer celle choisie. `--export-icon` régénère l'icône à partir du dessin du robot ; [assets/logo.svg](assets/logo.svg) en est la version vectorielle.
+`--tab` choisit la page (`0` tableau de bord, `1` historique, `2` horaires, `3` réglages, `4` journal). `--manage-maps` photographie la gestion des cartes (onglet `--layer 0` à `2`, carte `--map-id`). `--login` montre la connexion sans toucher à la session enregistrée. `--lang fr` ou `--lang en` impose la langue, sans changer celle choisie. `--export-icon` régénère l'icône à partir du dessin du robot, et avec `--alert` celle de la zone de notification à pastille rouge ; [assets/logo.svg](assets/logo.svg) en est la version vectorielle.
+
+Ces options tournent à côté de l'application si elle est ouverte, sans passer par l'instance unique. Une capture lit les préférences sans jamais les écrire et n'enregistre pas les messages. Hors diagnostic, `--minimized` démarre l'application directement dans la zone de notification : c'est l'option qu'utilise le démarrage avec Windows.
 
 ### Outillage
 
 - `global.json` épingle le SDK. `Directory.Build.props` active les analyseurs .NET et traite tout avertissement comme une erreur ; il porte aussi le nom du produit et la version. `Directory.Packages.props` centralise les versions des paquets.
-- `.github/workflows/ci.yml` compile et lance les tests à chaque push.
+- `.github/workflows/ci.yml` compile et lance les tests à chaque push, sur toutes les branches.
 - `.github/workflows/release.yml` publie une version à chaque tag.
 - Chaque texte de l'interface est écrit une seule fois avec ses deux langues côte à côte : `T("Tableau de bord", "Dashboard")` en C#, `{local:Tr Fr="Tableau de bord", En="Dashboard"}` en XAML, l'attribut étant alors entre apostrophes et une apostrophe du texte s'écrivant `&apos;`. La ligne de commande reste en français.
 
@@ -203,18 +227,18 @@ git push origin v1.0.0
 
 Une compilation locale porte la version `0.0.0-dev`.
 
-## Avertissements
-
-- API non officielle, susceptible de changer sans préavis. Usage personnel.
-- Les credentials AWS IoT sont de courte durée (environ 20 minutes) mais apparaissent en clair dans les réponses de l'API : évitez de les journaliser.
-- Ne publiez pas vos captures telles quelles : elles contiennent le numéro de série du robot, les noms de vos cartes et de vos pièces.
-
 ## Références
 
 - [thoukydides/matterbridge-dyson-robot](https://github.com/thoukydides/matterbridge-dyson-robot), dont l'[issue #46](https://github.com/thoukydides/matterbridge-dyson-robot/issues/46) contient une capture complète d'un RB05
 - [UNsync3D/ha-dyson-spot-scrub](https://github.com/UNsync3D/ha-dyson-spot-scrub)
 - [libdyson-wg/appapi](https://github.com/libdyson-wg/appapi)
 - [Diagnostic des connexions AWS IoT](https://docs.aws.amazon.com/iot/latest/developerguide/diagnosing-connectivity-issues.html)
+
+## Avertissements
+
+- API non officielle, susceptible de changer sans préavis. Usage personnel.
+- Les credentials AWS IoT sont de courte durée (environ 20 minutes) mais apparaissent en clair dans les réponses de l'API : évitez de les journaliser.
+- Ne publiez pas vos captures telles quelles : elles contiennent le numéro de série du robot, les noms de vos cartes et de vos pièces.
 
 ## Licence
 
