@@ -104,6 +104,22 @@ public sealed partial class DisplaySettings : ObservableObject
         return settings;
     }
 
+    /// <summary>
+    /// The stored preferences for a run that must leave the user's files alone, a screenshot taken
+    /// while the application may be running beside it: whatever changes applies to this run only,
+    /// and messages are not recorded, since both processes would write the same daily file and the
+    /// one that fails would turn recording off for good.
+    /// </summary>
+    public static DisplaySettings LoadReadOnly(string? path = null)
+    {
+        var settings = Load(path);
+        settings._path = null;
+        settings._loading = true;
+        settings.RecordMessages = false;
+        settings._loading = false;
+        return settings;
+    }
+
     private bool _loading;
 
     private void Save()

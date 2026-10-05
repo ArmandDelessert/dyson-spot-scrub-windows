@@ -39,6 +39,26 @@ public sealed class DisplaySettingsTests : IDisposable
 
 
     [Fact]
+    public void AScreenshotReadsThePreferencesButNeverWritesThem()
+    {
+        // A screenshot may run beside the application: it must not touch the user's file, nor
+        // record messages into the daily file the application is writing.
+        var user = DisplaySettings.Load(_path);
+        user.ShowFurniture = false;
+        user.RecordMessages = true;
+        var before = File.ReadAllText(_path);
+
+        var shot = DisplaySettings.LoadReadOnly(_path);
+        Assert.False(shot.ShowFurniture);
+        Assert.False(shot.RecordMessages);
+        shot.ShowFurniture = true;
+        shot.Language = "en";
+
+        Assert.Equal(before, File.ReadAllText(_path));
+        Assert.True(DisplaySettings.Load(_path).RecordMessages);
+    }
+
+    [Fact]
     public void SmoothingTheRobotIsOffUntilChosenThenRemembered()
     {
         var first = DisplaySettings.Load(_path);

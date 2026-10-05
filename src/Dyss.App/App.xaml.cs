@@ -188,7 +188,8 @@ public partial class App : Application
                 return;
             }
 
-            _shell = new ShellView(_window, ctx, _notifications);
+            // A screenshot may run beside the application: it reads the preferences, never writes them.
+            _shell = new ShellView(_window, ctx, _notifications, screenshot is null ? null : DisplaySettings.LoadReadOnly());
             _window.Show(_shell);
             _shell.Start();
             _shell.ViewModel.SummaryChanged += UpdateTray;

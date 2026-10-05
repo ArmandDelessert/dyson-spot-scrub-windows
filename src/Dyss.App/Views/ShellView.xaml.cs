@@ -31,11 +31,12 @@ public sealed partial class ShellView : UserControl
     private NavigationViewItem? _beforeMaps;
     private bool _started;
 
-    internal ShellView(MainWindow window, RobotContext ctx, NotificationService notifications)
+    /// <param name="display">The display preferences; null reads the stored ones, see <see cref="DisplaySettings.LoadReadOnly"/> for a screenshot.</param>
+    internal ShellView(MainWindow window, RobotContext ctx, NotificationService notifications, DisplaySettings? display = null)
     {
         _window = window;
         _notifications = notifications;
-        ViewModel = new MainViewModel(ctx, new WinUiDispatcher(DispatcherQueue), new WinUiDialogService(window));
+        ViewModel = new MainViewModel(ctx, new WinUiDispatcher(DispatcherQueue), new WinUiDialogService(window), display: display);
         InitializeComponent();
 
         _dashboard = new DashboardView(ViewModel);
