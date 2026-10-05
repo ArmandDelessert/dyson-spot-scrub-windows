@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Channels;
 using Dyss.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Dyss.Core.Tests;
 
@@ -122,6 +123,20 @@ public class RobotSessionReconnectionTests
         Assert.Equal(RobotConnectionStatus.Disconnected, robot.Session.Status);
     }
 
+    [Fact]
+    public async Task TheJournalLinesSpeakTheApplicationsLanguage()
+    {
+        // Shown as they are in the Journal tab, next to the dashboard's own lines.
+        await using var robot = new Harness();
+        await robot.ConnectAsync();
+        await robot.NextStatusesAsync(2);
+
+        robot.Links[0].Drop("wifi");
+        await robot.Clock.NextDelayAsync();
+
+        Assert.Contains((LogLevel.Warning, "MQTT coupé (wifi) ; reconnexion dans 5 s (tentative 1)"), robot.Log.Lines);
+    }
+
     /// <summary>A session wired to fakes, with what it did recorded for the assertions.</summary>
     private sealed class Harness : IAsyncDisposable
     {
@@ -133,11 +148,12 @@ public class RobotSessionReconnectionTests
         {
             _api = new DysonCloudClient("CH", http: new HttpClient(Credentials)) { BearerToken = "t" };
             var device = new Device("SERIAL-1", "Robot", "804", "RB05", "robot", null, null, null);
-            Session = new RobotSession(_api, device, logger: null, Clock, OpenLink);
+            Session = new RobotSession(_api, device, Log, Clock, OpenLink);
             Session.ConnectionChanged += (s, d) => _statuses.Writer.TryWrite((s, d));
         }
 
         public ObservedClock Clock { get; } = new();
+        public RecordingLogger Log { get; } = new();
         public CredentialsEndpoint Credentials { get; } = new();
         public RobotSession Session { get; }
         /// <summary>Every link the session opened, oldest first.</summary>
@@ -227,5 +243,25 @@ public class RobotSessionReconnectionTests
             IsConnected = false;
             return ValueTask.CompletedTask;
         }
+    }
+}
+
+/// <summary>Keeps what was logged, with its level, for the assertions.</summary>
+internal sealed class RecordingLogger : ILogger
+{
+    private readonly List<(LogLevel, string)> _lines = [];
+
+    public IReadOnlyList<(LogLevel Level, string Text)> Lines
+    {
+        get { lock (_lines) return [.. _lines]; }
+    }
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        lock (_lines) _lines.Add((logLevel, formatter(state, exception)));
     }
 }
