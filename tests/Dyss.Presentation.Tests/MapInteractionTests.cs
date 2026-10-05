@@ -146,6 +146,28 @@ public class MapInteractionTests
     }
 
     [Fact]
+    public async Task ADoubleTapAsWinUIReportsItResetsTheZoomWithoutClearing()
+    {
+        // A tap, then the second one reported only as a double tap: never two taps.
+        SynchronizationContext.SetSynchronizationContext(null);
+        var time = new ManualTime();
+        var map = Map(time);
+        map.ManipulationTaps = false;
+        var cleared = 0;
+        map.EmptySpaceClicked += () => cleared++;
+        map.PointerWheel(new Vec2(200, 200), 120);
+
+        map.Tap(Empty);
+        time.Advance(TimeSpan.FromMilliseconds(200));
+        map.DoubleTap(Empty + new Vec2(3, 2));
+        time.Advance(TimeSpan.FromSeconds(1));
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, map.Zoom);
+        Assert.Equal(0, cleared);
+    }
+
+    [Fact]
     public void TapsReportedApartAreNotAlsoTakenFromTheManipulation()
     {
         var map = Map();

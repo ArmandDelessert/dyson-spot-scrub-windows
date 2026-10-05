@@ -548,6 +548,18 @@ public sealed class MapInteraction(TimeProvider? time = null)
     /// <summary>A tap, from a UI that reports taps apart from manipulations (WinUI).</summary>
     public void Tap(Vec2 position) => HandleClick(position, IsDoubleClick(position));
 
+    /// <summary>
+    /// The second tap of a double tap, from a UI that recognises it itself: WinUI reports the first
+    /// as a <see cref="Tap"/> and the second only as a double tap, never as a tap of its own.
+    /// </summary>
+    public void DoubleTap(Vec2 position)
+    {
+        // As after any double: a third tap starts afresh rather than reading as another double.
+        _lastClickTime = DateTimeOffset.MinValue;
+        _lastClickPosition = position;
+        HandleClick(position, isDouble: true);
+    }
+
     // ---- Clicks and taps --------------------------------------------------------------
 
     /// <summary>True when this click/tap lands within the double-click time and distance of the previous one. Always records this one as "the last click" regardless, so a used double can't chain into a triple being read as another double.</summary>

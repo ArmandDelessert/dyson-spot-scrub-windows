@@ -250,6 +250,15 @@ public sealed partial class MapView : UserControl
         e.Handled = true;
     }
 
+    /// <summary>The second tap of a double tap, which WinUI reports only here, not as a Tapped of its own.</summary>
+    protected override void OnDoubleTapped(DoubleTappedRoutedEventArgs e)
+    {
+        base.OnDoubleTapped(e);
+        if (e.PointerDeviceType != PointerDeviceType.Touch) return;
+        Interaction?.DoubleTap(e.GetPosition(this).ToVec2());
+        e.Handled = true;
+    }
+
     protected override void OnManipulationStarted(ManipulationStartedRoutedEventArgs e)
     {
         base.OnManipulationStarted(e);
