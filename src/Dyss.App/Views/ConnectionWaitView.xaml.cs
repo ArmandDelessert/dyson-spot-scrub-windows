@@ -32,7 +32,9 @@ public sealed partial class ConnectionWaitView : UserControl
             else UpdateCountdown();
         };
         NetworkChange.NetworkAvailabilityChanged += OnNetworkAvailabilityChanged;
-        Loaded += (_, _) => _timer.Start();
+        // Counting from now rather than from when it shows: started with Windows, the application
+        // waits in the notification area, the window closed, and must still try again.
+        _timer.Start();
         Unloaded += (_, _) => Stop();
     }
 

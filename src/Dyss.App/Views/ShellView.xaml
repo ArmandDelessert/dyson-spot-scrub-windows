@@ -70,6 +70,22 @@
                                 </MenuFlyout>
                             </AppBarButton.Flyout>
                         </AppBarButton>
+                        <!-- What the application does when it is not in front: this machine's, never sent to the robot. -->
+                        <AppBarButton Label='{local:Tr Fr="Options", En="Options"}'>
+                            <AppBarButton.Icon><FontIcon Glyph="&#xE713;"/></AppBarButton.Icon>
+                            <AppBarButton.Flyout>
+                                <MenuFlyout>
+                                    <ToggleMenuFlyoutItem IsChecked="{x:Bind ViewModel.Display.CloseToTray, Mode=TwoWay}"
+                                                          Text='{local:Tr Fr="Fermer la fenêtre garde l&apos;application dans la zone de notification", En="Closing the window keeps the application in the notification area"}'/>
+                                    <ToggleMenuFlyoutItem x:Name="StartWithWindowsItem" Click="StartWithWindows_Click"
+                                                          Text='{local:Tr Fr="Démarrer avec Windows, dans la zone de notification", En="Start with Windows, in the notification area"}'/>
+                                    <MenuFlyoutSeparator/>
+                                    <MenuFlyoutItem Click="Quit_Click" Text='{local:Tr Fr="Quitter DySS Cockpit", En="Quit DySS Cockpit"}'>
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE7E8;"/></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                </MenuFlyout>
+                            </AppBarButton.Flyout>
+                        </AppBarButton>
                         <AppBarButton Label='{local:Tr Fr="Actualiser", En="Refresh"}' Command="{x:Bind ViewModel.RefreshCommand}">
                             <AppBarButton.Icon><FontIcon Glyph="&#xE72C;"/></AppBarButton.Icon>
                         </AppBarButton>

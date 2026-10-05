@@ -89,6 +89,33 @@ public sealed class DisplaySettingsTests : IDisposable
     }
 
     [Fact]
+    public void ClosingTheWindowKeepsTheAppInTheNotificationAreaUnlessTurnedOff()
+    {
+        var first = DisplaySettings.Load(_path);
+        Assert.True(first.CloseToTray);
+        Assert.False(first.TrayHintShown);
+
+        first.CloseToTray = false;
+        first.TrayHintShown = true;
+        var second = DisplaySettings.Load(_path);
+
+        Assert.False(second.CloseToTray);
+        Assert.True(second.TrayHintShown);
+    }
+
+    [Fact]
+    public void AFileFromBeforeTheNotificationAreaKeepsTheAppThere()
+    {
+        File.WriteAllText(_path, """{"ShowFurniture":false,"RecordMessages":true}""");
+
+        var settings = DisplaySettings.Load(_path);
+
+        Assert.True(settings.CloseToTray);
+        Assert.False(settings.TrayHintShown);
+        Assert.True(settings.RecordMessages);
+    }
+
+    [Fact]
     public void AnInstanceWithNoFileBehavesButWritesNothing()
     {
         // What tests and previews use: the settings work for the run without touching %APPDATA%.

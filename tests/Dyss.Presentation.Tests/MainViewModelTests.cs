@@ -40,6 +40,28 @@ public class MainViewModelTests
         Assert.Equal(2, CredentialRequests());
     }
 
+    [Fact]
+    public void TheNotificationAreaSummarySaysWhatTheRobotIsDoingAndFlagsAFault()
+    {
+        var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(new TestHub.RouteHandler())) { BearerToken = "test-token" };
+        var stored = new StoredSession("test@example.invalid", "CH", "fr-CH", null, "test-token", DateTimeOffset.UnixEpoch);
+        using var vm = new MainViewModel(RobotContext.FromLogin(api, stored), new TestHub.InlineDispatcher(), new FakeDialogs(), display: new DisplaySettings());
+        var changes = 0;
+        vm.SummaryChanged += () => changes++;
+
+        Assert.Equal("Robot : Connexion…", vm.Summary);
+
+        vm.Hub.Connected = true;
+        vm.Status.Apply(RobotState.Parse("""{"msg":"CURRENT-STATE","state":"INACTIVE_CHARGING","batteryChargeLevel":100}""")!);
+        Assert.Equal("Robot : En charge sur la station · 100 %", vm.Summary);
+        Assert.False(vm.NeedsAttention);
+
+        vm.Status.Apply(RobotState.Parse("""{"msg":"CURRENT-STATE","state":"FULL_CLEAN_RUNNING","batteryChargeLevel":80,"activeFaults":[{"faultCode":"589","nextActionRequired":"WAIT_TO_CLEAR"}]}""")!);
+        Assert.Equal("Robot : Nettoyage en cours · 80 % · faute 589 (localisation impossible)", vm.Summary);
+        Assert.True(vm.NeedsAttention);
+        Assert.True(changes >= 3);
+    }
+
     /// <summary>A clock that only moves when told to, and reports each wait set on it.</summary>
     private sealed class ObservedClock : FakeTimeProvider
     {

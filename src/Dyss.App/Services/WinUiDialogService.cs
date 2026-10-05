@@ -30,6 +30,9 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
 
     public async Task<bool> ConfirmAsync(string title, string message)
     {
+        // The window may be in the notification area, or never shown yet: a session that
+        // expired there must still be told.
+        await window.EnsureShownAsync();
         var dialog = Prepare(new ContentDialog
         {
             Title = title,
@@ -43,6 +46,7 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
 
     public async Task AlertAsync(string title, string message)
     {
+        await window.EnsureShownAsync();
         var dialog = Prepare(new ContentDialog
         {
             Title = title,
@@ -55,6 +59,7 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
 
     public async Task<string?> AskTextAsync(string title, string prompt, string initial)
     {
+        await window.EnsureShownAsync();
         var input = new TextBox { Header = prompt, Text = initial };
         var dialog = Prepare(new ContentDialog
         {
@@ -74,6 +79,7 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
 
     public async Task<(string Name, string? Type)?> AskRoomNameAsync(ManagedRoom room, IReadOnlyList<RoomTypeOption> types)
     {
+        await window.EnsureShownAsync();
         var dialog = new RoomNameDialog(room, types);
         Prepare(dialog);
         return await dialog.ShowAsync() == ContentDialogResult.Primary ? dialog.Answer : null;
@@ -81,6 +87,7 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
 
     public async Task<bool> EditScheduleAsync(ScheduleEditorViewModel editor)
     {
+        await window.EnsureShownAsync();
         var dialog = new ScheduleEditorDialog(editor);
         Prepare(dialog);
         return await dialog.ShowAsync() == ContentDialogResult.Primary;

@@ -28,6 +28,8 @@
     <!-- The robot heading down with its light on, written by DyssCockpit.exe with its export-icon
          option (see AppIcon in Rendering/MapImage.cs). The executable, the window and the taskbar take it from here. -->
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <!-- Program.cs has the entry point: it keeps the application to one instance. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
   <!-- A self-contained Windows App SDK needs an architecture: the machine's own, unless one is asked for. -->
@@ -37,8 +39,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- The window's icon, read at run time. -->
+    <!-- The window's icon, read at run time, and the notification area's: the same, or with a red
+         badge while the robot reports a fault (export-icon with its alert option). -->
     <Content Include="app.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="app-alert.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!--

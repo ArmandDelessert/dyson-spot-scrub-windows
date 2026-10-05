@@ -59,20 +59,26 @@ public sealed partial class ShellView : UserControl
         _window.TitleBar.PaneToggleRequested += OnPaneToggleRequested;
         _window.TitleBar.BackRequested += OnBackRequested;
 
-        Loaded += async (_, _) =>
-        {
-            _window.TitleBar.IsPaneToggleButtonVisible = true;
-            if (_started) return;
-            _started = true;
-            await ViewModel.StartAsync();
-        };
+        Loaded += (_, _) => _window.TitleBar.IsPaneToggleButtonVisible = true;
         Nav.SelectedItem = DashboardItem;
         (ViewModel.Display.Language switch { "fr" => LanguageFrench, "en" => LanguageEnglish, _ => LanguageAuto }).IsChecked = true;
+        StartWithWindowsItem.IsChecked = StartupRegistration.IsEnabled;
         PreviewKeyDown += OnPreviewKeyDown;
         KeyDown += OnKeyDown;
     }
 
     public MainViewModel ViewModel { get; }
+
+    /// <summary>
+    /// Connects to the robot. Not left to the view being shown: started with Windows, the window
+    /// stays closed, and the robot must still be followed and notified about.
+    /// </summary>
+    public void Start()
+    {
+        if (_started) return;
+        _started = true;
+        _ = ViewModel.StartAsync();
+    }
 
     /// <summary>True when the user logged out (the login comes back), false when the window closed.</summary>
     public Task<bool> Finished => _finished.Task;
@@ -92,7 +98,7 @@ public sealed partial class ShellView : UserControl
                 T("La nouvelle langue s'applique au redémarrage de l'application. Redémarrer maintenant ?",
                   "The new language applies when the application restarts. Restart now?"))) return;
         // Only comes back when Windows could not restart the application.
-        var failure = Microsoft.Windows.AppLifecycle.AppInstance.Restart("");
+        var failure = ((App)Application.Current).Restart();
         await ViewModel.Hub.Dialogs.AlertAsync(T("Changer de langue", "Change language"),
             T($"Le redémarrage a échoué ({failure}). Relancez l'application pour changer de langue.",
               $"The restart failed ({failure}). Start the application again to change its language."));
@@ -144,6 +150,24 @@ public sealed partial class ShellView : UserControl
     }
 
     private void Message_Closed(InfoBar sender, object args) => ViewModel.Hub.Message = "";
+
+    // ---- Options -----------------------------------------------------------------------------
+
+    /// <summary>Adds or removes the Run entry of the current user; the menu shows what is really there afterwards.</summary>
+    private async void StartWithWindows_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            StartupRegistration.SetEnabled(StartWithWindowsItem.IsChecked);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            await ViewModel.Hub.Dialogs.AlertAsync(T("Démarrer avec Windows", "Start with Windows"), ex.Message);
+        }
+        StartWithWindowsItem.IsChecked = StartupRegistration.IsEnabled;
+    }
+
+    private void Quit_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).Quit();
 
     // ---- Escape ----------------------------------------------------------------------------
 

@@ -6,14 +6,16 @@ using Dyss.Presentation.Map;
 using Dyss.Presentation.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Windows.AppLifecycle;
 
 using static Dyss.Core.Translation;
 
 namespace Dyss.App;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
-    Justification = "The application's lifetime is its process's: the notifications are disposed when the window closes, the log when the process exits.")]
+    Justification = "The application's lifetime is its process's: the notifications and the icon are disposed when the window closes, the log when the process exits.")]
 public partial class App : Application
 {
     /// <summary>The log on disk, %APPDATA%\DySS Cockpit\journal-2026-10-05.log: one file a day, kept a week.</summary>
@@ -24,6 +26,11 @@ public partial class App : Application
     private NotificationService? _notifications;
     /// <summary>The dashboard, while it is on show.</summary>
     private ShellView? _shell;
+    /// <summary>The icon in the notification area; null for a screenshot, or when Windows would not have it.</summary>
+    private TrayIcon? _tray;
+    private bool _trayShowsAlert;
+    /// <summary>Set once the user chose to quit: closing the window then closes it for real.</summary>
+    private bool _exiting;
 
     public App()
     {
@@ -81,6 +88,9 @@ public partial class App : Application
     [LoggerMessage(Level = LogLevel.Warning, Message = "The account's devices could not be loaded")]
     private static partial void LogDevicesFailed(ILogger logger, Exception exception);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "No icon in the notification area: closing the window will quit")]
+    private static partial void LogTrayUnavailable(ILogger logger, Exception exception);
+
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         var argv = Environment.GetCommandLineArgs().Skip(1).ToArray();
@@ -129,22 +139,39 @@ public partial class App : Application
             return;
         }
 
-        // Headless helper: writes the application icon, drawn by the map's own code, to an .ico.
+        // Headless helper: writes the application icon, drawn by the map's own code, to an .ico;
+        // with --alert, the notification area's while the robot reports a fault.
         //   DyssCockpit.exe --export-icon app.ico
+        //   DyssCockpit.exe --export-icon app-alert.ico --alert
         if (Option(args, "--export-icon") is { } iconPath)
         {
             await using (var file = File.Create(iconPath))
-                await AppIcon.WriteIcoAsync(file, AppIcon.Sizes);
+                await AppIcon.WriteIcoAsync(file, AppIcon.Sizes, alert: Array.IndexOf(args, "--alert") >= 0);
             Exit();
             return;
         }
 
         _window = new MainWindow();
         if (theme != ElementTheme.Default) _window.ForceTheme(theme);
-        _window.Activate();
+        var screenshot = Option(args, "--screenshot");
+        // Started with Windows, with a session to resume: straight to the notification area, the
+        // window left closed. A login to fill in opens it all the same.
+        if (screenshot is not null || Array.IndexOf(args, Program.MinimizedArgument) < 0 || !SessionStore.Exists) _window.Activate();
         _notifications = new NotificationService(_window.DispatcherQueue, _loggers.CreateLogger<NotificationService>());
-        _window.Closed += (_, _) => _notifications.Dispose();
-        if (Option(args, "--screenshot") is { } shotPath) _ = ScreenshotAsync(args, shotPath);
+        _window.Closed += (_, _) =>
+        {
+            _notifications.Dispose();
+            _tray?.Dispose();
+        };
+        if (screenshot is not null) _ = ScreenshotAsync(args, screenshot);
+        else
+        {
+            // A one-shot screenshot has no business in the notification area.
+            CreateTrayIcon();
+            _window.AppWindow.Closing += OnWindowClosing;
+            // A second launch, redirected here by Program.Main; raised off the UI thread.
+            AppInstance.GetCurrent().Activated += (_, e) => _window.DispatcherQueue.TryEnqueue(() => OnActivated(e));
+        }
 
         // --login starts at the login whatever session is stored, mainly for screenshots: the stored
         // one stays until another login replaces it.
@@ -163,8 +190,12 @@ public partial class App : Application
 
             _shell = new ShellView(_window, ctx, _notifications);
             _window.Show(_shell);
+            _shell.Start();
+            _shell.ViewModel.SummaryChanged += UpdateTray;
+            UpdateTray();
             var loggedOut = await _shell.Finished;
             _shell = null;
+            UpdateTray();
             if (!loggedOut) return;   // the window closed
             // else: back to the login.
         }
@@ -183,6 +214,7 @@ public partial class App : Application
             {
                 var login = new LoginView(_loggers);
                 _window!.Show(login);
+                if (!_window.AppWindow.IsVisible) _window.BringToFront();
                 ctx = await login.Result;
             }
 
@@ -218,7 +250,9 @@ public partial class App : Application
     /// <summary>A message the user has to acknowledge. False when there is no window yet to show it on.</summary>
     private async Task<bool> ShowErrorAsync(string title, string message)
     {
-        if (_window?.Content?.XamlRoot is not { } root) return false;
+        if (_window is null) return false;
+        await _window.EnsureShownAsync();
+        if (_window.Content?.XamlRoot is not { } root) return false;
         var dialog = new ContentDialog
         {
             Title = title,
@@ -234,6 +268,94 @@ public partial class App : Application
             // Another dialog is already open: the log has it.
         }
         return true;
+    }
+
+    // ---- In the background ------------------------------------------------------------------
+
+    private void ShowWindow() => _window?.BringToFront();
+
+    /// <summary>A second launch, or a notification clicked while the application ran: the window comes back, on the history for a notification.</summary>
+    private void OnActivated(AppActivationArguments args)
+    {
+        ShowWindow();
+        if (args.Kind == ExtendedActivationKind.AppNotification) _shell?.SelectTab(1);
+    }
+
+    /// <summary>
+    /// Closing the dashboard's window leaves the application in the notification area, when so
+    /// chosen and when the icon is there: the robot is still followed and its notifications still
+    /// come. The first time, a notification says so.
+    /// </summary>
+    private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_exiting || _tray is null || _shell?.ViewModel.Display is not { CloseToTray: true } display) return;
+        args.Cancel = true;
+        sender.Hide();
+        if (display.TrayHintShown) return;
+        display.TrayHintShown = true;
+        _notifications?.Show("DySS Cockpit",
+            T("L'application reste ouverte dans la zone de notification pour suivre le robot. Pour la quitter, utilisez le menu de son icône.",
+              "The application stays open in the notification area to keep track of the robot. To quit it, use its icon's menu."),
+            onClick: ShowWindow);
+    }
+
+    private static string IconPath(bool alert) => Path.Combine(AppContext.BaseDirectory, alert ? "app-alert.ico" : "app.ico");
+
+    private void CreateTrayIcon()
+    {
+        try
+        {
+            _tray = new TrayIcon(IconPath(alert: false), "DySS Cockpit", TrayMenu);
+            _tray.Activated += (_, _) => ShowWindow();
+            _trayShowsAlert = false;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            LogTrayUnavailable(_logger, ex);
+        }
+    }
+
+    private IReadOnlyList<TrayMenuItem> TrayMenu() =>
+    [
+        new(T("Ouvrir DySS Cockpit", "Open DySS Cockpit"), ShowWindow),
+        new(T("Actualiser", "Refresh"), () => _shell?.ViewModel.RefreshCommand.Execute(null), _shell is not null),
+        TrayMenuItem.Separator,
+        new(T("Quitter", "Quit"), Quit),
+    ];
+
+    /// <summary>The robot in the icon's tooltip, and a red badge on it while the robot reports a fault.</summary>
+    private void UpdateTray()
+    {
+        if (_tray is null) return;
+        var alert = _shell?.ViewModel.NeedsAttention == true;
+        _tray.Update(alert != _trayShowsAlert ? IconPath(alert) : null,
+            _shell is { } shell ? $"DySS Cockpit\n{shell.ViewModel.Summary}" : "DySS Cockpit");
+        _trayShowsAlert = alert;
+    }
+
+    /// <summary>Quits for good, from the icon's menu or the Options menu: the window closes for real, which ends the session and the process.</summary>
+    internal void Quit()
+    {
+        if (_exiting) return;
+        _exiting = true;
+        _tray?.Dispose();
+        _tray = null;
+        _window?.Close();
+    }
+
+    /// <summary>
+    /// Starts the application again, for a new language. The icon goes first, the process being
+    /// ended without its window closing; the new instance waits for this one to be gone before
+    /// taking its place. Only comes back when Windows could not restart it, the icon then put back.
+    /// </summary>
+    internal Windows.ApplicationModel.Core.AppRestartFailureReason Restart()
+    {
+        _tray?.Dispose();
+        _tray = null;
+        var failure = AppInstance.Restart($"{Program.WaitForExitArgument}={Environment.ProcessId}");
+        CreateTrayIcon();
+        UpdateTray();
+        return failure;
     }
 
     private static async Task<int> ExportMapAsync(string path, string? serial, string? mapId, ElementTheme theme, ILoggerFactory loggers)

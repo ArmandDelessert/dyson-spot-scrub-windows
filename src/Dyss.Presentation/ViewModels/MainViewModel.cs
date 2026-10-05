@@ -42,6 +42,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The only account information the login flow ever returns: no display name, just the email used to sign in.</summary>
     public string AccountEmail => _ctx.Stored.Email;
 
+    /// <summary>
+    /// The robot in one line, for the tooltip of the notification area's icon: its name, then what
+    /// it is doing and its battery, a fault if it has one, or why there is nothing to say.
+    /// </summary>
+    public string Summary =>
+        !Hub.Connected ? T($"{RobotName} : {Hub.Connection}", $"{RobotName}: {Hub.Connection}")
+        : string.IsNullOrEmpty(Status.StateText) ? RobotName
+        : T($"{RobotName} : ", $"{RobotName}: ") + $"{Status.StateText} · {Status.Battery} %" + (Status.HasRealFault ? $" · {Status.FaultText}" : "");
+
+    /// <summary>A fault the user should see: the icon in the notification area then carries a badge.</summary>
+    public bool NeedsAttention => Status.HasRealFault;
+
+    /// <summary>Raised when <see cref="Summary"/> or <see cref="NeedsAttention"/> may have changed.</summary>
+    public event Action? SummaryChanged;
+
     public event Action? LoggedOut;
     /// <summary>A robot event worth a Windows notification: title, body.</summary>
     public event Action<string, string>? NotifyRequested;
@@ -68,6 +83,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // redraw themselves in the new colours.)
         _redrawMaps = () => Hub.Post(() => { Cleaning.RebuildScene(); History.RebuildScene(); });
         Display.Changed += _redrawMaps;
+
+        Status.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(StatusViewModel.StateText) or nameof(StatusViewModel.Battery)
+                or nameof(StatusViewModel.HasRealFault) or nameof(StatusViewModel.FaultText))
+                SummaryChanged?.Invoke();
+        };
+        Hub.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(RobotHub.Connected) or nameof(RobotHub.Connection)) SummaryChanged?.Invoke();
+        };
     }
 
     public async Task StartAsync()

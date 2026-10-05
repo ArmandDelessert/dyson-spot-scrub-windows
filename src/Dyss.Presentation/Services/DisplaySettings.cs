@@ -52,6 +52,16 @@ public sealed partial class DisplaySettings : ObservableObject
     /// </summary>
     [ObservableProperty] private string _language = "auto";
 
+    /// <summary>
+    /// Closing the window leaves the application in the notification area, still connected to the
+    /// robot and still notifying; it quits from the icon's menu. On by default: the notifications
+    /// are what the application is kept open for.
+    /// </summary>
+    [ObservableProperty] private bool _closeToTray = true;
+
+    /// <summary>Whether the user has been told, once, that closing the window left the application running.</summary>
+    [ObservableProperty] private bool _trayHintShown;
+
     /// <summary>The language <see cref="Language"/> stands for on this machine.</summary>
     public AppLanguage ChosenLanguage => Language switch
     {
@@ -82,6 +92,8 @@ public sealed partial class DisplaySettings : ObservableObject
                 settings.SnapToGrid = s.SnapToGrid ?? true;
                 settings.SmoothRobotMotion = s.SmoothRobotMotion ?? false;
                 settings.Language = s.Language is "fr" or "en" ? s.Language : "auto";
+                settings.CloseToTray = s.CloseToTray ?? true;
+                settings.TrayHintShown = s.TrayHintShown ?? false;
                 settings._loading = false;
             }
         }
@@ -102,7 +114,7 @@ public sealed partial class DisplaySettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language)));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -117,7 +129,9 @@ public sealed partial class DisplaySettings : ObservableObject
     partial void OnSnapToGridChanged(bool value) => Save();
     partial void OnSmoothRobotMotionChanged(bool value) => Save();
     partial void OnLanguageChanged(string value) => Save();
+    partial void OnCloseToTrayChanged(bool value) => Save();
+    partial void OnTrayHintShownChanged(bool value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null);
 }

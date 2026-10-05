@@ -54,6 +54,27 @@ public sealed partial class MainWindow : Window
         Host.Content = view;
     }
 
+    /// <summary>
+    /// Ready for a dialog: shown if it was left in the notification area, and its content loaded,
+    /// which a window never shown yet — started with Windows — does not have.
+    /// </summary>
+    public async Task EnsureShownAsync()
+    {
+        if (!AppWindow.IsVisible) BringToFront();
+        if (Root.IsLoaded) return;
+        var loaded = new TaskCompletionSource();
+        void OnLoaded(object sender, RoutedEventArgs e) => loaded.TrySetResult();
+        Root.Loaded += OnLoaded;
+        try
+        {
+            if (!Root.IsLoaded) await loaded.Task;
+        }
+        finally
+        {
+            Root.Loaded -= OnLoaded;
+        }
+    }
+
     /// <summary>Back to the front: restored if minimised, then activated.</summary>
     public void BringToFront()
     {
