@@ -2,7 +2,6 @@ using System.Net;
 using System.Text;
 using System.Threading.Channels;
 using Dyss.Core;
-using Microsoft.Extensions.Time.Testing;
 
 namespace Dyss.Core.Tests;
 
@@ -176,25 +175,6 @@ public class RobotSessionReconnectionTests
             await Session.DisposeAsync();
             _api.Dispose();
         }
-    }
-
-    /// <summary>
-    /// A clock that only moves when told to, and reports each wait set on it: once a test has
-    /// seen the wait, moving the clock past it is sure to end it.
-    /// </summary>
-    private sealed class ObservedClock : FakeTimeProvider
-    {
-        private readonly Channel<TimeSpan> _delays = Channel.CreateUnbounded<TimeSpan>();
-
-        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
-        {
-            var timer = base.CreateTimer(callback, state, dueTime, period);
-            _delays.Writer.TryWrite(dueTime);
-            return timer;
-        }
-
-        public async Task<TimeSpan> NextDelayAsync() =>
-            await _delays.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(Patience, TestContext.Current.CancellationToken);
     }
 
     /// <summary>POST /v2/authorize/iot-credentials, answering with <see cref="Status"/>.</summary>

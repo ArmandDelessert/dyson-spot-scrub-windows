@@ -43,19 +43,31 @@ public sealed class DysonCloudClient : IDisposable
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
+    /// <summary>
+    /// How many times a GET is sent at most when Dyson answers with a server error or 429. Only
+    /// reads are sent again: a command or an edit that failed may still have been applied.
+    /// </summary>
+    private const int MaxAttempts = 3;
+
+    /// <summary>The longest Retry-After worth waiting for within a request; past it the error is reported as it is.</summary>
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(30);
+
     private readonly HttpClient _http;
     private readonly bool _ownsHttp;
+    private readonly TimeProvider _time;
 
     public string Host { get; }
     public string Country { get; }
     public string Culture { get; }
     public string? BearerToken { get; set; }
 
-    public DysonCloudClient(string country, string? culture = null, string host = DefaultHost, HttpClient? http = null)
+    /// <param name="time">The clock the waits between two attempts of a GET run on.</param>
+    public DysonCloudClient(string country, string? culture = null, string host = DefaultHost, HttpClient? http = null, TimeProvider? time = null)
     {
         Country = country.ToUpperInvariant();
         Culture = culture ?? $"en-{Country}";
         Host = host;
+        _time = time ?? TimeProvider.System;
         _ownsHttp = http is null;
         _http = http ?? new HttpClient(new SocketsHttpHandler
         {
@@ -98,17 +110,60 @@ public sealed class DysonCloudClient : IDisposable
         return req;
     }
 
+    /// <summary>
+    /// Sends the request and reads the answer as <typeparamref name="T"/>. A GET that meets a
+    /// server error or a 429 is sent again, up to <see cref="MaxAttempts"/> times in all; see
+    /// <see cref="RetryDelay"/> for how long it waits in between.
+    /// </summary>
     private async Task<T> SendAsync<T>(HttpRequestMessage req, CancellationToken ct)
     {
-        using var resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
-        var text = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        if (!resp.IsSuccessStatusCode)
+        for (var attempt = 1; ; attempt++)
         {
-            var msg = $"{req.Method} {req.RequestUri!.AbsolutePath} failed: HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}";
-            if (resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                throw new DysonAuthException(msg, resp.StatusCode, text);
-            throw new DysonApiException(msg, resp.StatusCode, text);
+            TimeSpan wait;
+            using (var resp = await _http.SendAsync(req, ct).ConfigureAwait(false))
+            {
+                var text = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                if (resp.IsSuccessStatusCode) return Read<T>(req, resp, text);
+                if (attempt >= MaxAttempts || RetryDelay(req, resp, attempt) is not { } delay)
+                {
+                    var msg = $"{req.Method} {req.RequestUri!.AbsolutePath} failed: HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}";
+                    if (resp.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                        throw new DysonAuthException(msg, resp.StatusCode, text);
+                    throw new DysonApiException(msg, resp.StatusCode, text);
+                }
+                wait = delay;
+            }
+            await Task.Delay(wait, _time, ct).ConfigureAwait(false);
+            // A request cannot be sent twice; a GET has no body, so a copy of its line and headers is the same request.
+            var again = new HttpRequestMessage(req.Method, req.RequestUri) { Version = req.Version, VersionPolicy = req.VersionPolicy };
+            foreach (var (name, values) in req.Headers) again.Headers.TryAddWithoutValidation(name, values);
+            req.Dispose();
+            req = again;
         }
+    }
+
+    /// <summary>
+    /// How long to wait before sending <paramref name="req"/> again, or null when it is not to be
+    /// sent again: only a GET is, and only after a server error or a 429. The wait is what
+    /// Retry-After asks for, as a delay or a date, or else 2 s then 4 s; a Retry-After longer than
+    /// <see cref="MaxRetryDelay"/> is not waited for, and the error goes back to the caller.
+    /// </summary>
+    private TimeSpan? RetryDelay(HttpRequestMessage req, HttpResponseMessage resp, int attempt)
+    {
+        if (req.Method != HttpMethod.Get) return null;
+        if (resp.StatusCode != HttpStatusCode.TooManyRequests && (int)resp.StatusCode < 500) return null;
+        var delay = resp.Headers.RetryAfter switch
+        {
+            { Delta: { } d } => d,
+            { Date: { } date } => date - _time.GetUtcNow(),
+            _ => TimeSpan.FromSeconds(2 * attempt),
+        };
+        if (delay < TimeSpan.Zero) delay = TimeSpan.Zero;
+        return delay <= MaxRetryDelay ? delay : null;
+    }
+
+    private static T Read<T>(HttpRequestMessage req, HttpResponseMessage resp, string text)
+    {
         if (typeof(T) == typeof(string))
             return (T)(object)text;
         try
