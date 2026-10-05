@@ -43,7 +43,7 @@ public class MapModelsTests
              "somethingDysonAddedLater":42}
             """);
 
-        var map = await api.GetPersistentMapAsync("SERIAL", "1000000002");
+        var map = await api.GetPersistentMapAsync("SERIAL", "1000000002", TestContext.Current.CancellationToken);
 
         Assert.Equal("1000000002", map.Id);
         Assert.Equal((320, 420, 0.05), (map.Dimensions!.Width, map.Dimensions.Height, map.Dimensions.Resolution));
@@ -74,7 +74,7 @@ public class MapModelsTests
              "hazardZones":[],"groutLines":[],"swingDoors":[]}
             """);
 
-        var live = await api.GetLiveCleaningMapAsync("SERIAL");
+        var live = await api.GetLiveCleaningMapAsync("SERIAL", TestContext.Current.CancellationToken);
 
         Assert.Equal(613, live.RobotLocation!.Id);
         Assert.Equal(2, live.CleanPath!.Count);
@@ -97,7 +97,7 @@ public class MapModelsTests
         // the whole trail as if the robot had been cleaning all along.
         using var api = ClientReturning("""{"cleanPath":[{"x":0,"y":0}]}""");
 
-        var live = await api.GetLiveCleaningMapAsync("SERIAL");
+        var live = await api.GetLiveCleaningMapAsync("SERIAL", TestContext.Current.CancellationToken);
 
         Assert.Null(Assert.Single(live.CleanPath!).Update);
     }
@@ -117,7 +117,7 @@ public class MapModelsTests
               "downloadUrl":"https://example.invalid/blob"}]}
             """);
 
-        var clean = Assert.Single(await api.GetCleanHistoryAsync("SERIAL"));
+        var clean = Assert.Single(await api.GetCleanHistoryAsync("SERIAL", TestContext.Current.CancellationToken));
 
         Assert.Equal("abc", clean.CleanId);
         Assert.Equal(128, clean.CleanDurationMinutes);
@@ -136,7 +136,7 @@ public class MapModelsTests
              "mapData":[0,10,11,255]}
             """);
 
-        var grid = MapGrid.From(await api.GetMappingMapAsync("SERIAL"))!;
+        var grid = MapGrid.From(await api.GetMappingMapAsync("SERIAL", TestContext.Current.CancellationToken))!;
 
         Assert.Equal((2, 2), (grid.Width, grid.Height));
         Assert.Equal(MapGrid.Unknown, grid[0, 0]);
@@ -155,7 +155,7 @@ public class AuthenticatedEndpointTests
         // been sent; the app turns this into a return to the login window.
         using var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(new ThrowingHandler()));
 
-        await Assert.ThrowsAsync<DysonAuthException>(() => api.GetMapMetadataAsync("SERIAL"));
+        await Assert.ThrowsAsync<DysonAuthException>(() => api.GetMapMetadataAsync("SERIAL", TestContext.Current.CancellationToken));
     }
 
     private sealed class ThrowingHandler : HttpMessageHandler

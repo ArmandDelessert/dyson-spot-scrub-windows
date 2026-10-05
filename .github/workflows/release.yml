@@ -32,7 +32,7 @@ jobs:
           "prerelease=$($m.Groups[2].Success.ToString().ToLower())" >> $env:GITHUB_OUTPUT
 
       - name: Test
-        run: dotnet test Dyss.slnx --configuration Release -p:Version=${{ steps.version.outputs.version }}
+        run: dotnet test --solution Dyss.slnx --configuration Release -p:Version=${{ steps.version.outputs.version }}
 
       - name: Publish
         shell: pwsh

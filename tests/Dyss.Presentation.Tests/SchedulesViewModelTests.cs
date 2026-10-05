@@ -109,7 +109,7 @@ public class SchedulesViewModelTests
         var before = handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal));
 
         vm.ApplyJdm(Jdm("""{"order_total":{"total":1,"enable":1}}"""));
-        for (var i = 0; i < 100 && handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal)) == before; i++) await Task.Delay(10);
+        for (var i = 0; i < 100 && handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal)) == before; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
 
         Assert.Equal(before + 1, handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal)));
     }

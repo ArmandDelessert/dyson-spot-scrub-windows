@@ -111,8 +111,8 @@ public class ScheduleTests
         var robot = new Recorder("""{"msgId":"1","code":0,"method":"service.add_order","data":{"result":0}}""");
         var s = CleaningSchedule.FromParams((JsonObject)JsonNode.Parse(EveryDay)!)!;
 
-        Assert.True(await robot.SaveScheduleAsync(s, TwoRooms, 3600));
-        Assert.True(await robot.DeleteScheduleAsync(s.Id));
+        Assert.True(await robot.SaveScheduleAsync(s, TwoRooms, 3600, TestContext.Current.CancellationToken));
+        Assert.True(await robot.DeleteScheduleAsync(s.Id, TestContext.Current.CancellationToken));
 
         Assert.Equal(["service.add_order", "service.del_order"], robot.Sent.Select(m => m.Method));
         AssertJson(EveryDay, robot.Sent[0].Payload);
@@ -124,7 +124,7 @@ public class ScheduleTests
     {
         var robot = new Recorder("""{"msgId":"1","code":1,"data":{"result":1}}""");
 
-        Assert.False(await robot.DeleteScheduleAsync(42));
+        Assert.False(await robot.DeleteScheduleAsync(42, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class ScheduleTests
              {"total":3,"enable":2,"timestamp":1790372729,"md5":"0added44d13eee9d0a2a1332a8332fcf"}}}
             """);
 
-        var summary = await robot.GetScheduleSummaryAsync();
+        var summary = await robot.GetScheduleSummaryAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScheduleSummary(3, 2, "0added44d13eee9d0a2a1332a8332fcf"), summary);
         AssertJson("{}", robot.Sent.Single().Payload);

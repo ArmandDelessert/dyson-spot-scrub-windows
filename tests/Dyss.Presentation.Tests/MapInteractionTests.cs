@@ -117,7 +117,7 @@ public class MapInteractionTests
         time.Advance(TimeSpan.FromMilliseconds(200));
         Click(map, Empty + new Vec2(3, 2));
         time.Advance(TimeSpan.FromSeconds(1));
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         Assert.Equal(1, map.Zoom);
         Assert.Equal(0, cleared);
@@ -141,7 +141,7 @@ public class MapInteractionTests
         time.Advance(TimeSpan.FromMilliseconds(200));
         Click(map, Empty + new Vec2(2, 2));
         time.Advance(TimeSpan.FromSeconds(1));
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         Assert.Single(confirmed);
     }
 

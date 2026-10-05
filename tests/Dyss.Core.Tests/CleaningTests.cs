@@ -52,7 +52,7 @@ public class CleaningSequenceTests
             new("10", new RoomSettings(CleanType.VacuumThenMop, CleaningStrategy.Quiet, WaterLevel.High, MopPasses: 2), Order: 1),
         ];
 
-        await CleaningSequence.StartAsync(robot, MapId, rooms);
+        await CleaningSequence.StartAsync(robot, MapId, rooms, TestContext.Current.CancellationToken);
 
         Assert.Equal(
             ["service.get_preference", "service.set_preference", "START", "service.set_cur_map", "service.set_room_clean"],
@@ -88,7 +88,7 @@ public class CleaningSequenceTests
               "uv_switch":[[11,1],[14,0]]}}
             """);
 
-        await CleaningSequence.StartAsync(robot, MapId, [new("14", new RoomSettings(CleanType.Mop), Order: 1)]);
+        await CleaningSequence.StartAsync(robot, MapId, [new("14", new RoomSettings(CleanType.Mop), Order: 1)], TestContext.Current.CancellationToken);
 
         AssertJson("""
             {"map_id":1000000002,"prefer_type":1,
@@ -105,7 +105,7 @@ public class CleaningSequenceTests
               "room":[["11","Salle de bain",0,0,0,0,0,0,0,0,1],[3000000000,"Salon",0,0,0,0,0,0,0,0,2]]}}
             """);
 
-        await CleaningSequence.StartAsync(robot, MapId, [new("11", new RoomSettings(CleanType.Mop), Order: 1)]);
+        await CleaningSequence.StartAsync(robot, MapId, [new("11", new RoomSettings(CleanType.Mop), Order: 1)], TestContext.Current.CancellationToken);
 
         AssertJson("""
             {"map_id":1000000002,"prefer_type":1,
@@ -118,7 +118,7 @@ public class CleaningSequenceTests
     public async Task RefusesAnEmptySelectionBeforeTalkingToTheRobot()
     {
         var robot = new RecordingRobot(PreferenceReply);
-        await Assert.ThrowsAsync<ArgumentException>(() => CleaningSequence.StartAsync(robot, MapId, []));
+        await Assert.ThrowsAsync<ArgumentException>(() => CleaningSequence.StartAsync(robot, MapId, [], TestContext.Current.CancellationToken));
         Assert.Empty(robot.Sent);
     }
 
@@ -129,7 +129,7 @@ public class CleaningSequenceTests
         var robot = new RecordingRobot("{}");
         var corners = SpotCleanSequence.Corners(new(0.440765380859375, 0.28673648834228516), new(1.8325986862182617, 2.6739816665649414));
 
-        await SpotCleanSequence.StartAsync(robot, MapId, corners, new RoomSettings(CleanType.Vacuum, CleaningStrategy.Quiet), "40328115-26bc-4e66-bf76-5fee0bf2a49c");
+        await SpotCleanSequence.StartAsync(robot, MapId, corners, new RoomSettings(CleanType.Vacuum, CleaningStrategy.Quiet), "40328115-26bc-4e66-bf76-5fee0bf2a49c", TestContext.Current.CancellationToken);
 
         Assert.Equal(["START", "service.set_cur_map", "service.set_areas_start"], robot.Sent.Select(m => m.Method));
         AssertJson("""
@@ -152,7 +152,7 @@ public class CleaningSequenceTests
         var robot = new RecordingRobot("{}");
 
         await SpotCleanSequence.StartAsync(robot, MapId, SpotCleanSequence.Corners(new(0, 0), new(1, 1)),
-            new RoomSettings(CleanType.VacuumThenMop, CleaningStrategy.Boost, WaterLevel.High, 2));
+            new RoomSettings(CleanType.VacuumThenMop, CleaningStrategy.Boost, WaterLevel.High, 2), ct: TestContext.Current.CancellationToken);
 
         var jdm = robot.Sent[2].Payload;
         Assert.Equal((3, 1, 2, 1), (jdm["mode"]!.GetValue<int>(), jdm["wind"]!.GetValue<int>(), jdm["water"]!.GetValue<int>(), jdm["clean_count"]!.GetValue<int>()));
@@ -206,7 +206,7 @@ public class MapEditingCommandTests
     {
         var robot = Robot();
 
-        var result = await robot.RenameMapAsync(MapId, "Appartement Rez v2");
+        var result = await robot.RenameMapAsync(MapId, "Appartement Rez v2", TestContext.Current.CancellationToken);
 
         var (method, payload) = Assert.Single(robot.Sent);
         Assert.Equal("service.rename_map", method);
@@ -219,8 +219,8 @@ public class MapEditingCommandTests
     {
         var robot = Robot();
 
-        await robot.RenameRoomAsync(MapId, 15, "Débarras", "storageRoom");
-        await robot.RenameRoomAsync(MapId, 16, "Pièce secrète");
+        await robot.RenameRoomAsync(MapId, 15, "Débarras", "storageRoom", TestContext.Current.CancellationToken);
+        await robot.RenameRoomAsync(MapId, 16, "Pièce secrète", ct: TestContext.Current.CancellationToken);
 
         // Non-ASCII stays \u-escaped inside the nested name, byte for byte what the capture shows.
         Assert.Equal(["service.rename_room", "service.rename_room"], robot.Sent.Select(m => m.Method));
@@ -234,8 +234,8 @@ public class MapEditingCommandTests
     {
         var robot = Robot();
 
-        await robot.MergeRoomsAsync(MapId, [16, 15]);
-        await robot.SplitRoomAsync(MapId, 10, new Point(-0.825, -1.821), new Point(3.8, -1.821));
+        await robot.MergeRoomsAsync(MapId, [16, 15], ct: TestContext.Current.CancellationToken);
+        await robot.SplitRoomAsync(MapId, 10, new Point(-0.825, -1.821), new Point(3.8, -1.821), ct: TestContext.Current.CancellationToken);
 
         AssertJson("""{"map_id":1000000002,"room_ids":[16,15],"lang":5}""", robot.Sent[0].Payload);
         AssertJson("""{"map_id":1000000002,"room_id":10,"split_points":[-0.825,-1.821,3.8,-1.821],"lang":5}""", robot.Sent[1].Payload);
@@ -248,7 +248,7 @@ public class MapEditingCommandTests
         // success rather than blow up on the duplicate key.
         var robot = new RecordingRobot("""{"msgId":"1","code":0,"method":"service.del_map","data":{"result":0,"result":0}}""");
 
-        var result = await robot.DeleteMapAsync(MapId);
+        var result = await robot.DeleteMapAsync(MapId, TestContext.Current.CancellationToken);
 
         var (method, payload) = Assert.Single(robot.Sent);
         Assert.Equal("service.del_map", method);
@@ -271,7 +271,7 @@ public class MapEditingCommandTests
         // The robot answers a refused edit with some other shape, never an error field of its own.
         var robot = new RecordingRobot("""{"msgId":"1","code":1,"data":{"result":1}}""");
 
-        Assert.Null(await robot.RenameMapAsync(MapId, "Peu importe"));
+        Assert.Null(await robot.RenameMapAsync(MapId, "Peu importe", TestContext.Current.CancellationToken));
     }
 
     private static void AssertJson(string expected, JsonNode actual)

@@ -31,7 +31,7 @@ public class DysonCloudClientTests
             """);
         using var api = new DysonCloudClient("CH", http: new HttpClient(handler)) { BearerToken = "t" };
 
-        await api.GetIotCredentialsAsync("SERIAL-1");
+        await api.GetIotCredentialsAsync("SERIAL-1", TestContext.Current.CancellationToken);
 
         var (request, body) = Assert.Single(handler.Requests);
         Assert.Equal("""{"Serial":"SERIAL-1"}""", body);
@@ -45,7 +45,7 @@ public class DysonCloudClientTests
         var handler = new CapturingHandler("""{"account":"acc","token":"tok","tokenType":"Bearer"}""");
         using var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(handler));
 
-        await api.CompleteLoginAsync("me@example.org", "pw", "challenge", "123456");
+        await api.CompleteLoginAsync("me@example.org", "pw", "challenge", "123456", TestContext.Current.CancellationToken);
 
         var (request, body) = Assert.Single(handler.Requests);
         Assert.Equal("""{"email":"me@example.org","password":"pw","challengeId":"challenge","otpCode":"123456"}""", body);
@@ -59,7 +59,7 @@ public class DysonCloudClientTests
         var handler = new CapturingHandler("""{"endpoint":"h","region":"eu-west-1","iamCredentials":{"accessKeyId":"AK","secretAccessKey":"SK","sessionToken":"ST","expiration":"2026-09-19T12:00:00+00:00"}}""");
         using var api = new DysonCloudClient("CH", http: new HttpClient(handler)) { BearerToken = "t" };
 
-        var role = await api.GetIotRoleCredentialsAsync("S");
+        var role = await api.GetIotRoleCredentialsAsync("S", TestContext.Current.CancellationToken);
 
         Assert.Equal("AK", role.IamCredentials.AccessKeyId);
         Assert.Equal("eu-west-1", role.Region);
@@ -71,7 +71,7 @@ public class DysonCloudClientTests
         var handler = new StatusHandler(HttpStatusCode.Unauthorized, """{"message":"nope"}""");
         using var api = new DysonCloudClient("CH", http: new HttpClient(handler)) { BearerToken = "t" };
 
-        var ex = await Assert.ThrowsAsync<DysonAuthException>(() => api.GetManifestAsync());
+        var ex = await Assert.ThrowsAsync<DysonAuthException>(() => api.GetManifestAsync(TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.Unauthorized, ex.StatusCode);
         Assert.Contains("nope", ex.ResponseBody);
     }

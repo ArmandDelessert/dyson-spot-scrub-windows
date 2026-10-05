@@ -25,7 +25,7 @@ public class MapObjectsTests
                                                new(1.0718350410461426, -0.891735315322876), new(1.0718350410461426, 0.20370972156524658)]),
         ];
 
-        var result = await robot.SetRestrictionsAsync(MapId, zones);
+        var result = await robot.SetRestrictionsAsync(MapId, zones, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);   // despite the duplicated keys in the reply
         Assert.Equal("service.set_virtual_wall", robot.Sent.Single().Method);
@@ -41,7 +41,7 @@ public class MapObjectsTests
     {
         var robot = new Recorder("""{"msgId":"1","code":0,"data":{"map_id":1000000002,"map_type":0,"timestamp":0}}""");
 
-        await robot.SetRestrictionsAsync(MapId, []);
+        await robot.SetRestrictionsAsync(MapId, [], TestContext.Current.CancellationToken);
 
         AssertJson("""{"virwall":[0]}""", robot.Sent[0].Payload);
     }
@@ -61,7 +61,7 @@ public class MapObjectsTests
                                                    new(-0.23010873794555664, -0.9065385460853577), new(-0.23010873794555664, -0.10653859376907349)]),
         ];
 
-        var result = await robot.AdjustFurnitureAsync(pieces, DateTimeOffset.FromUnixTimeSeconds(1790194580));
+        var result = await robot.AdjustFurnitureAsync(pieces, DateTimeOffset.FromUnixTimeSeconds(1790194580), TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);   // map_id 0 is the robot's normal answer here
         var sent = (JsonObject)robot.Sent.Single().Payload;
@@ -81,7 +81,7 @@ public class MapObjectsTests
     {
         var robot = new Recorder("""{"msgId":"1","code":0,"data":{"map_id":0,"map_type":0,"timestamp":1,"package":[1,1]}}""");
 
-        await robot.AdjustFurnitureAsync([]);
+        await robot.AdjustFurnitureAsync([], ct: TestContext.Current.CancellationToken);
 
         Assert.Equal("[]", robot.Sent[0].Payload["furniture_list"]!.GetValue<string>());
     }
@@ -92,7 +92,7 @@ public class MapObjectsTests
         var robot = new Recorder("{}");
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            robot.SetRestrictionsAsync(MapId, [new(RestrictionKind.All[0], [new(0, 0), new(1, 1)])]));
+            robot.SetRestrictionsAsync(MapId, [new(RestrictionKind.All[0], [new(0, 0), new(1, 1)])], TestContext.Current.CancellationToken));
         Assert.Empty(robot.Sent);
     }
 

@@ -23,11 +23,11 @@ jobs:
         run: dotnet build Dyss.slnx --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test Dyss.slnx --configuration Release --no-build --logger "trx;LogFileName=results.trx"
+        run: dotnet test --solution Dyss.slnx --configuration Release --no-build --report-xunit-trx --results-directory TestResults
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: "**/results.trx"
+          path: TestResults/**/*.trx
