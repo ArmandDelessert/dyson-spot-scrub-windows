@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Dyss.Presentation.Services;
 using Dyss.Core;
+using Microsoft.Extensions.Logging;
 
 using static Dyss.Core.Translation;
 
@@ -21,6 +22,7 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
     private readonly IUiDispatcher _ui;
     /// <summary>Cancelled by <see cref="MainViewModel.ShutdownAsync"/> so REST calls still in flight stop instead of landing on view models that are going away.</summary>
     private readonly CancellationTokenSource _lifetime = new();
+    private readonly ILogger _logger;
 
     /// <param name="time">The clock every wait of the dashboard runs on; tests pass one they move by hand.</param>
     public RobotHub(RobotContext ctx, IUiDispatcher ui, IDialogService dialogs, TimeProvider? time = null)
@@ -29,7 +31,9 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
         _ui = ui;
         Dialogs = dialogs;
         Time = time ?? TimeProvider.System;
-        _ctx.Log += m => Post(() => AddLog(m));
+        _logger = ctx.Loggers.CreateLogger<RobotHub>();
+        // Already in the application's log, written there by the session's own logger.
+        _ctx.Log += m => Post(() => ShowInJournal(m));
     }
 
     /// <summary>Questions for the user: confirmations, names, the schedule editor, where to save a file.</summary>
@@ -62,11 +66,21 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
         if (_ui.CheckAccess()) a(); else _ui.Post(a);
     }
 
+    /// <summary>A line for the Journal tab, kept in the application's log too.</summary>
     public void AddLog(string line)
+    {
+        LogJournalLine(_logger, line);
+        ShowInJournal(line);
+    }
+
+    private void ShowInJournal(string line)
     {
         Log.Insert(0, $"{DateTime.Now:HH:mm:ss} {line}");
         while (Log.Count > 200) Log.RemoveAt(Log.Count - 1);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{Line}")]
+    private static partial void LogJournalLine(ILogger logger, string line);
 
     /// <summary>Sends a command, journals it, then asks for a fresh state a moment later so the dashboard reflects the result.</summary>
     public async Task RunAsync(string label, Func<RobotMqttClient, Task> action)

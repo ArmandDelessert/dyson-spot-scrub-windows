@@ -1,4 +1,6 @@
 using Dyss.Core;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Dyss.Presentation.Services;
 
@@ -13,25 +15,30 @@ public sealed class RobotContext : IAsyncDisposable
     public List<Device> Devices { get; private set; } = new();
     public Device? Robot { get; private set; }
     public RobotSession? Session { get; private set; }
+    /// <summary>The application's loggers, which the session and the dashboard log to.</summary>
+    public ILoggerFactory Loggers { get; }
 
+    /// <summary>What the robot session logs, for the Journal tab; it reaches the application's log as well.</summary>
     public event Action<string>? Log;
 
-    private RobotContext(DysonCloudClient api, StoredSession stored)
+    private RobotContext(DysonCloudClient api, StoredSession stored, ILoggerFactory? loggers)
     {
         Api = api;
         Stored = stored;
+        Loggers = loggers ?? NullLoggerFactory.Instance;
     }
 
     /// <summary>Opens the stored session, or returns null when the user has to log in.</summary>
-    public static RobotContext? FromStoredSession()
+    public static RobotContext? FromStoredSession(ILoggerFactory? loggers = null)
     {
         var s = SessionStore.Load();
         if (s is null) return null;
-        var api = new DysonCloudClient(s.Country, s.Culture) { BearerToken = s.Token };
-        return new RobotContext(api, s);
+        loggers ??= NullLoggerFactory.Instance;
+        var api = new DysonCloudClient(s.Country, s.Culture, logger: loggers.CreateLogger<DysonCloudClient>()) { BearerToken = s.Token };
+        return new RobotContext(api, s, loggers);
     }
 
-    public static RobotContext FromLogin(DysonCloudClient api, StoredSession stored) => new(api, stored);
+    public static RobotContext FromLogin(DysonCloudClient api, StoredSession stored, ILoggerFactory? loggers = null) => new(api, stored, loggers);
 
     /// <summary>Loads the account's devices and picks the first robot, unless a serial is preferred.</summary>
     public async Task<Device?> LoadDevicesAsync(string? preferredSerial = null, CancellationToken ct = default)
@@ -48,7 +55,7 @@ public sealed class RobotContext : IAsyncDisposable
     {
         if (Robot is null) throw new InvalidOperationException("No robot selected.");
         if (Session is not null) return Session;
-        var session = new RobotSession(Api, Robot, m => Log?.Invoke(m), time);
+        var session = new RobotSession(Api, Robot, new JournalLogger(Loggers.CreateLogger<RobotSession>(), m => Log?.Invoke(m)), time);
         try
         {
             await session.ConnectAsync(ct);

@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net.Security;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Logging;
 using MQTTnet;
 using MQTTnet.Diagnostics.Logger;
 using MQTTnet.Formatter;
@@ -45,7 +46,7 @@ public sealed record RobotMessage(DateTimeOffset ReceivedUtc, string Topic, stri
 ///
 /// The client subscribes to +/{serial}/# and adopts whatever prefix the robot really publishes on.
 /// </summary>
-public sealed class RobotMqttClient : IRobotLink, IRobotCommands
+public sealed partial class RobotMqttClient : IRobotLink, IRobotCommands
 {
     private readonly IMqttClient _client;
     private readonly MqttEndpoint _endpoint;
@@ -65,13 +66,14 @@ public sealed class RobotMqttClient : IRobotLink, IRobotCommands
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonObject>> _pendingJdm = new();
     private readonly ConcurrentDictionary<Guid, TaskCompletionSource<RobotState>> _pendingState = new();
 
-    public RobotMqttClient(string serial, string topicPrefix, MqttEndpoint endpoint, Action<string>? traceLogger = null)
+    /// <param name="trace">Receives MQTTnet's own trace, for looking into a connection that fails; null leaves it off.</param>
+    public RobotMqttClient(string serial, string topicPrefix, MqttEndpoint endpoint, ILogger? trace = null)
     {
         Serial = serial;
         _prefix = topicPrefix;
         _endpoint = endpoint;
 
-        if (traceLogger is null)
+        if (trace is null)
         {
             _client = new MqttClientFactory().CreateMqttClient();
         }
@@ -81,7 +83,7 @@ public sealed class RobotMqttClient : IRobotLink, IRobotCommands
             logger.LogMessagePublished += (_, e) =>
             {
                 var m = e.LogMessage;
-                traceLogger($"{m.Level} {m.Source}: {m.Message}" + (m.Exception is null ? "" : $" | {m.Exception}"));
+                LogMqttTrace(trace, m.Level, m.Source, m.Message, m.Exception);
             };
             _client = new MqttClientFactory(logger).CreateMqttClient();
         }
@@ -97,6 +99,9 @@ public sealed class RobotMqttClient : IRobotLink, IRobotCommands
             return Task.CompletedTask;
         };
     }
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "{MqttLevel} {Source}: {Text}")]
+    private static partial void LogMqttTrace(ILogger logger, MqttNetLogLevel mqttLevel, string source, string text, Exception? exception);
 
     public string CommandTopic => $"{_prefix}/{Serial}/command";
     public string JdmCommandTopic => $"{_prefix}/{Serial}/command/jdm";

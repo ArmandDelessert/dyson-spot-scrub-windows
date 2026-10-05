@@ -6,6 +6,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dyss.Presentation.Services;
 using Dyss.Core;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using static Dyss.Core.Translation;
 
@@ -30,20 +32,26 @@ public sealed record CultureOption(string Code, string Name)
 /// </summary>
 public sealed partial class LoginViewModel : ObservableObject, IDisposable
 {
-    public LoginViewModel() : this(RegionInfo.CurrentRegion.TwoLetterISORegionName, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName)
+    /// <param name="loggers">The application's loggers: failed steps are logged, and the account opened logs to them.</param>
+    public LoginViewModel(ILoggerFactory? loggers = null)
+        : this(RegionInfo.CurrentRegion.TwoLetterISORegionName, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, loggers)
     {
     }
 
     /// <param name="region">The machine's country, chosen first when Dyson might have accounts there.</param>
     /// <param name="language">The machine's language, chosen first among the country's.</param>
-    internal LoginViewModel(string region, string language)
+    internal LoginViewModel(string region, string language, ILoggerFactory? loggers = null)
     {
+        _loggers = loggers ?? NullLoggerFactory.Instance;
+        _logger = _loggers.CreateLogger<LoginViewModel>();
         _language = language;
         _selectedCountry = Countries.FirstOrDefault(c => c.Code == region) ?? Countries.FirstOrDefault(c => c.Code == "CH") ?? Countries[0];
         ListCultures(_selectedCountry);
     }
 
     private readonly string _language;
+    private readonly ILoggerFactory _loggers;
+    private readonly ILogger _logger;
 
     [ObservableProperty] private string _email = "";
     [ObservableProperty] private string _otpCode = "";
@@ -153,6 +161,13 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
         MessageIsError = isError;
     }
 
+    // The user is told in plain words; the technical detail goes to the log.
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Asking for the one-time code failed")]
+    private static partial void LogCodeRequestFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Verifying the password and the code failed")]
+    private static partial void LogVerificationFailed(ILogger logger, Exception exception);
+
     [RelayCommand]
     private async Task SendCodeAsync()
     {
@@ -166,7 +181,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
         try
         {
             _api?.Dispose();
-            _api = new DysonCloudClient(SelectedCountry.Code, SelectedCulture.Code);
+            _api = new DysonCloudClient(SelectedCountry.Code, SelectedCulture.Code, logger: _loggers.CreateLogger<DysonCloudClient>());
             await _api.ProvisionAsync();
             var status = await _api.GetUserStatusAsync(Email.Trim());
             if (!string.Equals(status.AccountStatus, "ACTIVE", StringComparison.OrdinalIgnoreCase))
@@ -180,7 +195,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            ErrorLog.Write("connexion", ex);
+            LogCodeRequestFailed(_logger, ex);
             Say(Describe(ex, verifying: false), isError: true);
         }
         finally
@@ -205,12 +220,12 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
             var login = await _api.CompleteLoginAsync(Email.Trim(), password, _challengeId, OtpCode.Trim());
             var stored = new StoredSession(Email.Trim(), _api.Country, _api.Culture, login.Account, login.Token, DateTimeOffset.UtcNow);
             SessionStore.Save(stored);
-            Result = RobotContext.FromLogin(_api, stored);
+            Result = RobotContext.FromLogin(_api, stored, _loggers);
             _api = null; // ownership moved to the context
         }
         catch (Exception ex)
         {
-            ErrorLog.Write("connexion", ex);
+            LogVerificationFailed(_logger, ex);
             Say(Describe(ex, verifying: true), isError: true);
         }
         finally
@@ -231,7 +246,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// What a failure means for the user, rather than the HTTP status behind it, which goes to the
-    /// error log. Dyson answers a wrong password or code, or an expired code, with a plain 400.
+    /// application's log. Dyson answers a wrong password or code, or an expired code, with a plain 400.
     /// </summary>
     internal static string Describe(Exception ex, bool verifying) => ex switch
     {

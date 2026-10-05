@@ -3,6 +3,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Dyss.Core;
 
@@ -20,7 +22,7 @@ namespace Dyss.Core;
 ///
 /// Note: api.cp.dyson.com is behind Cloudflare mTLS since ~Aug 2026; only appapi.cp.dyson.com works.
 /// </summary>
-public sealed class DysonCloudClient : IDisposable
+public sealed partial class DysonCloudClient : IDisposable
 {
     public const string DefaultHost = "appapi.cp.dyson.com";
     public const string ChinaHost = "appapi.cp.dyson.cn";
@@ -55,6 +57,7 @@ public sealed class DysonCloudClient : IDisposable
     private readonly HttpClient _http;
     private readonly bool _ownsHttp;
     private readonly TimeProvider _time;
+    private readonly ILogger _logger;
 
     public string Host { get; }
     public string Country { get; }
@@ -62,12 +65,14 @@ public sealed class DysonCloudClient : IDisposable
     public string? BearerToken { get; set; }
 
     /// <param name="time">The clock the waits between two attempts of a GET run on.</param>
-    public DysonCloudClient(string country, string? culture = null, string host = DefaultHost, HttpClient? http = null, TimeProvider? time = null)
+    /// <param name="logger">Where a GET sent again is told.</param>
+    public DysonCloudClient(string country, string? culture = null, string host = DefaultHost, HttpClient? http = null, TimeProvider? time = null, ILogger? logger = null)
     {
         Country = country.ToUpperInvariant();
         Culture = culture ?? $"en-{Country}";
         Host = host;
         _time = time ?? TimeProvider.System;
+        _logger = logger ?? NullLogger.Instance;
         _ownsHttp = http is null;
         _http = http ?? new HttpClient(new SocketsHttpHandler
         {
@@ -132,6 +137,7 @@ public sealed class DysonCloudClient : IDisposable
                     throw new DysonApiException(msg, resp.StatusCode, text);
                 }
                 wait = delay;
+                LogRetrying(_logger, req.Method, req.RequestUri!.AbsolutePath, (int)resp.StatusCode, wait.TotalSeconds);
             }
             await Task.Delay(wait, _time, ct).ConfigureAwait(false);
             // A request cannot be sent twice; a GET has no body, so a copy of its line and headers is the same request.
@@ -161,6 +167,9 @@ public sealed class DysonCloudClient : IDisposable
         if (delay < TimeSpan.Zero) delay = TimeSpan.Zero;
         return delay <= MaxRetryDelay ? delay : null;
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "{Method} {Path} returned {Status}, trying again in {Seconds:F0} s")]
+    private static partial void LogRetrying(ILogger logger, HttpMethod method, string path, int status, double seconds);
 
     private static T Read<T>(HttpRequestMessage req, HttpResponseMessage resp, string text)
     {

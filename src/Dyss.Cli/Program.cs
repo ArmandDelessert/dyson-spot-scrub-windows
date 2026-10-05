@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Dyss.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Dyss.Cli;
 
@@ -226,7 +227,7 @@ internal static class Program
         using var api = OpenSession();
         var device = await FindDeviceAsync(api, serial, ct);
 
-        await using var session = new RobotSession(api, device, m => Console.Error.WriteLine($"[session] {m}"));
+        await using var session = new RobotSession(api, device, new StderrLogger("session"));
         session.ConnectionChanged += (status, detail) => Console.Error.WriteLine($"[connexion] {status}" + (detail is null ? "" : $" ({detail})"));
         session.MessageReceived += m =>
         {
@@ -473,7 +474,7 @@ internal static class Program
         {
             var endpoint = await GetMqttEndpointAsync(api, serial, o, ct);
             await using var robot = new RobotMqttClient(serial, prefix, endpoint,
-                o.Has("mqtt-log") ? m => Console.Error.WriteLine($"  [mqtt] {m}") : null);
+                o.Has("mqtt-log") ? new StderrLogger("mqtt", LogLevel.Trace) : null);
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var received = 0;

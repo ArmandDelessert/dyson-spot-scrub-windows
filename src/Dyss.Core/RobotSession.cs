@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using static Dyss.Core.Translation;
 
@@ -13,11 +15,11 @@ public enum RobotConnectionStatus { Disconnected, Connecting, Connected, Reconne
 /// attempt, since the custom-authorizer token is short-lived. The waits run on the given clock, so
 /// tests can drive a whole reconnection without sitting through it.
 /// </summary>
-public sealed class RobotSession : IAsyncDisposable
+public sealed partial class RobotSession : IAsyncDisposable
 {
     private readonly DysonCloudClient _api;
     private readonly Device _device;
-    private readonly Action<string>? _log;
+    private readonly ILogger _logger;
     private readonly TimeProvider _time;
     /// <summary>Opens a link to the broker with fresh credentials, on the topic prefix known so far.</summary>
     private readonly Func<IotData, string, IRobotLink> _openLink;
@@ -41,17 +43,18 @@ public sealed class RobotSession : IAsyncDisposable
     /// </summary>
     public event Action<string>? AuthenticationLost;
 
-    public RobotSession(DysonCloudClient api, Device device, Action<string>? log = null, TimeProvider? time = null)
-        : this(api, device, log, time, openLink: null)
+    /// <param name="logger">Where drops, reconnections and messages that could not be handled are told.</param>
+    public RobotSession(DysonCloudClient api, Device device, ILogger? logger = null, TimeProvider? time = null)
+        : this(api, device, logger, time, openLink: null)
     {
     }
 
     /// <param name="openLink">Stands in for the broker in tests; null opens a real <see cref="RobotMqttClient"/>.</param>
-    internal RobotSession(DysonCloudClient api, Device device, Action<string>? log, TimeProvider? time, Func<IotData, string, IRobotLink>? openLink)
+    internal RobotSession(DysonCloudClient api, Device device, ILogger? logger, TimeProvider? time, Func<IotData, string, IRobotLink>? openLink)
     {
         _api = api;
         _device = device;
-        _log = log;
+        _logger = logger ?? NullLogger.Instance;
         _time = time ?? TimeProvider.System;
         _openLink = openLink ?? ((iot, prefix) => new RobotMqttClient(Serial, prefix, MqttEndpoint.FromCustomAuthorizerTls(iot)));
         TopicPrefix = device.GuessTopicPrefix();
@@ -82,7 +85,7 @@ public sealed class RobotSession : IAsyncDisposable
         var client = _openLink(iot, TopicPrefix);
         client.MessageReceived += OnMessage;
         client.PrefixChanged += p => TopicPrefix = p;
-        client.ListenerFailed += ex => _log?.Invoke(T($"message non traité : {ex.Message}", $"message not handled: {ex.Message}"));
+        client.ListenerFailed += ex => LogListenerFailed(_logger, ex.Message, ex);
         client.Disconnected += reason => _ = OnDisconnectedAsync(client, reason);
 
         try
@@ -108,9 +111,9 @@ public sealed class RobotSession : IAsyncDisposable
     private void OnMessage(RobotMessage message)
     {
         try { MessageReceived?.Invoke(message); }
-        catch (Exception ex) { _log?.Invoke(T($"message {message.Topic} : {ex.Message}", $"message {message.Topic}: {ex.Message}")); }
+        catch (Exception ex) { LogMessageFailed(_logger, message.Topic, ex.Message, ex); }
         try { Tracker.Apply(message); }
-        catch (Exception ex) { _log?.Invoke(T($"message {message.Topic} ignoré : {ex.Message}", $"message {message.Topic} ignored: {ex.Message}")); }
+        catch (Exception ex) { LogMessageIgnored(_logger, message.Topic, ex.Message, ex); }
     }
 
     private async Task OnDisconnectedAsync(IRobotLink source, string reason)
@@ -123,7 +126,7 @@ public sealed class RobotSession : IAsyncDisposable
         {
             _attempt++;
             var delay = BackoffFor(_attempt);
-            _log?.Invoke($"MQTT dropped ({reason}); reconnecting in {delay.TotalSeconds:F0} s (attempt {_attempt})");
+            LogDropped(_logger, reason, delay.TotalSeconds, _attempt);
             try
             {
                 await Task.Delay(delay, _time, _lifetime.Token).ConfigureAwait(false);
@@ -144,7 +147,7 @@ public sealed class RobotSession : IAsyncDisposable
             }
             catch (DysonAuthException ex)
             {
-                _log?.Invoke($"reconnect refused, token no longer valid: {ex.Message}");
+                LogReconnectRefused(_logger, ex.Message);
                 SetStatus(RobotConnectionStatus.Disconnected, T("session expirée", "session expired"));
                 AuthenticationLost?.Invoke(ex.Message);
                 return;
@@ -152,7 +155,7 @@ public sealed class RobotSession : IAsyncDisposable
             catch (Exception ex)
             {
                 reason = ex.Message;
-                _log?.Invoke($"reconnect failed: {ex.Message}");
+                LogReconnectFailed(_logger, ex.Message);
             }
         }
     }
@@ -164,6 +167,24 @@ public sealed class RobotSession : IAsyncDisposable
     /// </summary>
     public static TimeSpan BackoffFor(int attempt) =>
         TimeSpan.FromSeconds(Math.Min(120, 5 * Math.Pow(2, Math.Max(1, attempt) - 1)));
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "MQTT dropped ({Reason}); reconnecting in {Seconds:F0} s (attempt {Attempt})")]
+    private static partial void LogDropped(ILogger logger, string reason, double seconds, int attempt);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "reconnect failed: {Error}")]
+    private static partial void LogReconnectFailed(ILogger logger, string error);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "reconnect refused, token no longer valid: {Error}")]
+    private static partial void LogReconnectRefused(ILogger logger, string error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "message not handled: {Error}")]
+    private static partial void LogListenerFailed(ILogger logger, string error, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "message {Topic}: {Error}")]
+    private static partial void LogMessageFailed(ILogger logger, string topic, string error, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "message {Topic} ignored: {Error}")]
+    private static partial void LogMessageIgnored(ILogger logger, string topic, string error, Exception exception);
 
     private void SetStatus(RobotConnectionStatus status, string? detail)
     {

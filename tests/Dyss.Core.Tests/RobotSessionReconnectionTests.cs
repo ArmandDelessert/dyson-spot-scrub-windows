@@ -133,7 +133,7 @@ public class RobotSessionReconnectionTests
         {
             _api = new DysonCloudClient("CH", http: new HttpClient(Credentials)) { BearerToken = "t" };
             var device = new Device("SERIAL-1", "Robot", "804", "RB05", "robot", null, null, null);
-            Session = new RobotSession(_api, device, log: null, Clock, OpenLink);
+            Session = new RobotSession(_api, device, logger: null, Clock, OpenLink);
             Session.ConnectionChanged += (s, d) => _statuses.Writer.TryWrite((s, d));
         }
 

@@ -1,4 +1,4 @@
-using Dyss.Presentation.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
@@ -10,12 +10,12 @@ namespace Dyss.App.Services;
 /// notification centre, and a click on one brings the window back. If Windows refuses the
 /// registration, robot events simply go without a notification.
 /// </summary>
-internal sealed class NotificationService : IDisposable
+internal sealed partial class NotificationService : IDisposable
 {
     private readonly bool _registered;
     private Action? _onClick;
 
-    public NotificationService(DispatcherQueue ui)
+    public NotificationService(DispatcherQueue ui, ILogger<NotificationService> logger)
     {
         try
         {
@@ -27,9 +27,12 @@ internal sealed class NotificationService : IDisposable
         }
         catch (Exception ex)
         {
-            ErrorLog.Write("notifications", ex);
+            LogRegistrationFailed(logger, ex);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Windows refused the notification registration; robot events will go without one")]
+    private static partial void LogRegistrationFailed(ILogger logger, Exception exception);
 
     /// <summary>Shows a notification; <paramref name="onClick"/> runs if the user clicks it.</summary>
     public void Show(string title, string text, Action? onClick = null)

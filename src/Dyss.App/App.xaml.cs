@@ -4,6 +4,7 @@ using Dyss.App.Views;
 using Dyss.Core;
 using Dyss.Presentation.Map;
 using Dyss.Presentation.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -12,9 +13,13 @@ using static Dyss.Core.Translation;
 namespace Dyss.App;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
-    Justification = "The application's lifetime is its window's: the notifications are disposed when it closes.")]
+    Justification = "The application's lifetime is its process's: the notifications are disposed when the window closes, the log when the process exits.")]
 public partial class App : Application
 {
+    /// <summary>The log on disk, %APPDATA%\DySS Cockpit\journal-2026-10-05.log: one file a day, kept a week.</summary>
+    private readonly FileLoggerProvider _logFile;
+    private readonly ILoggerFactory _loggers;
+    private readonly ILogger _logger;
     private MainWindow? _window;
     private NotificationService? _notifications;
     /// <summary>The dashboard, while it is on show.</summary>
@@ -29,31 +34,52 @@ public partial class App : Application
             "en" => AppLanguage.English,
             _ => DisplaySettings.Load().ChosenLanguage,
         };
+        _logFile = new FileLoggerProvider(SessionStore.Directory);
+        _loggers = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Information).AddProvider(_logFile));
+        _logger = _loggers.CreateLogger<App>();
+        // Written out on the way out, whichever it is: the window closed, a headless export done.
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => _logFile.Dispose();
         InitializeComponent();
         // Last resort for anything a command or event handler lets escape: tell the user and keep
         // the window open rather than vanishing without a word. Real bugs still surface — as a
-        // dialog instead of a crash, and in the error log — so this hides nothing, it just doesn't
+        // dialog instead of a crash, and in the log — so this hides nothing, it just doesn't
         // lose the session.
         UnhandledException += (_, e) =>
         {
             Console.Error.WriteLine(e.Exception);
-            ErrorLog.Write("interface", e.Exception);
+            LogUnhandled(_logger, e.Exception);
             e.Handled = true;
             _ = ShowErrorAsync(T("Erreur inattendue", "Unexpected error"), e.Exception.Message);
         };
         // Off the UI thread nothing can be saved any more — the process is going down — but the
-        // log at least says why.
+        // log at least says why, written out at once: no exit event follows a crash.
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
-            if (e.ExceptionObject is Exception ex) ErrorLog.Write("arrêt brutal", ex);
+            LogCrash(_logger, e.ExceptionObject as Exception);
+            _logFile.Dispose();
         };
         // A forgotten task that failed: harmless to the process, but worth a trace.
         TaskScheduler.UnobservedTaskException += (_, e) =>
         {
-            ErrorLog.Write("tâche", e.Exception);
+            LogUnobservedTask(_logger, e.Exception);
             e.SetObserved();
         };
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Unhandled exception in the interface")]
+    private static partial void LogUnhandled(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Critical, Message = "Unhandled exception, the application stops")]
+    private static partial void LogCrash(ILogger logger, Exception? exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A task failed with nobody waiting for it")]
+    private static partial void LogUnobservedTask(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The application could not start")]
+    private static partial void LogStartFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The account's devices could not be loaded")]
+    private static partial void LogDevicesFailed(ILogger logger, Exception exception);
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
@@ -67,7 +93,7 @@ public partial class App : Application
             // Anything escaping start-up would otherwise leave a window with nothing in it, which
             // is what an unreachable network used to do.
             Console.Error.WriteLine(ex);
-            ErrorLog.Write("démarrage", ex);
+            LogStartFailed(_logger, ex);
             if (await ShowErrorAsync("DySS Cockpit", T($"L'application n'a pas pu démarrer : {ex.Message}", $"The application could not start: {ex.Message}"))) _window?.Close();
             else Exit();
         }
@@ -93,7 +119,7 @@ public partial class App : Application
         {
             // Headless: a failure goes to the console and the exit code, not to a dialog nobody
             // may be there to close.
-            try { Environment.ExitCode = await ExportMapAsync(exportPath, Option(args, "--serial"), Option(args, "--map-id"), theme); }
+            try { Environment.ExitCode = await ExportMapAsync(exportPath, Option(args, "--serial"), Option(args, "--map-id"), theme, _loggers); }
             catch (Exception ex)
             {
                 Console.Error.WriteLine(T($"Export impossible : {ex.Message}", $"Export failed: {ex.Message}"));
@@ -116,7 +142,7 @@ public partial class App : Application
         _window = new MainWindow();
         if (theme != ElementTheme.Default) _window.ForceTheme(theme);
         _window.Activate();
-        _notifications = new NotificationService(_window.DispatcherQueue);
+        _notifications = new NotificationService(_window.DispatcherQueue, _loggers.CreateLogger<NotificationService>());
         _window.Closed += (_, _) => _notifications.Dispose();
         if (Option(args, "--screenshot") is { } shotPath) _ = ScreenshotAsync(args, shotPath);
 
@@ -127,7 +153,7 @@ public partial class App : Application
         // Loops so that logging out from the dashboard comes back here to sign in again.
         while (true)
         {
-            var ctx = await OpenAccountAsync(skipStored ? null : RobotContext.FromStoredSession());
+            var ctx = await OpenAccountAsync(skipStored ? null : RobotContext.FromStoredSession(_loggers));
             skipStored = false;
             if (ctx is null)
             {
@@ -155,7 +181,7 @@ public partial class App : Application
         {
             if (ctx is null)
             {
-                var login = new LoginView();
+                var login = new LoginView(_loggers);
                 _window!.Show(login);
                 ctx = await login.Result;
             }
@@ -177,7 +203,7 @@ public partial class App : Application
             catch (Exception ex)
             {
                 // No network yet, DNS failing, Dyson down: the same session will do once it is back.
-                ErrorLog.Write("appareils", ex);
+                LogDevicesFailed(_logger, ex);
                 var wait = new ConnectionWaitView(ex.Message);
                 _window!.Show(wait);
                 if (!await wait.Decision)
@@ -205,14 +231,14 @@ public partial class App : Application
         try { await dialog.ShowAsync(); }
         catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException)
         {
-            // Another dialog is already open: the error log has it.
+            // Another dialog is already open: the log has it.
         }
         return true;
     }
 
-    private static async Task<int> ExportMapAsync(string path, string? serial, string? mapId, ElementTheme theme)
+    private static async Task<int> ExportMapAsync(string path, string? serial, string? mapId, ElementTheme theme, ILoggerFactory loggers)
     {
-        var ctx = RobotContext.FromStoredSession();
+        var ctx = RobotContext.FromStoredSession(loggers);
         if (ctx is null) { Console.Error.WriteLine(T("Aucune session. Lancez l'application et connectez-vous d'abord.", "No session. Start the application and log in first.")); return 2; }
         await using var _ = ctx;
         var robot = await ctx.LoadDevicesAsync(serial);
