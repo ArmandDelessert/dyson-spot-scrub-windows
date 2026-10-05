@@ -12,8 +12,8 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <UseWinUI>true</UseWinUI>
     <!-- Unpackaged, and carrying the Windows App SDK with it: an unzipped folder runs as it is,
          with nothing to install. -->
@@ -25,7 +25,7 @@
     <AssemblyName>DyssCockpit</AssemblyName>
     <RootNamespace>Dyss.App</RootNamespace>
     <!-- The robot heading down with its light on, written by DyssCockpit.exe with its export-icon
-         option (see Rendering/AppIcon.cs). The executable, the window and the taskbar take it from here. -->
+         option (see AppIcon in Rendering/MapImage.cs). The executable, the window and the taskbar take it from here. -->
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
