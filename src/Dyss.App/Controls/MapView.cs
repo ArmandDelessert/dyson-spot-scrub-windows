@@ -1,6 +1,7 @@
 using Dyss.App.Rendering;
 using Dyss.Presentation.Map;
 using Microsoft.Graphics.Canvas.UI.Xaml;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -50,9 +51,49 @@ public sealed partial class MapView : UserControl
         _markers.Draw += (_, e) => DrawMarkers(e.DrawingSession);
         SizeChanged += (_, _) => UpdateSize();
         ActualThemeChanged += (_, _) => Redraw();
-        Loaded += (_, _) => UpdateAnimation();
-        Unloaded += (_, _) => StopAnimation();
+        Loaded += (_, _) =>
+        {
+            Settings.ColorValuesChanged += OnSystemColorsChanged;
+            UpdateAnimation();
+        };
+        Unloaded += (_, _) =>
+        {
+            Settings.ColorValuesChanged -= OnSystemColorsChanged;
+            _themeWatch?.Stop();
+            StopAnimation();
+        };
     }
+
+    // ---- Following Windows' light or dark mode ---------------------------------------------
+
+    /// <summary>The theme the map was last drawn in.</summary>
+    private ElementTheme _drawnTheme;
+    private DispatcherQueueTimer? _themeWatch;
+    private int _themeChecks;
+
+    /// <summary>
+    /// Windows' colours changed, perhaps from light to dark. When the window follows the system,
+    /// WinUI does not raise ActualThemeChanged for it, and the map, drawn by Win2D rather than with
+    /// the theme's brushes, would keep its old colours until something else redrew it. This event
+    /// comes from another thread, at times before the new theme has reached the elements: the map
+    /// looks for it for two seconds and redraws as soon as it has come.
+    /// </summary>
+    private void OnSystemColorsChanged(UISettings sender, object args) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (_themeWatch is null)
+        {
+            _themeWatch = DispatcherQueue.CreateTimer();
+            _themeWatch.Interval = TimeSpan.FromMilliseconds(100);
+            _themeWatch.Tick += (timer, _) =>
+            {
+                if (ActualTheme != _drawnTheme) Redraw();
+                // An accent colour changed instead: nothing to redraw, and nothing more to wait for.
+                if (ActualTheme != _drawnTheme || ++_themeChecks >= 20) timer.Stop();
+            };
+        }
+        _themeChecks = 0;
+        _themeWatch.Start();
+    });
 
     /// <summary>The map's colours, which follow the theme of the window.</summary>
     private MapPalette Palette => ActualTheme == ElementTheme.Light ? MapPalette.Light : MapPalette.Dark;
@@ -133,6 +174,7 @@ public sealed partial class MapView : UserControl
     private void DrawMap(Microsoft.Graphics.Canvas.CanvasDrawingSession ds)
     {
         if (Interaction is not { } map) return;
+        _drawnTheme = ActualTheme;
         var palette = Palette;
         MapRenderer.Render(ds, map.Scene, CanvasSize, map.Transform, palette);
         MapRenderer.DrawOverlay(ds, map.Overlay, map.WorldToScreen, CanvasSize, palette);
