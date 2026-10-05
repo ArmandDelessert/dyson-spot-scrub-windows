@@ -27,7 +27,8 @@ public static class SessionStore
         var cipher = OperatingSystem.IsWindows()
             ? ProtectedData.Protect(plain, Entropy, DataProtectionScope.CurrentUser)
             : plain; // non-Windows: stored in clear (prototype only)
-        File.WriteAllBytes(FilePath, cipher);
+        // A torn write would lose the session and force a new one-time-code login.
+        AtomicFile.WriteAllBytes(FilePath, cipher);
     }
 
     /// <summary>
