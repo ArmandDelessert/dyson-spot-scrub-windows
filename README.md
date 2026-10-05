@@ -10,7 +10,7 @@ Le robot sur le site de Dyson : [présentation](https://www.dyson.ch/fr_ch/aspir
 
 > **Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson.** Dyson, Spot+Scrub et MyDyson sont des marques du groupe Dyson, citées ici uniquement pour désigner le robot et l'application avec lesquels ce logiciel communique.
 
-> Ce README, comme l'essentiel du code de ce dépôt, a été rédigé par Claude (Claude Code, Anthropic), sous la direction d'Armand Delessert, qui a fourni les captures et vérifié chaque étape sur son robot.
+> Ce README, comme l'essentiel du code de ce dépôt, a été rédigé par Claude (Claude Code, Anthropic), sous la direction d'Armand Delessert.
 
 ## Sommaire
 
