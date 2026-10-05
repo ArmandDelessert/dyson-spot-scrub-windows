@@ -9,6 +9,7 @@
             <Setter Property="ColumnSpacing" Value="16"/>
             <Setter Property="Padding" Value="0,8"/>
         </Style>
+        <local:PercentConverter x:Key="Percent"/>
         <DataTemplate x:Key="BackWashItem" x:DataType="vm:BackWashOption"><TextBlock Text="{x:Bind Label}"/></DataTemplate>
         <DataTemplate x:Key="DryItem" x:DataType="vm:DryOption"><TextBlock Text="{x:Bind Label}"/></DataTemplate>
     </UserControl.Resources>
@@ -108,7 +109,7 @@
                         <TextBlock Text='{local:Tr Fr="Volume", En="Volume"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
                             <Slider Value="{x:Bind VolumeValue, Mode=TwoWay}" Minimum="0" Maximum="100" StepFrequency="10" SnapsTo="StepValues"
-                                    TickFrequency="10" Width="200" VerticalAlignment="Center" AutomationProperties.Name='{local:Tr Fr="Volume", En="Volume"}'/>
+                                    TickFrequency="10" Width="200" VerticalAlignment="Center" ThumbToolTipValueConverter="{StaticResource Percent}" AutomationProperties.Name='{local:Tr Fr="Volume", En="Volume"}'/>
                             <Button Content='{local:Tr Fr="Appliquer", En="Apply"}' Command="{x:Bind ViewModel.ApplyVolumeCommand}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
