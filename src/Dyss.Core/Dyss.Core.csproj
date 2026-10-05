@@ -9,4 +9,8 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Dyss.Core.Tests" />
+  </ItemGroup>
+
 </Project>

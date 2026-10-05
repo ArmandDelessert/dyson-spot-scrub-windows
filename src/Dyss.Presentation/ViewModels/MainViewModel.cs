@@ -48,11 +48,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <param name="ui">The UI thread, where everything the robot pushes is applied.</param>
     /// <param name="dialogs">The questions the dashboard and the windows it opens put to the user.</param>
-    public MainViewModel(RobotContext ctx, IUiDispatcher ui, IDialogService dialogs)
+    /// <param name="time">The clock of the refresh timer and of every wait; the system's unless a test moves it by hand.</param>
+    /// <param name="display">The display preferences; null reads the stored ones.</param>
+    public MainViewModel(RobotContext ctx, IUiDispatcher ui, IDialogService dialogs, TimeProvider? time = null, DisplaySettings? display = null)
     {
         _ctx = ctx;
-        Hub = new RobotHub(ctx, ui, dialogs);
-        Display = DisplaySettings.Load();
+        Hub = new RobotHub(ctx, ui, dialogs, time);
+        Display = display ?? DisplaySettings.Load();
         _maps = new MapCatalog(Hub);
         Status = new StatusViewModel(Hub);
         Cleaning = new CleaningViewModel(Hub, _maps, Display);
@@ -150,7 +152,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private async Task RefreshPeriodicallyAsync()
     {
-        using var timer = new PeriodicTimer(RefreshInterval);
+        using var timer = new PeriodicTimer(RefreshInterval, Hub.Time);
         try
         {
             while (await timer.WaitForNextTickAsync(Hub.Ct)) await Hub.RefreshStateAsync();
@@ -171,7 +173,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             try
             {
-                return await _ctx.ConnectAsync(Hub.Ct);
+                return await _ctx.ConnectAsync(Hub.Time, Hub.Ct);
             }
             catch (DysonAuthException ex)
             {
@@ -183,7 +185,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 var delay = RobotSession.BackoffFor(attempt);
                 Hub.Connection = T($"Hors ligne, nouvel essai dans {delay.TotalSeconds:F0} s", $"Offline, retrying in {delay.TotalSeconds:F0} s");
                 Hub.AddLog(T($"connexion au robot impossible : {ex.Message}", $"cannot connect to the robot: {ex.Message}"));
-                await Task.Delay(delay, Hub.Ct);
+                await Task.Delay(delay, Hub.Time, Hub.Ct);
             }
         }
     }

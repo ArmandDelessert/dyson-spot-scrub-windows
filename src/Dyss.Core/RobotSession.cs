@@ -10,24 +10,28 @@ public enum RobotConnectionStatus { Disconnected, Connecting, Connected, Reconne
 /// Long-lived connection to one robot: fetches broker credentials, connects, keeps a
 /// <see cref="RobotStateTracker"/> current, and reconnects with fresh credentials after any drop.
 /// Reconnection uses exponential backoff from 5 s to 2 min. Credentials are re-fetched on every
-/// attempt, since the custom-authorizer token is short-lived.
+/// attempt, since the custom-authorizer token is short-lived. The waits run on the given clock, so
+/// tests can drive a whole reconnection without sitting through it.
 /// </summary>
 public sealed class RobotSession : IAsyncDisposable
 {
     private readonly DysonCloudClient _api;
     private readonly Device _device;
     private readonly Action<string>? _log;
+    private readonly TimeProvider _time;
+    /// <summary>Opens a link to the broker with fresh credentials, on the topic prefix known so far.</summary>
+    private readonly Func<IotData, string, IRobotLink> _openLink;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly SemaphoreSlim _connectLock = new(1, 1);
 
-    private RobotMqttClient? _client;
+    private IRobotLink? _client;
     private int _attempt;
 
     public string Serial => _device.SerialNumber;
     public string TopicPrefix { get; private set; }
     public RobotStateTracker Tracker { get; } = new();
     public RobotConnectionStatus Status { get; private set; } = RobotConnectionStatus.Disconnected;
-    public RobotMqttClient? Client => _client;
+    public RobotMqttClient? Client => _client as RobotMqttClient;
 
     public event Action<RobotConnectionStatus, string?>? ConnectionChanged;
     public event Action<RobotMessage>? MessageReceived;
@@ -37,11 +41,19 @@ public sealed class RobotSession : IAsyncDisposable
     /// </summary>
     public event Action<string>? AuthenticationLost;
 
-    public RobotSession(DysonCloudClient api, Device device, Action<string>? log = null)
+    public RobotSession(DysonCloudClient api, Device device, Action<string>? log = null, TimeProvider? time = null)
+        : this(api, device, log, time, openLink: null)
+    {
+    }
+
+    /// <param name="openLink">Stands in for the broker in tests; null opens a real <see cref="RobotMqttClient"/>.</param>
+    internal RobotSession(DysonCloudClient api, Device device, Action<string>? log, TimeProvider? time, Func<IotData, string, IRobotLink>? openLink)
     {
         _api = api;
         _device = device;
         _log = log;
+        _time = time ?? TimeProvider.System;
+        _openLink = openLink ?? ((iot, prefix) => new RobotMqttClient(Serial, prefix, MqttEndpoint.FromCustomAuthorizerTls(iot)));
         TopicPrefix = device.GuessTopicPrefix();
     }
 
@@ -67,7 +79,7 @@ public sealed class RobotSession : IAsyncDisposable
         if (old is not null) await old.DisposeAsync().ConfigureAwait(false);
 
         var iot = await _api.GetIotCredentialsAsync(Serial, ct).ConfigureAwait(false);
-        var client = new RobotMqttClient(Serial, TopicPrefix, MqttEndpoint.FromCustomAuthorizerTls(iot));
+        var client = _openLink(iot, TopicPrefix);
         client.MessageReceived += OnMessage;
         client.PrefixChanged += p => TopicPrefix = p;
         client.ListenerFailed += ex => _log?.Invoke(T($"message non traité : {ex.Message}", $"message not handled: {ex.Message}"));
@@ -101,7 +113,7 @@ public sealed class RobotSession : IAsyncDisposable
         catch (Exception ex) { _log?.Invoke(T($"message {message.Topic} ignoré : {ex.Message}", $"message {message.Topic} ignored: {ex.Message}")); }
     }
 
-    private async Task OnDisconnectedAsync(RobotMqttClient source, string reason)
+    private async Task OnDisconnectedAsync(IRobotLink source, string reason)
     {
         // Ignore drops of a client we already replaced, and stop once disposed.
         if (!ReferenceEquals(source, _client) || _lifetime.IsCancellationRequested) return;
@@ -114,7 +126,7 @@ public sealed class RobotSession : IAsyncDisposable
             _log?.Invoke($"MQTT dropped ({reason}); reconnecting in {delay.TotalSeconds:F0} s (attempt {_attempt})");
             try
             {
-                await Task.Delay(delay, _lifetime.Token).ConfigureAwait(false);
+                await Task.Delay(delay, _time, _lifetime.Token).ConfigureAwait(false);
                 await _connectLock.WaitAsync(_lifetime.Token).ConfigureAwait(false);
                 try
                 {
@@ -160,7 +172,7 @@ public sealed class RobotSession : IAsyncDisposable
     }
 
     private RobotMqttClient Connected =>
-        _client is { IsConnected: true } c ? c : throw new InvalidOperationException("Not connected to the robot.");
+        _client is RobotMqttClient { IsConnected: true } c ? c : throw new InvalidOperationException("Not connected to the robot.");
 
     // ---- Convenience wrappers over the current client -------------------------
 

@@ -22,16 +22,21 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
     /// <summary>Cancelled by <see cref="MainViewModel.ShutdownAsync"/> so REST calls still in flight stop instead of landing on view models that are going away.</summary>
     private readonly CancellationTokenSource _lifetime = new();
 
-    public RobotHub(RobotContext ctx, IUiDispatcher ui, IDialogService dialogs)
+    /// <param name="time">The clock every wait of the dashboard runs on; tests pass one they move by hand.</param>
+    public RobotHub(RobotContext ctx, IUiDispatcher ui, IDialogService dialogs, TimeProvider? time = null)
     {
         _ctx = ctx;
         _ui = ui;
         Dialogs = dialogs;
+        Time = time ?? TimeProvider.System;
         _ctx.Log += m => Post(() => AddLog(m));
     }
 
     /// <summary>Questions for the user: confirmations, names, the schedule editor, where to save a file.</summary>
     public IDialogService Dialogs { get; }
+
+    /// <summary>The clock behind the refresh timer, the reconnection waits and the pause after a command.</summary>
+    public TimeProvider Time { get; }
 
     public DysonCloudClient Api => _ctx.Api;
     public string Serial => _ctx.Robot?.SerialNumber ?? "";
@@ -73,7 +78,7 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
         {
             await action(client);
             AddLog(label);
-            await Task.Delay(1500, Ct);
+            await Task.Delay(TimeSpan.FromMilliseconds(1500), Time, Ct);
             await RefreshStateAsync();
         }
         catch (OperationCanceledException) when (IsShuttingDown) { }

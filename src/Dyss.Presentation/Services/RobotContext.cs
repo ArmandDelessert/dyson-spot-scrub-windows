@@ -43,11 +43,12 @@ public sealed class RobotContext : IAsyncDisposable
         return Robot;
     }
 
-    public async Task<RobotSession> ConnectAsync(CancellationToken ct = default)
+    /// <param name="time">The clock the session waits on between reconnection attempts.</param>
+    public async Task<RobotSession> ConnectAsync(TimeProvider? time = null, CancellationToken ct = default)
     {
         if (Robot is null) throw new InvalidOperationException("No robot selected.");
         if (Session is not null) return Session;
-        var session = new RobotSession(Api, Robot, m => Log?.Invoke(m));
+        var session = new RobotSession(Api, Robot, m => Log?.Invoke(m), time);
         try
         {
             await session.ConnectAsync(ct);

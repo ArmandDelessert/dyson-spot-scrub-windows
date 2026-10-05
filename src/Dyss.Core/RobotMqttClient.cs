@@ -45,7 +45,7 @@ public sealed record RobotMessage(DateTimeOffset ReceivedUtc, string Topic, stri
 ///
 /// The client subscribes to +/{serial}/# and adopts whatever prefix the robot really publishes on.
 /// </summary>
-public sealed class RobotMqttClient : IAsyncDisposable, IRobotCommands
+public sealed class RobotMqttClient : IRobotLink, IRobotCommands
 {
     private readonly IMqttClient _client;
     private readonly MqttEndpoint _endpoint;
