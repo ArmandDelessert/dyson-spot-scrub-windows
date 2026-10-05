@@ -9,5 +9,9 @@ obj/
 # Captures enregistrées
 Captures/
 
+# Captures d'écran
+Cartes/
+Screenshots/
+
 # Fichiers APK propriétaires téléchargés pour l'analyse
 APK/
