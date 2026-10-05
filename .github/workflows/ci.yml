@@ -1,8 +1,10 @@
 name: CI
 
+# Every pushed branch is built and tested, not only main: work is pushed on branches and merged
+# locally, without pull requests.
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
 
 jobs:
