@@ -6,6 +6,12 @@ obj/
 .vs/
 *.swp
 
+# Résultats de tests, couverture et publication locale
+TestResults/
+*.coverage
+publish/
+dist/
+
 # Captures enregistrées
 Captures/
 
