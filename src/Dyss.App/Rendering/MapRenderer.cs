@@ -24,6 +24,8 @@ internal static class MapRenderer
 {
     private static readonly CanvasStrokeStyle RoundJoin = new() { LineJoin = CanvasLineJoin.Round };
     private static readonly CanvasStrokeStyle RoundEnds = new() { StartCap = CanvasCapStyle.Round, EndCap = CanvasCapStyle.Round };
+    /// <summary>The band a cleaned stretch leaves on the map: round at the ends and the turns, so it reads as one swathe.</summary>
+    private static readonly CanvasStrokeStyle Swathe = new() { StartCap = CanvasCapStyle.Round, EndCap = CanvasCapStyle.Round, LineJoin = CanvasLineJoin.Round };
     /// <summary>What is being aimed: dashed so it reads as a proposal, not as map data. Dashes are in line widths, as in WPF.</summary>
     private static readonly CanvasStrokeStyle Dashed = new() { CustomDashStyle = [4, 3], LineJoin = CanvasLineJoin.Round };
 
@@ -107,6 +109,20 @@ internal static class MapRenderer
     /// </summary>
     private static void DrawActionPath(CanvasDrawingSession ds, MapScene scene, IReadOnlyList<CorePoint> path, MapTransform m, MapPalette palette)
     {
+        // The surface cleaned: each working stretch as wide as the robot, under every line so that
+        // the trail still reads on top of it.
+        if (scene.ShowCleanedArea)
+        {
+            var width = Math.Max((float)(2 * RobotMarkerLayout.RobotRadius * m.ScaleFactor), 2);
+            foreach (var run in scene.PathRuns)
+            {
+                if (run.To <= run.From || run.Action is not { } cleaned) continue;
+                var swathe = palette.ActionColors[(int)cleaned % palette.ActionColors.Length].ToColor();
+                using var band = PathGeometry(ds, path, run, m);
+                ds.DrawGeometry(band, Color.FromArgb(0x55, swathe.R, swathe.G, swathe.B), width, Swathe);
+            }
+        }
+
         foreach (var run in scene.PathRuns)
         {
             if (run.To <= run.From) continue;
@@ -118,13 +134,19 @@ internal static class MapRenderer
             }
             else colour = palette.ActionColors[(int)t % palette.ActionColors.Length];
 
-            using var builder = new CanvasPathBuilder(ds);
-            builder.BeginFigure(m.Transform(path[run.From]).ToVector2());
-            for (var j = run.From + 1; j <= run.To; j++) builder.AddLine(m.Transform(path[j]).ToVector2());
-            builder.EndFigure(CanvasFigureLoop.Open);
-            using var line = CanvasGeometry.CreatePath(builder);
+            using var line = PathGeometry(ds, path, run, m);
             ds.DrawGeometry(line, colour.ToColor(), 2, RoundJoin);
         }
+    }
+
+    /// <summary>The points of a run, as an open line in screen pixels.</summary>
+    private static CanvasGeometry PathGeometry(CanvasDrawingSession ds, IReadOnlyList<CorePoint> path, PathRun run, MapTransform m)
+    {
+        using var builder = new CanvasPathBuilder(ds);
+        builder.BeginFigure(m.Transform(path[run.From]).ToVector2());
+        for (var j = run.From + 1; j <= run.To; j++) builder.AddLine(m.Transform(path[j]).ToVector2());
+        builder.EndFigure(CanvasFigureLoop.Open);
+        return CanvasGeometry.CreatePath(builder);
     }
 
     private static void DrawObstacleMarker(CanvasDrawingSession ds, Vector2 p, float half)

@@ -201,6 +201,8 @@
                                     <StackPanel MaxWidth="300">
                                         <CheckBox IsChecked="{x:Bind ViewModel.Display.ShowFurniture, Mode=TwoWay}" Content='{local:Tr Fr="Afficher les meubles", En="Show furniture"}'/>
                                         <CheckBox IsChecked="{x:Bind ViewModel.Display.ShowTravelPath, Mode=TwoWay}" Content='{local:Tr Fr="Afficher les déplacements sans nettoyage", En="Show travel without cleaning"}'/>
+                                        <CheckBox IsChecked="{x:Bind ViewModel.Display.ShowCleanedArea, Mode=TwoWay}" Content='{local:Tr Fr="Afficher la surface nettoyée", En="Show the cleaned area"}'
+                                                  ToolTipService.ToolTip='{local:Tr Fr="Élargit le trajet à la largeur du robot, là où il a nettoyé.", En="Widens the path to the robot&apos;s width where it cleaned."}'/>
                                         <CheckBox IsChecked="{x:Bind ViewModel.Display.ShowExportButton, Mode=TwoWay}" Content='{local:Tr Fr="Afficher le bouton d&apos;export PNG", En="Show the PNG export button"}'/>
                                         <CheckBox IsChecked="{x:Bind ViewModel.Display.SmoothRobotMotion, Mode=TwoWay}" Content='{local:Tr Fr="Lisser les déplacements du robot", En="Smooth the robot&apos;s movements"}'
                                                   ToolTipService.ToolTip='{local:Tr Fr="Le robot glisse d&apos;une position à la suivante au lieu de sauter, avec un léger retard.", En="The robot glides from one position to the next instead of jumping, with a slight delay."}'/>

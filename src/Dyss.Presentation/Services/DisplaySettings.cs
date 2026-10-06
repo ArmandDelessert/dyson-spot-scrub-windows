@@ -47,6 +47,12 @@ public sealed partial class DisplaySettings : ObservableObject
     [ObservableProperty] private bool _smoothRobotMotion;
 
     /// <summary>
+    /// The surface cleaned: each stretch the robot worked on is drawn as wide as the robot, under the
+    /// trail. Off by default, the trail alone being the lighter picture.
+    /// </summary>
+    [ObservableProperty] private bool _showCleanedArea;
+
+    /// <summary>
     /// The language of the application: <c>"fr"</c>, <c>"en"</c>, or <c>"auto"</c> for Windows' own (French on a
     /// French Windows, English otherwise). Read once at start-up, see <see cref="ChosenLanguage"/>.
     /// </summary>
@@ -91,6 +97,7 @@ public sealed partial class DisplaySettings : ObservableObject
                 settings.RecordMessages = s.RecordMessages ?? false;
                 settings.SnapToGrid = s.SnapToGrid ?? true;
                 settings.SmoothRobotMotion = s.SmoothRobotMotion ?? false;
+                settings.ShowCleanedArea = s.ShowCleanedArea ?? false;
                 settings.Language = s.Language is "fr" or "en" ? s.Language : "auto";
                 settings.CloseToTray = s.CloseToTray ?? true;
                 settings.TrayHintShown = s.TrayHintShown ?? false;
@@ -130,7 +137,7 @@ public sealed partial class DisplaySettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown)));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -144,10 +151,11 @@ public sealed partial class DisplaySettings : ObservableObject
     partial void OnRecordMessagesChanged(bool value) => Save();
     partial void OnSnapToGridChanged(bool value) => Save();
     partial void OnSmoothRobotMotionChanged(bool value) => Save();
+    partial void OnShowCleanedAreaChanged(bool value) => Save();
     partial void OnLanguageChanged(string value) => Save();
     partial void OnCloseToTrayChanged(bool value) => Save();
     partial void OnTrayHintShownChanged(bool value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null);
 }

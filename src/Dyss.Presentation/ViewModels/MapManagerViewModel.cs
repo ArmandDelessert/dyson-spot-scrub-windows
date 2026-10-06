@@ -452,6 +452,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         // The furniture tab shows it whatever the display option says: it is what is being edited.
         ShowFurniture = _display.ShowFurniture || Layer == MapLayer.Furniture,
         ShowTravelPath = _display.ShowTravelPath,
+        ShowCleanedArea = _display.ShowCleanedArea,
     };
 
     // ---- Choosing rooms ----------------------------------------------------------

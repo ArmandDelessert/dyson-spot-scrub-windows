@@ -252,6 +252,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             ZoneOrder = Zones.Where(z => z.Selected).ToDictionary(z => z.Id, z => z.Order),
             ShowFurniture = _display.ShowFurniture,
             ShowTravelPath = _display.ShowTravelPath,
+            ShowCleanedArea = _display.ShowCleanedArea,
             SpotZone = SpotCorners,
             RobotActivity = isCurrent ? _activity.Robot : RobotActivity.Idle,
             DockActivity = isCurrent ? _activity.Dock : DockActivity.Idle,

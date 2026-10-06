@@ -55,6 +55,8 @@ public sealed class MapScene
     public bool ShowFurniture { get; init; } = true;
     /// <summary>Draw the stretches where the robot was only repositioning, not working.</summary>
     public bool ShowTravelPath { get; init; } = true;
+    /// <summary>Draw each working stretch as wide as the robot, to show the surface cleaned.</summary>
+    public bool ShowCleanedArea { get; init; }
 
     /// <summary>The restriction zone (REST id) the map manager is acting on, outlined.</summary>
     public string? SelectedRestrictionId { get; init; }

@@ -59,6 +59,16 @@ public sealed class DisplaySettingsTests : IDisposable
     }
 
     [Fact]
+    public void TheCleanedAreaIsOffUntilChosenThenRemembered()
+    {
+        var first = DisplaySettings.Load(_path);
+        Assert.False(first.ShowCleanedArea);
+        first.ShowCleanedArea = true;
+
+        Assert.True(DisplaySettings.Load(_path).ShowCleanedArea);
+    }
+
+    [Fact]
     public void SmoothingTheRobotIsOffUntilChosenThenRemembered()
     {
         var first = DisplaySettings.Load(_path);

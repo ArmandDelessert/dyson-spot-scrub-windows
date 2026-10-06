@@ -53,7 +53,7 @@ L'application parle au robot comme l'application mobile MyDyson, avec le même c
 - Le robot et la station dessinés vus de dessus, à l'échelle, et animés selon ce qu'ils font : lumière verte et brosses qui tournent pendant l'aspiration, rouleau qui défile pendant le lavage ; à la station, charge, vidage du collecteur, remplissage d'eau propre, lavage et séchage du rouleau.
 - Le tracé du nettoyage en cours, en temps réel : en gris là où le robot ne fait que se déplacer, dans la couleur du type de nettoyage là où il travaille. Comme sur le téléphone, il quitte la carte une fois le robot revenu et la station a fini son travail ; le nettoyage passe alors dans l'historique.
 - Zoom à la molette ou au pincement, déplacement en glissant, à la souris comme au doigt ; export en PNG.
-- Un menu « Affichage », propre à cet ordinateur : masquer les meubles, masquer les déplacements sans nettoyage, masquer le bouton d'export, lisser les déplacements du robot.
+- Un menu « Affichage », propre à cet ordinateur : masquer les meubles, masquer les déplacements sans nettoyage, afficher la surface nettoyée (le trajet élargi à la largeur du robot, là où il a travaillé), masquer le bouton d'export, lisser les déplacements du robot.
 
 Une pièce porte partout son nom sur le compte, là où l'application mobile n'affiche que son type (« Salon » au lieu de « Salon12 »).
 

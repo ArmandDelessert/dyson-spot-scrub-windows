@@ -202,6 +202,7 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, Disp
             DirtSpots = _dirt,
             ShowFurniture = display.ShowFurniture,
             ShowTravelPath = display.ShowTravelPath,
+            ShowCleanedArea = display.ShowCleanedArea,
         };
     }
 
