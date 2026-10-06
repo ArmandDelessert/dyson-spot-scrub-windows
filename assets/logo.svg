@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-25 -17 50 50" width="512" height="512" role="img" aria-labelledby="title">
   <title id="title">DySS Cockpit</title>
   <!-- The robot seen from above, heading down, its green light on the floor ahead: the same drawing
-       as the application icon (src/Dyss.App/Rendering/RobotMarkers.cs, DrawIcon), in the robot's
+       as the application icon (src/DyssCockpit.App/Rendering/RobotMarkers.cs, DrawIcon), in the robot's
        units (radius 16, front towards -y), turned half round. -->
   <defs>
     <linearGradient id="light" gradientUnits="userSpaceOnUse" x1="0" y1="-15" x2="0" y2="-33">

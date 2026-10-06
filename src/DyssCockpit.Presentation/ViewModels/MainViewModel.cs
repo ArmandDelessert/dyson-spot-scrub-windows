@@ -1,0 +1,304 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using DyssCockpit.Presentation.Services;
+using DyssCockpit.Core;
+
+using static DyssCockpit.Core.Translation;
+
+namespace DyssCockpit.Presentation.ViewModels;
+
+/// <summary>
+/// The dashboard: connects to the robot, routes what it pushes to the tab view models, and owns
+/// the session's lifetime (refresh timer, logout, expiry, shutdown). The tabs themselves live in
+/// <see cref="StatusViewModel"/>, <see cref="CleaningViewModel"/>, <see cref="HistoryViewModel"/>,
+/// <see cref="SchedulesViewModel"/>, <see cref="SettingsViewModel"/> and
+/// <see cref="JournalViewModel"/>, sharing a <see cref="RobotHub"/>.
+/// </summary>
+public sealed partial class MainViewModel : ObservableObject, IDisposable
+{
+    /// <summary>How often the state is asked for, on top of what the robot pushes.</summary>
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
+
+    private readonly RobotContext _ctx;
+    private readonly Action _redrawMaps;
+    private bool _initialLoadDone;
+    private bool _reloading;
+    private RobotConnectionStatus _lastStatus = RobotConnectionStatus.Disconnected;
+    private readonly MapCatalog _maps;
+
+    public RobotHub Hub { get; }
+    public StatusViewModel Status { get; }
+    public CleaningViewModel Cleaning { get; }
+    public HistoryViewModel History { get; }
+    public SettingsViewModel Settings { get; }
+    public JournalViewModel Journal { get; }
+    public SchedulesViewModel Schedules { get; }
+    /// <summary>What this window draws; unlike the Réglages tab, none of it is sent to the robot.</summary>
+    public DisplaySettings Display { get; }
+
+    public string RobotName => _ctx.Robot?.Name ?? "Robot";
+    public string Serial => _ctx.Robot?.SerialNumber ?? "";
+    public string Firmware => _ctx.Robot?.ConnectedConfiguration?.Firmware?.Version ?? "";
+    /// <summary>The only account information the login flow ever returns: no display name, just the email used to sign in.</summary>
+    public string AccountEmail => _ctx.Stored.Email;
+
+    /// <summary>
+    /// The robot in one line, for the tooltip of the notification area's icon: its name, then what
+    /// it is doing and its battery, a fault if it has one, or why there is nothing to say.
+    /// </summary>
+    public string Summary =>
+        !Hub.Connected ? T($"{RobotName} : {Hub.Connection}", $"{RobotName}: {Hub.Connection}")
+        : string.IsNullOrEmpty(Status.StateText) ? RobotName
+        : T($"{RobotName} : ", $"{RobotName}: ") + $"{Status.StateText} · {Status.Battery} %" + (Status.HasRealFault ? $" · {Status.FaultText}" : "");
+
+    /// <summary>A fault the user should see: the icon in the notification area then carries a badge.</summary>
+    public bool NeedsAttention => Status.HasRealFault;
+
+    /// <summary>Raised when <see cref="Summary"/> or <see cref="NeedsAttention"/> may have changed.</summary>
+    public event Action? SummaryChanged;
+
+    public event Action? LoggedOut;
+    /// <summary>A robot event worth a Windows notification: title, body.</summary>
+    public event Action<string, string>? NotifyRequested;
+
+    /// <param name="ui">The UI thread, where everything the robot pushes is applied.</param>
+    /// <param name="dialogs">The questions the dashboard and the windows it opens put to the user.</param>
+    /// <param name="time">The clock of the refresh timer and of every wait; the system's unless a test moves it by hand.</param>
+    /// <param name="display">The display preferences; null reads the stored ones.</param>
+    public MainViewModel(RobotContext ctx, IUiDispatcher ui, IDialogService dialogs, TimeProvider? time = null, DisplaySettings? display = null)
+    {
+        _ctx = ctx;
+        Hub = new RobotHub(ctx, ui, dialogs, time);
+        Display = display ?? DisplaySettings.Load();
+        _maps = new MapCatalog(Hub);
+        Status = new StatusViewModel(Hub);
+        Cleaning = new CleaningViewModel(Hub, _maps, Display);
+        History = new HistoryViewModel(Hub, _maps, Display);
+        Settings = new SettingsViewModel(Hub);
+        Journal = new JournalViewModel(Hub, Display);
+        Schedules = new SchedulesViewModel(Hub, _maps, () => History.History.Select(c => c.Summary));
+
+        // Both maps bake in the display preferences, so a change has to redraw them rather than
+        // wait for the next robot message. (A change of theme is the map views' own business: they
+        // redraw themselves in the new colours.)
+        _redrawMaps = () => Hub.Post(() => { Cleaning.RebuildScene(); History.RebuildScene(); });
+        Display.Changed += _redrawMaps;
+
+        Status.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(StatusViewModel.StateText) or nameof(StatusViewModel.Battery)
+                or nameof(StatusViewModel.HasRealFault) or nameof(StatusViewModel.FaultText))
+                SummaryChanged?.Invoke();
+        };
+        Hub.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(RobotHub.Connected) or nameof(RobotHub.Connection)) SummaryChanged?.Invoke();
+        };
+    }
+
+    public async Task StartAsync()
+    {
+        try
+        {
+            if (await ConnectWithRetryAsync() is not { } session) return;
+            Hub.Session = session;
+            _lastStatus = session.Status;
+            session.ConnectionChanged += (s, d) => Hub.Post(() =>
+            {
+                // The MQTT session comes back on its own after a drop — a wifi blip, or the machine
+                // waking from sleep — but the REST side (maps, rooms, history) is only ever fetched
+                // on demand, so it would stay as stale as the moment the link died.
+                var cameBack = s == RobotConnectionStatus.Connected && _lastStatus != RobotConnectionStatus.Connected && _initialLoadDone;
+                _lastStatus = s;
+                Hub.Connected = s == RobotConnectionStatus.Connected;
+                Hub.Connection = s switch
+                {
+                    RobotConnectionStatus.Connected => T("Connecté", "Connected"),
+                    RobotConnectionStatus.Connecting => T("Connexion…", "Connecting…"),
+                    RobotConnectionStatus.Reconnecting => T("Reconnexion…", "Reconnecting…") + (d is null ? "" : $" ({d})"),
+                    _ => T("Déconnecté", "Disconnected"),
+                };
+                if (cameBack) _ = ReloadAsync(T("connexion rétablie", "connection restored"));
+            });
+            session.AuthenticationLost += reason => Hub.Post(() => _ = SessionExpiredAsync(reason));
+            session.Tracker.StateChanged += st => Hub.Post(() =>
+            {
+                Status.Apply(st);
+                Settings.Apply(st);
+                Cleaning.Apply(st);
+            });
+            session.Tracker.JdmChanged += jdm => Hub.Post(() =>
+            {
+                Status.ApplyJdm(jdm);
+                Schedules.ApplyJdm(jdm);
+                Cleaning.ApplyJdm(jdm);
+            });
+            session.Tracker.CleanPathChanged += path => Hub.Post(() => Cleaning.SetLiveTrail(path));
+            session.Tracker.EventReceived += (name, json) => Hub.Post(() =>
+            {
+                Hub.AddLog($"{name} {Truncate(json.ToJsonString(), 120)}");
+                switch (name)
+                {
+                    case "event.clean_finish.post":
+                        NotifyRequested?.Invoke(T("Nettoyage terminé", "Clean finished"), T("Le robot a terminé son nettoyage.", "The robot has finished cleaning."));
+                        break;
+                    // The robot's report of the clean, finished or not: the cloud files it as a history
+                    // entry, which is also what the phone's end-of-clean notification follows.
+                    case "event.clean_record.post":
+                        _ = History.RefreshAfterCleanAsync();
+                        break;
+                    case "event.Unable_all_area_recharge.post":
+                        NotifyRequested?.Invoke(T("Zone inaccessible", "Unreachable area"), T("Le robot n'a pas pu atteindre une ou plusieurs pièces sélectionnées.", "The robot could not reach one or more of the selected rooms."));
+                        break;
+                }
+            });
+            // Every message on the robot's topics, regardless of whether the tracker recognises it;
+            // only written anywhere while recording is on (see JournalViewModel).
+            session.MessageReceived += Journal.CaptureMessage;
+            Hub.Connected = true;
+            Hub.Connection = T("Connecté", "Connected");
+
+            await Task.WhenAll(Hub.RefreshStateAsync(), Hub.RefreshPropertiesAsync(), Cleaning.LoadMapsAsync(), History.LoadAsync());
+            _initialLoadDone = true;
+            _ = RefreshPeriodicallyAsync();
+            _ = History.FillDetailsAsync();
+            _ = Schedules.LoadAsync();
+        }
+        catch (OperationCanceledException) when (Hub.IsShuttingDown) { }
+        catch (Exception ex)
+        {
+            Hub.Message = ex.Message;
+            Hub.AddLog(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Asks for the state every <see cref="RefreshInterval"/> until the dashboard closes. Started
+    /// from the UI thread, so each refresh lands there too.
+    /// </summary>
+    private async Task RefreshPeriodicallyAsync()
+    {
+        using var timer = new PeriodicTimer(RefreshInterval, Hub.Time);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(Hub.Ct)) await Hub.RefreshStateAsync();
+        }
+        catch (OperationCanceledException) { }   // shutting down
+    }
+
+    /// <summary>
+    /// The first connection to the robot, tried again and again until it holds: the network can
+    /// drop between the device list and the broker, or the broker be briefly unreachable. Without
+    /// this the window would stay T("Connexion…", "Connecting…") for good, since <see cref="RobotSession"/> only
+    /// reconnects a session that once connected. Null when the token is refused (the session-expired
+    /// path takes over) or the window is closing.
+    /// </summary>
+    private async Task<RobotSession?> ConnectWithRetryAsync()
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await _ctx.ConnectAsync(Hub.Time, Hub.Ct);
+            }
+            catch (DysonAuthException ex)
+            {
+                await SessionExpiredAsync(ex.Message);
+                return null;
+            }
+            catch (Exception ex) when (!Hub.IsShuttingDown)
+            {
+                var delay = RobotSession.BackoffFor(attempt);
+                Hub.Connection = T($"Hors ligne, nouvel essai dans {delay.TotalSeconds:F0} s", $"Offline, retrying in {delay.TotalSeconds:F0} s");
+                Hub.AddLog(T($"connexion au robot impossible : {ex.Message}", $"cannot connect to the robot: {ex.Message}"));
+                await Task.Delay(delay, Hub.Time, Hub.Ct);
+            }
+        }
+    }
+
+    /// <summary>Asks the window to open the map manager; the view models stay clear of windows.</summary>
+    public event Action? MapManagerRequested;
+
+    [RelayCommand] private void ManageMaps() => MapManagerRequested?.Invoke();
+
+    /// <summary>Builds the map manager's view model, which shares this session but keeps its own copy of the map.</summary>
+    public MapManagerViewModel CreateMapManager() => new(Hub, Display);
+
+    /// <summary>Called once the map manager has changed something, to pick up new names and a new layout.</summary>
+    public Task ReloadMapsAsync()
+    {
+        _maps.Invalidate();
+        return Cleaning.LoadMapsAsync();
+    }
+
+    [RelayCommand]
+    private Task RefreshAsync() => ReloadAsync(null);
+
+    /// <summary>
+    /// Fetches everything the robot does not push: state, jdm properties, maps, history. Reached
+    /// from the Actualiser button and from a reconnection, which names itself in
+    /// <paramref name="reason"/> so the journal says why it happened. Reloads never overlap: a
+    /// flapping link would otherwise queue one per transition, and the history detail fill is
+    /// several hundred KB per unseen clean.
+    /// </summary>
+    private async Task ReloadAsync(string? reason)
+    {
+        if (_reloading) return;
+        _reloading = true;
+        try
+        {
+            if (reason is not null) Hub.AddLog(T($"{reason}, rechargement des données", $"{reason}, reloading the data"));
+            // Drop cached geometry too: furniture, zones or rooms edited from the phone would
+            // otherwise keep showing as they were when first loaded.
+            _maps.Invalidate();
+            await Task.WhenAll(Hub.RefreshStateAsync(), Hub.RefreshPropertiesAsync(), Cleaning.LoadMapsAsync(), History.LoadAsync());
+            await Schedules.LoadAsync();
+            await History.FillDetailsAsync();
+        }
+        finally { _reloading = false; }
+    }
+
+    private static string Truncate(string s, int n) => s.Length <= n ? s : s[..n] + "…";
+
+    // ---- Account ---------------------------------------------------------------
+
+    [RelayCommand]
+    private async Task LogoutAsync()
+    {
+        if (!await Hub.Dialogs.ConfirmAsync(T("Déconnexion", "Log out"),
+                T("Vous devrez ressaisir votre e-mail, votre mot de passe et un code reçu par e-mail pour vous reconnecter.\n\nSe déconnecter du compte MyDyson ?", "You will have to enter your e-mail, your password and a code sent by e-mail to log in again.\n\nLog out of the MyDyson account?")))
+            return;
+
+        await ShutdownAsync();
+        SessionStore.Delete();
+        LoggedOut?.Invoke();
+    }
+
+    /// <summary>The token died mid-session: same exit as a logout, but told rather than asked.</summary>
+    private async Task SessionExpiredAsync(string reason)
+    {
+        Hub.AddLog(T($"session expirée: {reason}", $"session expired: {reason}"));
+        await Hub.Dialogs.AlertAsync(T("Session expirée", "Session expired"),
+            T("La session MyDyson n'est plus acceptée par le cloud Dyson. Vous devez vous reconnecter.", "The Dyson cloud no longer accepts the MyDyson session. Please log in again."));
+        await ShutdownAsync();
+        SessionStore.Delete();
+        LoggedOut?.Invoke();
+    }
+
+    /// <summary>Stops the periodic refresh and every REST call in flight, then closes the robot session.</summary>
+    public async Task ShutdownAsync()
+    {
+        Hub.CancelLifetime();
+        Journal.Dispose();
+        await _ctx.DisposeAsync();
+    }
+
+    /// <summary>Releases what the dashboard owns outright; the robot context is released by <see cref="ShutdownAsync"/>.</summary>
+    public void Dispose()
+    {
+        Display.Changed -= _redrawMaps;
+        Journal.Dispose();
+        Cleaning.Dispose();
+        Hub.Dispose();
+    }
+}

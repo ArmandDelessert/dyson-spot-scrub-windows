@@ -74,7 +74,7 @@ Curiosité : certains messages de l'application transportent des clés parasites
 Les droits d'abonnement couvrent `+/{serial}/#`, topics de commande compris. Une écoute lancée pendant que l'application officielle pilote le robot enregistre donc aussi les requêtes qu'elle publie, et pas seulement les réponses du robot :
 
 ```bash
-dotnet run --project src/Dyss.Cli -- watch --serial XXX-XX-XXXXXXXX --poll 0 --log capture.jsonl
+dotnet run --project src/DyssCockpit.Cli -- watch --serial XXX-XX-XXXXXXXX --poll 0 --log capture.jsonl
 ```
 
 `--poll 0` désactive l'interrogation périodique : l'écoute ne publie alors rien.

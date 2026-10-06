@@ -159,7 +159,7 @@ Prérequis : Windows 10 version 2004 ou ultérieure, ou Windows 11, et le [SDK .
 dotnet build
 dotnet test
 dotnet test --coverage
-dotnet run --project src/Dyss.App
+dotnet run --project src/DyssCockpit.App
 ```
 
 Les tests utilisent xUnit v3 sur Microsoft.Testing.Platform, activé dans `global.json` : `dotnet test` les lance tous, et `--coverage` mesure en plus la couverture du code.
@@ -168,25 +168,25 @@ Les tests utilisent xUnit v3 sur Microsoft.Testing.Platform, activé dans `globa
 
 | Projet | Contenu |
 |---|---|
-| `src/Dyss.Core` | Bibliothèque sans interface : client REST (`DysonCloudClient`), client MQTT (`RobotMqttClient`), session longue durée avec reconnexion (`RobotSession`, sur une horloge injectable), modèle d'état des deux dialectes, cartes et grille d'occupation, séquences de commandes (`CleaningSequence`, `SpotCleanSequence`), horaires, session chiffrée par DPAPI (`SessionStore`). |
-| `src/Dyss.Presentation` | Tout ce que montrent les fenêtres, sans dépendre d'un framework d'interface : un modèle de vue par onglet, qui partagent un `RobotHub` (session, journal, envoi de commandes, dialogues) et un `MapCatalog` (cartes et géométrie) ; la géométrie de la carte (`MapGeometry`, `RobotMarkerLayout`), ses couleurs, et ses gestes (`MapInteraction` : zoom, déplacement, clics, tracés). L'interface fournit le fil d'interface (`IUiDispatcher`) et les dialogues (`IDialogService`). Le journal sur disque (`FileLoggerProvider`) et son pont vers l'onglet Journal (`JournalLogger`) y sont aussi. |
-| `src/Dyss.App` | Application WinUI 3 (`DyssCockpit.exe`) : point d'entrée à instance unique (`Program`), la fenêtre et ses vues, les dialogues (`ContentDialog`), les notifications, l'icône de la zone de notification (`TrayIcon`), le contrôle `MapView` ; `MapRenderer` et `RobotMarkers` dessinent la carte, le robot et la station avec Win2D. |
-| `src/Dyss.Cli` | Ligne de commande `dyss`, pour explorer le protocole. |
-| `tests/` | Tests xUnit v3 de `Dyss.Core` et de `Dyss.Presentation`, exécutés en CI sans bureau. |
+| `src/DyssCockpit.Core` | Bibliothèque sans interface : client REST (`DysonCloudClient`), client MQTT (`RobotMqttClient`), session longue durée avec reconnexion (`RobotSession`, sur une horloge injectable), modèle d'état des deux dialectes, cartes et grille d'occupation, séquences de commandes (`CleaningSequence`, `SpotCleanSequence`), horaires, session chiffrée par DPAPI (`SessionStore`). |
+| `src/DyssCockpit.Presentation` | Tout ce que montrent les fenêtres, sans dépendre d'un framework d'interface : un modèle de vue par onglet, qui partagent un `RobotHub` (session, journal, envoi de commandes, dialogues) et un `MapCatalog` (cartes et géométrie) ; la géométrie de la carte (`MapGeometry`, `RobotMarkerLayout`), ses couleurs, et ses gestes (`MapInteraction` : zoom, déplacement, clics, tracés). L'interface fournit le fil d'interface (`IUiDispatcher`) et les dialogues (`IDialogService`). Le journal sur disque (`FileLoggerProvider`) et son pont vers l'onglet Journal (`JournalLogger`) y sont aussi. |
+| `src/DyssCockpit.App` | Application WinUI 3 (`DyssCockpit.exe`) : point d'entrée à instance unique (`Program`), la fenêtre et ses vues, les dialogues (`ContentDialog`), les notifications, l'icône de la zone de notification (`TrayIcon`), le contrôle `MapView` ; `MapRenderer` et `RobotMarkers` dessinent la carte, le robot et la station avec Win2D. |
+| `src/DyssCockpit.Cli` | Ligne de commande `dyss`, pour explorer le protocole. |
+| `tests/` | Tests xUnit v3 de `DyssCockpit.Core` et de `DyssCockpit.Presentation`, exécutés en CI sans bureau. |
 
 Les tests portent d'abord sur ce qui a été retrouvé par rétro-ingénierie et qu'aucune documentation ne permettrait de retrouver : formes exactes des messages, correspondances entre les deux dialectes, décodage de la grille. Les modèles de vue sont testés sur des réponses HTTP simulées, et la reconnexion de la session sur une horloge simulée, sans attente réelle.
 
-L'interface est en WinUI 3, avec le Windows App SDK 2.x embarqué dans l'application (aucun runtime à installer) ; elle se compile avec le seul SDK .NET, sur x64 comme sur ARM64. Seul ce projet dépend de WinUI : les modèles de vue, la géométrie de la carte et ses gestes sont dans `Dyss.Presentation`, testés sans interface.
+L'interface est en WinUI 3, avec le Windows App SDK 2.x embarqué dans l'application (aucun runtime à installer) ; elle se compile avec le seul SDK .NET, sur x64 comme sur ARM64. Seul ce projet dépend de WinUI : les modèles de vue, la géométrie de la carte et ses gestes sont dans `DyssCockpit.Presentation`, testés sans interface.
 
 ### Ligne de commande
 
 ```bash
-dotnet run --project src/Dyss.Cli -- login --country CH --culture fr-CH
-dotnet run --project src/Dyss.Cli -- devices
-dotnet run --project src/Dyss.Cli -- status --serial XXX-XX-XXXXXXXX
-dotnet run --project src/Dyss.Cli -- watch  --serial XXX-XX-XXXXXXXX --log capture.jsonl
-dotnet run --project src/Dyss.Cli -- send   --serial XXX-XX-XXXXXXXX zone --map ID --zones 11
-dotnet run --project src/Dyss.Cli -- history --serial XXX-XX-XXXXXXXX
+dotnet run --project src/DyssCockpit.Cli -- login --country CH --culture fr-CH
+dotnet run --project src/DyssCockpit.Cli -- devices
+dotnet run --project src/DyssCockpit.Cli -- status --serial XXX-XX-XXXXXXXX
+dotnet run --project src/DyssCockpit.Cli -- watch  --serial XXX-XX-XXXXXXXX --log capture.jsonl
+dotnet run --project src/DyssCockpit.Cli -- send   --serial XXX-XX-XXXXXXXX zone --map ID --zones 11
+dotnet run --project src/DyssCockpit.Cli -- history --serial XXX-XX-XXXXXXXX
 ```
 
 `dyss` sans argument liste toutes les commandes. `watch` enregistre aussi les commandes publiées par l'application mobile : c'est ainsi que se constituent les captures de référence, en pilotant le robot depuis le téléphone.

@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DyssCockpit.App/DyssCockpit.App.csproj" />
+    <Project Path="src/DyssCockpit.Cli/DyssCockpit.Cli.csproj" />
+    <Project Path="src/DyssCockpit.Core/DyssCockpit.Core.csproj" />
+    <Project Path="src/DyssCockpit.Presentation/DyssCockpit.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DyssCockpit.Core.Tests/DyssCockpit.Core.Tests.csproj" />
+    <Project Path="tests/DyssCockpit.Presentation.Tests/DyssCockpit.Presentation.Tests.csproj" />
+  </Folder>
+</Solution>

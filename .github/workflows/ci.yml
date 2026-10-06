@@ -19,13 +19,13 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore Dyss.slnx
+        run: dotnet restore DyssCockpit.slnx
 
       - name: Build
-        run: dotnet build Dyss.slnx --configuration Release --no-restore
+        run: dotnet build DyssCockpit.slnx --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test --solution Dyss.slnx --configuration Release --no-build --report-xunit-trx --results-directory TestResults
+        run: dotnet test --solution DyssCockpit.slnx --configuration Release --no-build --report-xunit-trx --results-directory TestResults
 
       - name: Upload test results
         if: always()
