@@ -47,7 +47,7 @@ internal static class Program
         l'application officielle. --websocket et --sigv4 sélectionnent les autres modes, qui
         n'accordent pas le droit de publier (voir README).
 
-        La session (bearer token) est chiffrée avec DPAPI dans %APPDATA%\DySS Cockpit\session.bin.
+        La session (bearer token) est chiffrée avec DPAPI dans %LOCALAPPDATA%\DySS Cockpit\session.bin.
         """;
 
     private static async Task<int> Main(string[] args)

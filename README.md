@@ -97,7 +97,7 @@ Le menu « Options » de l'en-tête règle ce comportement (la fermeture de la f
 
 L'exécutable n'est pas signé : au premier lancement, Windows SmartScreen demande une confirmation (« Informations complémentaires », puis « Exécuter quand même »).
 
-La session (chiffrée pour le compte Windows), les préférences, le journal (`journal-AAAA-MM-JJ.log`, un fichier par jour gardé une semaine) et, si l'option est active, l'enregistrement des messages (dossier `messages`) sont dans `%APPDATA%\DySS Cockpit`. Aucune donnée n'est envoyée ailleurs qu'au cloud Dyson.
+La session (chiffrée pour le compte Windows), les préférences, le journal (`journal-AAAA-MM-JJ.log`, un fichier par jour gardé une semaine) et, si l'option est active, l'enregistrement des messages (dossier `messages`) sont dans `%LOCALAPPDATA%\DySS Cockpit`. Aucune donnée n'est envoyée ailleurs qu'au cloud Dyson.
 
 Configuration requise : Windows 10 version 2004 (build 19041) ou ultérieure, ou Windows 11, et un robot Dyson Spot+Scrub AI connecté à Internet.
 
