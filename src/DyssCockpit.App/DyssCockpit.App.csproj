@@ -1,38 +1,37 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <ItemGroup>
-    <ProjectReference Include="..\DyssCockpit.Presentation\DyssCockpit.Presentation.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" />
-    <PackageReference Include="Microsoft.Graphics.Win2D" />
-    <PackageReference Include="Microsoft.Extensions.Logging" />
-  </ItemGroup>
-
+  <!-- Identity and target: what the executable is called, which Windows it runs on, its icon. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
-    <UseWinUI>true</UseWinUI>
-    <!-- Unpackaged, and carrying the Windows App SDK with it: an unzipped folder runs as it is,
-         with nothing to install. -->
-    <WindowsPackageType>None</WindowsPackageType>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <EnableMsixTooling>true</EnableMsixTooling>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <!-- The executable is named after the application; the code keeps the project's namespace. -->
     <AssemblyName>DyssCockpit</AssemblyName>
+    <AssemblyTitle>DySS Cockpit</AssemblyTitle>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- The robot heading down with its light on, written by DyssCockpit.exe with its export-icon
          option (see AppIcon in Rendering/MapImage.cs). The executable, the window and the taskbar take it from here. -->
     <ApplicationIcon>app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- WinUI 3, unpackaged, and carrying the Windows App SDK with it: an unzipped folder runs as it is,
+       with nothing to install. -->
+  <PropertyGroup>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <EnableMsixTooling>true</EnableMsixTooling>
     <!-- Program.cs has the entry point: it keeps the application to one instance. -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
-  <!-- A self-contained Windows App SDK needs an architecture: the machine's own, unless one is asked for. -->
+  <!--
+    A self-contained Windows App SDK needs an architecture: the machine's own unless one is asked for
+    (dotnet build -r win-x64). The OS architecture, not the SDK's: an x64 SDK on an ARM64 PC would otherwise
+    give win-x64, and a non-Windows SDK a non-Windows identifier.
+  -->
   <PropertyGroup Condition="'$(RuntimeIdentifier)' == ''">
     <RuntimeIdentifier Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">win-arm64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
@@ -46,32 +45,46 @@
   </ItemGroup>
 
   <!--
-    The Windows App SDK's component packages leave out one file of its runtime when the app carries
-    the SDK itself: Microsoft.WindowsAppRuntime.Insights.Resource.dll, without which registering
-    for app notifications fails with "module not found". It is taken at build time from the SDK's
-    own runtime package, the version the full SDK package pins for these components.
+    Only the Windows App SDK components the app uses (versions in Directory.Packages.props).
+    The Microsoft.WindowsAppSDK metapackage would also bundle the AI/ML runtimes (onnxruntime, DirectML…),
+    roughly doubling the size of the self-contained output.
   -->
-  <PropertyGroup>
-    <WindowsAppRuntimeVersion>2.5.1</WindowsAppRuntimeVersion>
-  </PropertyGroup>
   <ItemGroup>
-    <PackageDownload Include="Microsoft.WindowsAppSDK.Runtime" Version="[$(WindowsAppRuntimeVersion)]" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" />
+    <!-- Its build targets check that the components above are versions that go together, and the
+         Insights file below comes out of its MSIX. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" />
   </ItemGroup>
-  <Target Name="AddWindowsAppRuntimeInsights" BeforeTargets="AssignTargetPaths">
-    <!-- Worked out here rather than with the project's properties: the intermediate folder is only
-         known once the SDK has set it, and it is per architecture. -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Graphics.Win2D" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DyssCockpit.Core\DyssCockpit.Core.csproj" />
+    <ProjectReference Include="..\DyssCockpit.Presentation\DyssCockpit.Presentation.csproj" />
+  </ItemGroup>
+
+  <!--
+    Workaround: self-contained builds of Windows App SDK 2.x omit Microsoft.WindowsAppRuntime.Insights.Resource.dll
+    (it only ships inside the runtime MSIX), and AppNotificationManager.Register then fails with 0x8007007E.
+    Extract it from the MSIX matching the target architecture and deploy it next to the executable.
+  -->
+  <Target Name="AddWindowsAppRuntimeInsightsResource" BeforeTargets="AssignTargetPaths">
     <PropertyGroup>
-      <WindowsAppRuntimeMsix>$(NuGetPackageRoot)microsoft.windowsappsdk.runtime/$(WindowsAppRuntimeVersion)/tools/MSIX/win10-$(RuntimeIdentifier.Replace('win-', ''))/Microsoft.WindowsAppRuntime.2.msix</WindowsAppRuntimeMsix>
-      <WindowsAppRuntimeExtracted>$(IntermediateOutputPath)WindowsAppRuntime/</WindowsAppRuntimeExtracted>
+      <_InsightsArch>$(RuntimeIdentifier.Replace('win-', ''))</_InsightsArch>
+      <_InsightsMsix>$(NuGetPackageRoot)microsoft.windowsappsdk.runtime\$(WindowsAppSdkVersion)\tools\MSIX\win10-$(_InsightsArch)\Microsoft.WindowsAppRuntime.2.msix</_InsightsMsix>
+      <_InsightsFolder>$(IntermediateOutputPath)WindowsAppRuntimeInsights\</_InsightsFolder>
     </PropertyGroup>
-    <Unzip SourceFiles="$(WindowsAppRuntimeMsix)" DestinationFolder="$(WindowsAppRuntimeExtracted)"
-           Include="Microsoft.WindowsAppRuntime.Insights.Resource.dll" SkipUnchangedFiles="true" />
+    <Unzip Condition="Exists('$(_InsightsMsix)')" SourceFiles="$(_InsightsMsix)" DestinationFolder="$(_InsightsFolder)" Include="Microsoft.WindowsAppRuntime.Insights.Resource.dll" SkipUnchangedFiles="true" />
+    <Warning Condition="!Exists('$(_InsightsMsix)')" Text="Windows App SDK runtime MSIX not found at $(_InsightsMsix); notifications may not work." />
     <!-- Copied when it differs rather than when it is newer: the file keeps its date from the
          package, and another version of the runtime can carry an older one. -->
-    <ItemGroup>
-      <None Include="$(WindowsAppRuntimeExtracted)Microsoft.WindowsAppRuntime.Insights.Resource.dll"
-            Link="Microsoft.WindowsAppRuntime.Insights.Resource.dll"
-            CopyToOutputDirectory="IfDifferent" CopyToPublishDirectory="IfDifferent" />
+    <ItemGroup Condition="Exists('$(_InsightsFolder)Microsoft.WindowsAppRuntime.Insights.Resource.dll')">
+      <None Include="$(_InsightsFolder)Microsoft.WindowsAppRuntime.Insights.Resource.dll" Link="Microsoft.WindowsAppRuntime.Insights.Resource.dll" CopyToOutputDirectory="IfDifferent" CopyToPublishDirectory="IfDifferent" />
     </ItemGroup>
   </Target>
 

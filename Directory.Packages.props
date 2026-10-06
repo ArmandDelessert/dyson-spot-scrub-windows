@@ -3,20 +3,33 @@
   <!-- Central package management: every version lives here, projects only name the package. -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Also read by DyssCockpit.App.csproj to find the runtime MSIX (Insights workaround). -->
+    <WindowsAppSdkVersion>2.5.1</WindowsAppSdkVersion>
   </PropertyGroup>
+
+  <!-- Windows App SDK components, in the versions shipped with Windows App SDK 2.5.1. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Foundation" Version="2.3.12" />
+    <!-- Named only for its version: WinUI and Foundation ask for 2.1.8 or later, which nuget.org
+         does not have, and restore would stop on NU1603 while settling on 2.1.9 by itself. -->
+    <PackageVersion Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.9" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Runtime" Version="$(WindowsAppSdkVersion)" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.9" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <!-- Written for Windows App SDK 1.8 (it asks for WinUI 1.8.260204000 or later, with no upper bound)
+         and not announced for 2.x: the application has been checked with it on 2.x. -->
     <PackageVersion Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
-    <PackageVersion Include="Microsoft.WindowsAppSDK.Foundation" Version="2.3.12" />
-    <!-- Named only for its version: WinUI and Foundation ask for 2.1.8 or later, which nuget.org
-         does not have, and restore would stop on NU1603 while settling on 2.1.9 by itself. -->
-    <PackageVersion Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.9" />
-    <PackageVersion Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.9" />
     <PackageVersion Include="MQTTnet" Version="5.2.0.1603" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
+  </ItemGroup>
+
+  <!-- Tests -->
+  <ItemGroup>
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.10.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
