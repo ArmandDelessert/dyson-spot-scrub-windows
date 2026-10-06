@@ -13,11 +13,11 @@
   <!-- What Windows shows in the executable's properties. The version is the release tag's
        (v1.2.3 gives 1.2.3, see .github/workflows/release.yml); a local build is 0.0.0-dev. -->
   <PropertyGroup>
-    <Version>0.0.0-dev</Version>
     <Product>DySS Cockpit</Product>
     <Authors>Armand Delessert</Authors>
     <Company>Armand Delessert</Company>
     <Copyright>Copyright © 2026 Armand Delessert. Projet indépendant, non affilié à Dyson.</Copyright>
+    <Version>0.0.0-dev</Version>
   </PropertyGroup>
 
 </Project>
