@@ -8,13 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
-    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
-    <PackageReference Include="xunit.v3" />
+    <Using Include="Xunit" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,14 +1,15 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The dyss command, for exploring the protocol. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- Typed often, so short: the executable is not named after the project. -->
+    <AssemblyName>dyss</AssemblyName>
+  </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\DyssCockpit.Core\DyssCockpit.Core.csproj" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <AssemblyName>dyss</AssemblyName>
-    <RootNamespace>DyssCockpit.Cli</RootNamespace>
-  </PropertyGroup>
 
 </Project>
