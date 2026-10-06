@@ -15,7 +15,7 @@
              navigation, and a back button while the map manager is open. -->
         <TitleBar x:Name="AppTitleBar" Title="DySS Cockpit" IsBackButtonVisible="False" IsPaneToggleButtonVisible="False">
             <TitleBar.IconSource>
-                <ImageIconSource ImageSource="ms-appx:///app.ico"/>
+                <ImageIconSource ImageSource="ms-appx:///Assets/AppIcon.ico"/>
             </TitleBar.IconSource>
         </TitleBar>
         <!-- One window throughout: the login, the wait for the network, then the dashboard. -->

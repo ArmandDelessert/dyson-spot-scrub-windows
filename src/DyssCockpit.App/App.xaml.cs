@@ -141,8 +141,8 @@ public partial class App : Application
 
         // Headless helper: writes the application icon, drawn by the map's own code, to an .ico;
         // with --alert, the notification area's while the robot reports a fault.
-        //   DyssCockpit.exe --export-icon app.ico
-        //   DyssCockpit.exe --export-icon app-alert.ico --alert
+        //   DyssCockpit.exe --export-icon Assets\AppIcon.ico
+        //   DyssCockpit.exe --export-icon Assets\AppIconAlert.ico --alert
         if (Option(args, "--export-icon") is { } iconPath)
         {
             await using (var file = File.Create(iconPath))
@@ -300,7 +300,7 @@ public partial class App : Application
             onClick: ShowWindow);
     }
 
-    private static string IconPath(bool alert) => Path.Combine(AppContext.BaseDirectory, alert ? "app-alert.ico" : "app.ico");
+    private static string IconPath(bool alert) => Path.Combine(AppContext.BaseDirectory, "Assets", alert ? "AppIconAlert.ico" : "AppIcon.ico");
 
     private void CreateTrayIcon()
     {

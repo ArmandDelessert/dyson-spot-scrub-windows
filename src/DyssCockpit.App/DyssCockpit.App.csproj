@@ -13,7 +13,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- The robot heading down with its light on, written by DyssCockpit.exe with its export-icon
          option (see AppIcon in Rendering/MapImage.cs). The executable, the window and the taskbar take it from here. -->
-    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- WinUI 3, unpackaged, and carrying the Windows App SDK with it: an unzipped folder runs as it is,
@@ -40,8 +40,7 @@
   <ItemGroup>
     <!-- The window's icon, read at run time, and the notification area's: the same, or with a red
          badge while the robot reports a fault (export-icon with its alert option). -->
-    <Content Include="app.ico" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="app-alert.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!--

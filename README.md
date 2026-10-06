@@ -197,8 +197,8 @@ Pour vérifier le rendu sans écran et produire les illustrations :
 
 ```bash
 DyssCockpit.exe --export-map carte.png
-DyssCockpit.exe --export-icon app.ico
-DyssCockpit.exe --export-icon app-alert.ico --alert
+DyssCockpit.exe --export-icon src\DyssCockpit.App\Assets\AppIcon.ico
+DyssCockpit.exe --export-icon src\DyssCockpit.App\Assets\AppIconAlert.ico --alert
 DyssCockpit.exe --screenshot ecran.png --after 15 --tab 0 --theme light --zones 11,13
 DyssCockpit.exe --screenshot editeur.png --after 15 --edit-schedule
 DyssCockpit.exe --screenshot connexion.png --after 3 --login

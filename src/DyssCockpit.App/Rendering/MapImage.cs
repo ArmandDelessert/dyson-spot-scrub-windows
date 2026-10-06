@@ -26,8 +26,8 @@ internal static class MapImage
 /// The application's icon: the robot seen from above, heading down, its green light on the floor
 /// ahead, drawn by the same code as on the map. Windows icons are bitmaps, one per size, so this
 /// renders each size from the drawing and packs them into an .ico file (see <see cref="IcoFile"/>).
-/// The file in the project is made with <c>DyssCockpit.exe --export-icon app.ico</c>, and the
-/// notification area's alert with <c>--export-icon app-alert.ico --alert</c>; rerun both after
+/// The file in the project is made with <c>DyssCockpit.exe --export-icon Assets\AppIcon.ico</c>, and the
+/// notification area's alert with <c>--export-icon Assets\AppIconAlert.ico --alert</c>; rerun both after
 /// changing the drawing.
 /// </summary>
 internal static class AppIcon
