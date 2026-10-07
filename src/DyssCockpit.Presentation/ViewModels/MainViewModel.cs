@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DyssCockpit.Presentation.Services;
@@ -134,24 +135,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 Cleaning.ApplyJdm(jdm);
             });
             session.Tracker.CleanPathChanged += path => Hub.Post(() => Cleaning.SetLiveTrail(path));
-            session.Tracker.EventReceived += (name, json) => Hub.Post(() =>
-            {
-                Hub.AddLog($"{name} {Truncate(json.ToJsonString(), 120)}");
-                switch (name)
-                {
-                    case "event.clean_finish.post":
-                        NotifyRequested?.Invoke(T("Nettoyage terminé", "Clean finished"), T("Le robot a terminé son nettoyage.", "The robot has finished cleaning."));
-                        break;
-                    // The robot's report of the clean, finished or not: the cloud files it as a history
-                    // entry, which is also what the phone's end-of-clean notification follows.
-                    case "event.clean_record.post":
-                        _ = History.RefreshAfterCleanAsync();
-                        break;
-                    case "event.Unable_all_area_recharge.post":
-                        NotifyRequested?.Invoke(T("Zone inaccessible", "Unreachable area"), T("Le robot n'a pas pu atteindre une ou plusieurs pièces sélectionnées.", "The robot could not reach one or more of the selected rooms."));
-                        break;
-                }
-            });
+            session.Tracker.EventReceived += (name, json) => Hub.Post(() => OnRobotEvent(name, json));
             // Every message on the robot's topics, regardless of whether the tracker recognises it;
             // only written anywhere while recording is on (see JournalViewModel).
             session.MessageReceived += Journal.CaptureMessage;
@@ -169,6 +153,31 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             Hub.Message = ex.Message;
             Hub.AddLog(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// An event the robot pushed: written to the log, and turned into a Windows notification when the
+    /// settings ask for one. On the UI thread.
+    /// </summary>
+    public void OnRobotEvent(string name, JsonObject json)
+    {
+        Hub.AddLog($"{name} {Truncate(json.ToJsonString(), 120)}");
+        switch (name)
+        {
+            case "event.clean_finish.post":
+                if (AppSettings.NotifyCleanFinished)
+                    NotifyRequested?.Invoke(T("Nettoyage terminé", "Clean finished"), T("Le robot a terminé son nettoyage.", "The robot has finished cleaning."));
+                break;
+            // The robot's report of the clean, finished or not: the cloud files it as a history
+            // entry, which is also what the phone's end-of-clean notification follows.
+            case "event.clean_record.post":
+                _ = History.RefreshAfterCleanAsync();
+                break;
+            case "event.Unable_all_area_recharge.post":
+                if (AppSettings.NotifyUnreachable)
+                    NotifyRequested?.Invoke(T("Zone inaccessible", "Unreachable area"), T("Le robot n'a pas pu atteindre une ou plusieurs pièces sélectionnées.", "The robot could not reach one or more of the selected rooms."));
+                break;
         }
     }
 

@@ -1,5 +1,6 @@
 using DyssCockpit.App.Services;
 using DyssCockpit.Core;
+using DyssCockpit.Presentation;
 using DyssCockpit.Presentation.Services;
 using DyssCockpit.Presentation.ViewModels;
 using Microsoft.UI.Xaml;
@@ -25,6 +26,7 @@ public sealed partial class ShellView : UserControl
     private readonly HistoryView _history;
     private readonly SchedulesView _schedules;
     private readonly RobotSettingsView _robotSettings;
+    private readonly SettingsView _settings;
     private readonly JournalView _journal;
     private MapManagerView? _mapManager;
     /// <summary>The page to go back to when the map manager closes.</summary>
@@ -32,7 +34,7 @@ public sealed partial class ShellView : UserControl
     private bool _started;
 
     /// <param name="settings">The application settings; null reads the stored ones, see <see cref="AppSettings.LoadReadOnly"/> for a screenshot.</param>
-    internal ShellView(MainWindow window, RobotContext ctx, NotificationService notifications, AppSettings? settings = null)
+    internal ShellView(MainWindow window, RobotContext ctx, NotificationService notifications, IAppShell shell, AppSettings? settings = null)
     {
         _window = window;
         _notifications = notifications;
@@ -43,6 +45,7 @@ public sealed partial class ShellView : UserControl
         _history = new HistoryView(ViewModel.History);
         _schedules = new SchedulesView(ViewModel.Schedules);
         _robotSettings = new RobotSettingsView(ViewModel.RobotSettings);
+        _settings = new SettingsView(new SettingsViewModel(ViewModel.AppSettings, shell, ViewModel.Hub.Dialogs));
         _journal = new JournalView(ViewModel.Journal);
 
         ViewModel.LoggedOut += () =>
@@ -62,8 +65,6 @@ public sealed partial class ShellView : UserControl
 
         Loaded += (_, _) => _window.TitleBar.IsPaneToggleButtonVisible = true;
         Nav.SelectedItem = DashboardItem;
-        (ViewModel.AppSettings.Language switch { "fr" => LanguageFrench, "en" => LanguageEnglish, _ => LanguageAuto }).IsChecked = true;
-        StartWithWindowsItem.IsChecked = StartupRegistration.IsEnabled;
         PreviewKeyDown += OnPreviewKeyDown;
         KeyDown += OnKeyDown;
     }
@@ -86,25 +87,6 @@ public sealed partial class ShellView : UserControl
 
     // ---- Pages -----------------------------------------------------------------------------
 
-    /// <summary>
-    /// Keeps the language chosen in the header menu. Every text is laid out in it once, as the
-    /// window is built, so a different language takes a restart, offered straight away.
-    /// </summary>
-    private async void Language_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not RadioMenuFlyoutItem { Tag: string language } || language == ViewModel.AppSettings.Language) return;
-        ViewModel.AppSettings.Language = language;
-        if (ViewModel.AppSettings.ChosenLanguage == DyssCockpit.Core.Translation.Current) return;
-        if (!await ViewModel.Hub.Dialogs.ConfirmAsync(T("Changer de langue", "Change language"),
-                T("La nouvelle langue s'applique au redémarrage de l'application. Redémarrer maintenant ?",
-                  "The new language applies when the application restarts. Restart now?"))) return;
-        // Only comes back when Windows could not restart the application.
-        var failure = ((App)Application.Current).Restart();
-        await ViewModel.Hub.Dialogs.AlertAsync(T("Changer de langue", "Change language"),
-            T($"Le redémarrage a échoué ({failure}). Relancez l'application pour changer de langue.",
-              $"The restart failed ({failure}). Start the application again to change its language."));
-    }
-
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
@@ -114,6 +96,7 @@ public sealed partial class ShellView : UserControl
             "history" => _history,
             "schedules" => _schedules,
             "robot-settings" => _robotSettings,
+            "settings" => _settings,
             "journal" => _journal,
             "maps" => OpenMapManager(),
             _ => _dashboard,
@@ -142,31 +125,17 @@ public sealed partial class ShellView : UserControl
 
     private void OnPaneToggleRequested(TitleBar sender, object args) => Nav.IsPaneOpen = !Nav.IsPaneOpen;
 
-    /// <summary>0 the dashboard, 1 the history (its latest clean chosen), then the schedules, the robot settings, the journal.</summary>
+    /// <summary>0 the dashboard, 1 the history (its latest clean chosen), then the schedules, the robot settings, the journal, the application's settings.</summary>
     public void SelectTab(int index)
     {
-        NavigationViewItem[] items = [DashboardItem, HistoryItem, SchedulesItem, RobotSettingsItem, JournalItem];
+        NavigationViewItem[] items = [DashboardItem, HistoryItem, SchedulesItem, RobotSettingsItem, JournalItem, SettingsItem];
         Nav.SelectedItem = items[Math.Clamp(index, 0, items.Length - 1)];
         if (index == 1) ViewModel.History.SelectFirstClean();
     }
 
     private void Message_Closed(InfoBar sender, object args) => ViewModel.Hub.Message = "";
 
-    // ---- Options -----------------------------------------------------------------------------
-
-    /// <summary>Adds or removes the Run entry of the current user; the menu shows what is really there afterwards.</summary>
-    private async void StartWithWindows_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            StartupRegistration.SetEnabled(StartWithWindowsItem.IsChecked);
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
-        {
-            await ViewModel.Hub.Dialogs.AlertAsync(T("Démarrer avec Windows", "Start with Windows"), ex.Message);
-        }
-        StartWithWindowsItem.IsChecked = StartupRegistration.IsEnabled;
-    }
+    // ---- Quit -----------------------------------------------------------------------------
 
     private void Quit_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).Quit();
 
@@ -208,6 +177,25 @@ public sealed partial class ShellView : UserControl
     }
 
     // ---- Diagnostics -----------------------------------------------------------------------
+
+    /// <summary>For screenshots: scrolls the page shown to its end.</summary>
+    public void ScrollPageToEnd()
+    {
+        if (Page.Content is not DependencyObject page) return;
+        var queue = new Queue<DependencyObject>([page]);
+        while (queue.Count > 0)
+        {
+            var node = queue.Dequeue();
+            if (node is ScrollViewer viewer)
+            {
+                viewer.UpdateLayout();
+                viewer.ChangeView(null, viewer.ScrollableHeight, null, disableAnimation: true);
+                return;
+            }
+            for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(node); i++)
+                queue.Enqueue(Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(node, i));
+        }
+    }
 
     /// <summary>For screenshots: clicks rooms on the dashboard's map, by id.</summary>
     public void ClickZone(string zoneId) => ViewModel.Cleaning.ToggleZone(zoneId);

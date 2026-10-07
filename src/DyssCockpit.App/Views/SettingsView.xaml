@@ -1,0 +1,145 @@
+<UserControl x:Class="DyssCockpit.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:DyssCockpit.App">
+    <!-- The application's own settings, in the order of HusqA Cockpit's page: notifications,
+         behavior, language, then the map's, then about. The robot's settings are another page. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Padding="16,0,16,16" MaxWidth="760" HorizontalAlignment="Left">
+            <TextBlock Text='{local:Tr Fr="Ces paramètres concernent cette application, sur cet ordinateur : rien n&apos;est envoyé au robot.", En="These settings are about this application, on this computer: nothing is sent to the robot."}'
+                       Style="{StaticResource Muted}" Margin="0,0,0,12"/>
+
+            <!-- Notifications -->
+            <TextBlock Text='{local:Tr Fr="Notifications", En="Notifications"}' Style="{StaticResource Section}"/>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Nettoyage terminé", En="Clean finished"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Quand le robot a terminé son nettoyage.", En="When the robot has finished cleaning."}' Style="{StaticResource Caption}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.NotifyCleanFinished, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Nettoyage terminé", En="Clean finished"}'/>
+                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Zone inaccessible", En="Unreachable area"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Quand le robot n&apos;a pas pu atteindre une pièce sélectionnée.", En="When the robot could not reach a selected room."}' Style="{StaticResource Caption}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.NotifyUnreachable, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Zone inaccessible", En="Unreachable area"}'/>
+                    </Grid>
+                    <Button Content='{local:Tr Fr="Envoyer une notification de test", En="Send a test notification"}' Command="{x:Bind ViewModel.SendTestNotificationCommand}" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Behavior -->
+            <TextBlock Text='{local:Tr Fr="Comportement", En="Behavior"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Rester actif dans la zone de notification quand la fenêtre est fermée", En="Keep running in the notification area when the window is closed"}' Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
+                            <TextBlock Text='{local:Tr Fr="Le robot reste suivi et les notifications continuent d&apos;arriver. On quitte l&apos;application par le bouton « Quitter » ou le menu de son icône.", En="The robot is still followed and notifications keep coming. Quit the application with the “Quit” button or from its icon&apos;s menu."}' Style="{StaticResource Caption}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.CloseToTray, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Rester actif dans la zone de notification quand la fenêtre est fermée", En="Keep running in the notification area when the window is closed"}'/>
+                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text='{local:Tr Fr="Démarrer avec Windows (dans la zone de notification)", En="Start with Windows (in the notification area)"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.StartWithWindows, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Démarrer avec Windows (dans la zone de notification)", En="Start with Windows (in the notification area)"}'/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Language -->
+            <TextBlock Text='{local:Tr Fr="Langue", En="Language"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <Border Style="{StaticResource Card}">
+                <StackPanel Spacing="8">
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text='{local:Tr Fr="Langue d&apos;affichage", En="Display language"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <!-- Each language under its own name, so it can be found whatever the current one. -->
+                        <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.LanguageIndex, Mode=TwoWay}" Width="320" VerticalAlignment="Center"
+                                  AutomationProperties.Name='{local:Tr Fr="Langue d&apos;affichage", En="Display language"}'>
+                            <ComboBoxItem Content='{local:Tr Fr="Automatique (langue de Windows)", En="Automatic (Windows language)"}'/>
+                            <ComboBoxItem Content="Français"/>
+                            <ComboBoxItem Content="English"/>
+                        </ComboBox>
+                    </Grid>
+                    <InfoBar IsClosable="False" IsOpen="{x:Bind ViewModel.IsRestartRequired, Mode=OneWay}" Severity="Informational"
+                             Title='{local:Tr Fr="Redémarrage nécessaire", En="Restart required"}'
+                             Message='{local:Tr Fr="DySS Cockpit doit redémarrer pour appliquer la nouvelle langue.", En="DySS Cockpit must restart to apply the new language."}'>
+                        <InfoBar.ActionButton>
+                            <Button Content='{local:Tr Fr="Redémarrer maintenant", En="Restart now"}' Command="{x:Bind ViewModel.RestartCommand}"/>
+                        </InfoBar.ActionButton>
+                    </InfoBar>
+                </StackPanel>
+            </Border>
+
+            <!-- Map -->
+            <TextBlock Text='{local:Tr Fr="Carte", En="Map"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text='{local:Tr Fr="Afficher les meubles", En="Show furniture"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowFurniture, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Afficher les meubles", En="Show furniture"}'/>
+                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text='{local:Tr Fr="Afficher les déplacements sans nettoyage", En="Show travel without cleaning"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowTravelPath, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Afficher les déplacements sans nettoyage", En="Show travel without cleaning"}'/>
+                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Afficher la surface nettoyée", En="Show the cleaned area"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Élargit le trajet à la largeur du robot, là où il a nettoyé.", En="Widens the path to the robot&apos;s width where it cleaned."}' Style="{StaticResource Caption}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowCleanedArea, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Afficher la surface nettoyée", En="Show the cleaned area"}'/>
+                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text='{local:Tr Fr="Afficher le bouton d&apos;export PNG", En="Show the PNG export button"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowExportButton, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Afficher le bouton d&apos;export PNG", En="Show the PNG export button"}'/>
+                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Lisser les déplacements du robot", En="Smooth the robot&apos;s movements"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Le robot glisse d&apos;une position à la suivante au lieu de sauter, avec un léger retard.", En="The robot glides from one position to the next instead of jumping, with a slight delay."}' Style="{StaticResource Caption}"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.SmoothRobotMotion, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Lisser les déplacements du robot", En="Smooth the robot&apos;s movements"}'/>
+                    </Grid>
+                    <TextBlock Text='{local:Tr Fr="Ces réglages ne concernent que cet affichage : rien n&apos;est envoyé au robot.", En="These settings only affect this display: nothing is sent to the robot."}'
+                               Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- About -->
+            <TextBlock Text='{local:Tr Fr="À propos", En="About"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <Border Style="{StaticResource Card}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{x:Bind ViewModel.VersionText}" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock Text='{local:Tr Fr="Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson. Dyson, Spot+Scrub et MyDyson sont des marques du groupe Dyson.", En="Independent project, not affiliated with, approved or supported by Dyson. Dyson, Spot+Scrub and MyDyson are trademarks of the Dyson group."}'
+                               Style="{StaticResource Caption}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <HyperlinkButton Content='{local:Tr Fr="Code source", En="Source code"}' NavigateUri="https://github.com/ArmandDelessert/dyson-spot-scrub-windows" Padding="0"/>
+                        <HyperlinkButton Content='{local:Tr Fr="Ouvrir le dossier des journaux", En="Open the logs folder"}' Command="{x:Bind ViewModel.OpenLogsFolderCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

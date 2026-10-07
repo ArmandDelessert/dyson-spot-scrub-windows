@@ -42,6 +42,12 @@
                 <Setter Property="TextWrapping" Value="Wrap"/>
             </Style>
 
+            <!-- One setting of a settings page: its name and what it does on the left, its control on the right. -->
+            <Style x:Key="Setting" TargetType="Grid">
+                <Setter Property="ColumnSpacing" Value="16"/>
+                <Setter Property="Padding" Value="0,8"/>
+            </Style>
+
             <!-- The wide action buttons of a side panel. -->
             <Style x:Key="PanelButton" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
                 <Setter Property="HorizontalAlignment" Value="Stretch"/>

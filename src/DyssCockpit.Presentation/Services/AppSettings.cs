@@ -69,6 +69,12 @@ public sealed partial class AppSettings : ObservableObject
     /// <summary>Whether the user has been told, once, that closing the window left the application running.</summary>
     [ObservableProperty] private bool _trayHintShown;
 
+    /// <summary>A Windows notification when the robot has finished cleaning. On by default.</summary>
+    [ObservableProperty] private bool _notifyCleanFinished = true;
+
+    /// <summary>A Windows notification when the robot could not reach a room it was sent to. On by default.</summary>
+    [ObservableProperty] private bool _notifyUnreachable = true;
+
     /// <summary>The language <see cref="Language"/> stands for on this machine.</summary>
     public AppLanguage ChosenLanguage => Language switch
     {
@@ -102,6 +108,8 @@ public sealed partial class AppSettings : ObservableObject
                 settings.Language = s.Language is "fr" or "en" ? s.Language : "auto";
                 settings.CloseToTray = s.CloseToTray ?? true;
                 settings.TrayHintShown = s.TrayHintShown ?? false;
+                settings.NotifyCleanFinished = s.NotifyCleanFinished ?? true;
+                settings.NotifyUnreachable = s.NotifyUnreachable ?? true;
                 settings._loading = false;
             }
         }
@@ -138,7 +146,7 @@ public sealed partial class AppSettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea)));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, NotifyCleanFinished, NotifyUnreachable)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -156,7 +164,9 @@ public sealed partial class AppSettings : ObservableObject
     partial void OnLanguageChanged(string value) => Save();
     partial void OnCloseToTrayChanged(bool value) => Save();
     partial void OnTrayHintShownChanged(bool value) => Save();
+    partial void OnNotifyCleanFinishedChanged(bool value) => Save();
+    partial void OnNotifyUnreachableChanged(bool value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, bool? NotifyCleanFinished = null, bool? NotifyUnreachable = null);
 }

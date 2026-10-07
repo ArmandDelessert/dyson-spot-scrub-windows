@@ -53,7 +53,7 @@ L'application parle au robot comme l'application mobile MyDyson, avec le même c
 - Le robot et la station dessinés vus de dessus, à l'échelle, et animés selon ce qu'ils font : lumière verte et brosses qui tournent pendant l'aspiration, rouleau qui défile pendant le lavage ; à la station, charge, vidage du collecteur, remplissage d'eau propre, lavage et séchage du rouleau.
 - Le tracé du nettoyage en cours, en temps réel : en gris là où le robot ne fait que se déplacer, dans la couleur du type de nettoyage là où il travaille. Comme sur le téléphone, il quitte la carte une fois le robot revenu et la station a fini son travail ; le nettoyage passe alors dans l'historique.
 - Zoom à la molette ou au pincement, déplacement en glissant, à la souris comme au doigt ; export en PNG.
-- Un menu « Affichage », propre à cet ordinateur : masquer les meubles, masquer les déplacements sans nettoyage, afficher la surface nettoyée (le trajet élargi à la largeur du robot, là où il a travaillé), masquer le bouton d'export, lisser les déplacements du robot.
+- Les options d'affichage de la carte (meubles, déplacements sans nettoyage, surface nettoyée, bouton d'export, lissage des déplacements du robot) se règlent dans les Paramètres, section « Carte ».
 
 Une pièce porte partout son nom sur le compte, là où l'application mobile n'affiche que son type (« Salon » au lieu de « Salon12 »).
 
@@ -76,9 +76,10 @@ Une page dédiée, d'où le bouton retour de la barre de titre ramène à la pr�
 
 Les tracés peuvent se caler sur la grille de 5 cm du robot.
 
-### Réglages et journal
+### Réglages du robot, paramètres et journal
 
-- **Réglages** du robot, avec les libellés de l'application Android : lavage, station, voix.
+- **Réglages du robot**, avec les libellés de l'application Android : lavage, station, voix. Chacun part au robot dès qu'on le change.
+- **Paramètres** de l'application, propres à cet ordinateur (rien n'est envoyé au robot) : les notifications (nettoyage terminé, zone inaccessible, avec un bouton de test), le comportement (rester dans la zone de notification à la fermeture de la fenêtre, démarrer avec Windows), la langue (automatique, français ou anglais, avec un bouton pour redémarrer), l'affichage de la carte, et la version avec un accès au dossier des fichiers de l'application.
 - **Journal** des événements du robot et des commandes envoyées. Une option enregistre aussi tous les messages échangés avec le robot, un fichier par jour, pour l'analyse du protocole.
 
 La connexion se rétablit seule après une coupure de réseau ou une mise en veille. Lancée hors ligne, l'application attend le retour du réseau.
@@ -87,7 +88,7 @@ La connexion se rétablit seule après une coupure de réseau ou une mise en vei
 
 Fermer la fenêtre ne quitte pas l'application : elle reste dans la zone de notification, connectée au robot, et continue d'envoyer ses notifications. Un clic sur l'icône rouvre la fenêtre ; son menu propose « Ouvrir », « Actualiser » et « Quitter ». L'info-bulle résume l'état du robot et sa batterie, et l'icône porte une pastille rouge tant que le robot signale une faute.
 
-Le menu « Options » de l'en-tête règle ce comportement (la fermeture de la fenêtre peut aussi quitter l'application), active le démarrage avec Windows, directement dans la zone de notification, et propose « Quitter DySS Cockpit ». Une seule instance tourne à la fois : un second lancement, ou un clic sur une notification, ramène la fenêtre existante.
+La page « Paramètres » règle ce comportement (la fermeture de la fenêtre peut aussi quitter l'application) et active le démarrage avec Windows, directement dans la zone de notification ; le bouton « Quitter » de l'en-tête quitte l'application. Une seule instance tourne à la fois : un second lancement, ou un clic sur une notification, ramène la fenêtre existante.
 
 ## Installation
 
@@ -205,7 +206,7 @@ DyssCockpit.exe --screenshot connexion.png --after 3 --login
 DyssCockpit.exe --screenshot dashboard.png --after 15 --lang en
 ```
 
-`--tab` choisit la page (`0` tableau de bord, `1` historique, `2` horaires, `3` réglages du robot, `4` journal). `--manage-maps` photographie la gestion des cartes (onglet `--layer 0` à `2`, carte `--map-id`). `--login` montre la connexion sans toucher à la session enregistrée. `--lang fr` ou `--lang en` impose la langue, sans changer celle choisie. `--export-icon` régénère l'icône à partir du dessin du robot, et avec `--alert` celle de la zone de notification à pastille rouge ; [assets/logo.svg](assets/logo.svg) en est la version vectorielle.
+`--tab` choisit la page (`0` tableau de bord, `1` historique, `2` horaires, `3` réglages du robot, `4` journal, `5` paramètres), et `--scroll` fait défiler la page jusqu'en bas pour la photographier en entier. `--manage-maps` photographie la gestion des cartes (onglet `--layer 0` à `2`, carte `--map-id`). `--login` montre la connexion sans toucher à la session enregistrée. `--lang fr` ou `--lang en` impose la langue, sans changer celle choisie. `--export-icon` régénère l'icône à partir du dessin du robot, et avec `--alert` celle de la zone de notification à pastille rouge ; [assets/logo.svg](assets/logo.svg) en est la version vectorielle.
 
 Ces options tournent à côté de l'application si elle est ouverte, sans passer par l'instance unique. Une capture lit les préférences sans jamais les écrire et n'enregistre pas les messages. Hors diagnostic, `--minimized` démarre l'application directement dans la zone de notification : c'est l'option qu'utilise le démarrage avec Windows.
 

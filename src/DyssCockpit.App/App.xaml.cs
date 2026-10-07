@@ -158,6 +158,7 @@ public partial class App : Application
         // window left closed. A login to fill in opens it all the same.
         if (screenshot is not null || Array.IndexOf(args, Program.MinimizedArgument) < 0 || !SessionStore.Exists) _window.Activate();
         _notifications = new NotificationService(_window.DispatcherQueue, _loggers.CreateLogger<NotificationService>());
+        var shell = new AppShell(_notifications, () => Restart().ToString(), ShowWindow, _loggers.CreateLogger<AppShell>());
         _window.Closed += (_, _) =>
         {
             _notifications.Dispose();
@@ -189,7 +190,10 @@ public partial class App : Application
             }
 
             // A screenshot may run beside the application: it reads the preferences, never writes them.
-            _shell = new ShellView(_window, ctx, _notifications, screenshot is null ? null : AppSettings.LoadReadOnly());
+            var settings = screenshot is null ? null : AppSettings.LoadReadOnly();
+            // ... and what it was told to speak is what it shows as chosen, so no restart is asked for.
+            if (settings is not null && Option(args, "--lang") is "fr" or "en") settings.Language = Option(args, "--lang")!;
+            _shell = new ShellView(_window, ctx, _notifications, shell, settings);
             _window.Show(_shell);
             _shell.Start();
             _shell.ViewModel.SummaryChanged += UpdateTray;
@@ -334,7 +338,7 @@ public partial class App : Application
         _trayShowsAlert = alert;
     }
 
-    /// <summary>Quits for good, from the icon's menu or the Options menu: the window closes for real, which ends the session and the process.</summary>
+    /// <summary>Quits for good, from the icon's menu or the Quit button: the window closes for real, which ends the session and the process.</summary>
     internal void Quit()
     {
         if (_exiting) return;
@@ -400,8 +404,8 @@ public partial class App : Application
     /// --screenshot out.png [--after 20]: renders the window once data has arrived — or whatever it
     /// shows by then, the login for one — then exits. On the dashboard, --tab 1 shows another page,
     /// --zones 11,10 clicks rooms in that order, --manage-maps shoots the map manager instead
-    /// (--layer 1 or 2 on the zones or furniture tab, --map-id on another map), and --edit-schedule
-    /// the editor of a new schedule.
+    /// (--layer 1 or 2 on the zones or furniture tab, --map-id on another map), --scroll the page shown
+    /// scrolled to its end, and --edit-schedule the editor of a new schedule.
     /// </summary>
     private async Task ScreenshotAsync(string[] args, string path)
     {
@@ -415,6 +419,12 @@ public partial class App : Application
                 foreach (var zone in Option(args, "--zones")?.Split(',') ?? []) shell.ClickZone(zone);
                 shell.SelectTab(int.TryParse(Option(args, "--tab"), out var tab) ? tab : 0);
                 await Task.Delay(500);
+                // --scroll: the page shown, scrolled to its end, for a settings page longer than the window.
+                if (Array.IndexOf(args, "--scroll") >= 0)
+                {
+                    shell.ScrollPageToEnd();
+                    await Task.Delay(500);
+                }
                 if (Array.IndexOf(args, "--manage-maps") >= 0)
                 {
                     shell.OpenMapManagerForScreenshot(int.TryParse(Option(args, "--layer"), out var layer) ? layer : 0, Option(args, "--map-id"));

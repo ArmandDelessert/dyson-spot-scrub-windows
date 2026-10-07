@@ -18,7 +18,7 @@
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE787;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="RobotSettingsItem" Content='{local:Tr Fr="Réglages du robot", En="Robot settings"}' Tag="robot-settings">
-                <NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></NavigationViewItem.Icon>
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE9E9;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="JournalItem" Content='{local:Tr Fr="Journal", En="Log"}' Tag="journal">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE8FD;"/></NavigationViewItem.Icon>
@@ -28,6 +28,9 @@
             <NavigationViewItem x:Name="MapsItem" Content='{local:Tr Fr="Gérer les cartes", En="Manage maps"}' Tag="maps"
                                 ToolTipService.ToolTip='{local:Tr Fr="Renommer les cartes et les pièces, fusionner ou diviser des pièces, zones et meubles, lancer une cartographie", En="Rename maps and rooms, merge or split rooms, zones and furniture, start mapping"}'>
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE81E;"/></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="SettingsItem" Content='{local:Tr Fr="Paramètres", En="Settings"}' Tag="settings">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.FooterMenuItems>
 
@@ -58,39 +61,15 @@
                     <TextBlock Text="{x:Bind ViewModel.Hub.Connection, Mode=OneWay}" VerticalAlignment="Center"/>
                     <TextBlock Text="{x:Bind local:Ui.Updated(ViewModel.Status.LastUpdate), Mode=OneWay}" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
                     <CommandBar DefaultLabelPosition="Right" Background="Transparent" IsOpen="False" VerticalAlignment="Center">
-                        <!-- Each language under its own name, so it can be found whatever the current one. -->
-                        <AppBarButton Label='{local:Tr Fr="Langue", En="Language"}'>
-                            <AppBarButton.Icon><FontIcon Glyph="&#xF2B7;"/></AppBarButton.Icon>
-                            <AppBarButton.Flyout>
-                                <MenuFlyout>
-                                    <RadioMenuFlyoutItem x:Name="LanguageAuto" GroupName="Language" Tag="auto" Click="Language_Click"
-                                                         Text='{local:Tr Fr="Automatique (langue de Windows)", En="Automatic (Windows language)"}'/>
-                                    <RadioMenuFlyoutItem x:Name="LanguageFrench" GroupName="Language" Tag="fr" Click="Language_Click" Text="Français"/>
-                                    <RadioMenuFlyoutItem x:Name="LanguageEnglish" GroupName="Language" Tag="en" Click="Language_Click" Text="English"/>
-                                </MenuFlyout>
-                            </AppBarButton.Flyout>
-                        </AppBarButton>
-                        <!-- What the application does when it is not in front: this machine's, never sent to the robot. -->
-                        <AppBarButton Label='{local:Tr Fr="Options", En="Options"}'>
-                            <AppBarButton.Icon><FontIcon Glyph="&#xE713;"/></AppBarButton.Icon>
-                            <AppBarButton.Flyout>
-                                <MenuFlyout>
-                                    <ToggleMenuFlyoutItem IsChecked="{x:Bind ViewModel.AppSettings.CloseToTray, Mode=TwoWay}"
-                                                          Text='{local:Tr Fr="Fermer la fenêtre garde l&apos;application dans la zone de notification", En="Closing the window keeps the application in the notification area"}'/>
-                                    <ToggleMenuFlyoutItem x:Name="StartWithWindowsItem" Click="StartWithWindows_Click"
-                                                          Text='{local:Tr Fr="Démarrer avec Windows, dans la zone de notification", En="Start with Windows, in the notification area"}'/>
-                                    <MenuFlyoutSeparator/>
-                                    <MenuFlyoutItem Click="Quit_Click" Text='{local:Tr Fr="Quitter DySS Cockpit", En="Quit DySS Cockpit"}'>
-                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE7E8;"/></MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
-                                </MenuFlyout>
-                            </AppBarButton.Flyout>
-                        </AppBarButton>
                         <AppBarButton Label='{local:Tr Fr="Actualiser", En="Refresh"}' Command="{x:Bind ViewModel.RefreshCommand}">
                             <AppBarButton.Icon><FontIcon Glyph="&#xE72C;"/></AppBarButton.Icon>
                         </AppBarButton>
                         <AppBarButton Label='{local:Tr Fr="Se déconnecter", En="Log out"}' Command="{x:Bind ViewModel.LogoutCommand}">
                             <AppBarButton.Icon><FontIcon Glyph="&#xF3B1;"/></AppBarButton.Icon>
+                        </AppBarButton>
+                        <AppBarButton Label='{local:Tr Fr="Quitter", En="Quit"}' Click="Quit_Click"
+                                      ToolTipService.ToolTip='{local:Tr Fr="Quitter DySS Cockpit", En="Quit DySS Cockpit"}'>
+                            <AppBarButton.Icon><FontIcon Glyph="&#xE7E8;"/></AppBarButton.Icon>
                         </AppBarButton>
                     </CommandBar>
                 </StackPanel>

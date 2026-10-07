@@ -4,11 +4,6 @@
              xmlns:local="using:DyssCockpit.App"
              xmlns:vm="using:DyssCockpit.Presentation.ViewModels">
     <UserControl.Resources>
-        <!-- One setting: its name and what it does on the left, its control on the right. -->
-        <Style x:Key="Setting" TargetType="Grid">
-            <Setter Property="ColumnSpacing" Value="16"/>
-            <Setter Property="Padding" Value="0,8"/>
-        </Style>
         <local:PercentConverter x:Key="Percent"/>
         <DataTemplate x:Key="BackWashItem" x:DataType="vm:BackWashOption"><TextBlock Text="{x:Bind Label}"/></DataTemplate>
         <DataTemplate x:Key="DryItem" x:DataType="vm:DryOption"><TextBlock Text="{x:Bind Label}"/></DataTemplate>

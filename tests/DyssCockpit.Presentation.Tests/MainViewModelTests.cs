@@ -62,6 +62,44 @@ public class MainViewModelTests
         Assert.True(changes >= 3);
     }
 
+    private static MainViewModel NewDashboard(AppSettings settings, out List<(string Title, string Body)> notifications)
+    {
+        var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(new TestHub.RouteHandler())) { BearerToken = "test-token" };
+        var stored = new StoredSession("test@example.invalid", "CH", "fr-CH", null, "test-token", DateTimeOffset.UnixEpoch);
+        var vm = new MainViewModel(RobotContext.FromLogin(api, stored), new TestHub.InlineDispatcher(), new FakeDialogs(), settings: settings);
+        var sent = new List<(string, string)>();
+        vm.NotifyRequested += (title, body) => sent.Add((title, body));
+        notifications = sent;
+        return vm;
+    }
+
+    private static readonly System.Text.Json.Nodes.JsonObject NoParameters = new();
+
+    [Fact]
+    public void TheEndOfACleanAndAnUnreachableAreaEachNotifyWhenTheirSettingIsOn()
+    {
+        using var vm = NewDashboard(new AppSettings(), out var notifications);
+
+        vm.OnRobotEvent("event.clean_finish.post", NoParameters);
+        vm.OnRobotEvent("event.Unable_all_area_recharge.post", NoParameters);
+
+        Assert.Equal(["Nettoyage terminé", "Zone inaccessible"], notifications.Select(n => n.Title));
+    }
+
+    [Fact]
+    public void ASettingTurnedOffSilencesJustItsOwnNotification()
+    {
+        using var vm = NewDashboard(new AppSettings { NotifyCleanFinished = false }, out var notifications);
+
+        vm.OnRobotEvent("event.clean_finish.post", NoParameters);
+        vm.OnRobotEvent("event.Unable_all_area_recharge.post", NoParameters);
+        Assert.Equal(["Zone inaccessible"], notifications.Select(n => n.Title));
+
+        vm.AppSettings.NotifyUnreachable = false;
+        vm.OnRobotEvent("event.Unable_all_area_recharge.post", NoParameters);
+        Assert.Single(notifications);
+    }
+
     /// <summary>A clock that only moves when told to, and reports each wait set on it.</summary>
     private sealed class ObservedClock : FakeTimeProvider
     {
