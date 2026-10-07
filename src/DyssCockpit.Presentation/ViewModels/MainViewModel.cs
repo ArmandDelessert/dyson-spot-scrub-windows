@@ -26,6 +26,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _reloading;
     private RobotConnectionStatus _lastStatus = RobotConnectionStatus.Disconnected;
     private readonly MapCatalog _maps;
+    private readonly CleaningTaskDetector _tasks = new();
+
+    /// <summary>How long after this window sent the robot to clean its rooms are still the ones a start is told with.</summary>
+    private static readonly TimeSpan LaunchWindow = TimeSpan.FromMinutes(2);
 
     public RobotHub Hub { get; }
     public StatusViewModel Status { get; }
@@ -111,6 +115,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 // on demand, so it would stay as stale as the moment the link died.
                 var cameBack = s == RobotConnectionStatus.Connected && _lastStatus != RobotConnectionStatus.Connected && _initialLoadDone;
                 _lastStatus = s;
+                // What the robot does while the link is down is not seen starting: the first state
+                // after it is a starting point, not a clean that has just begun.
+                if (s != RobotConnectionStatus.Connected) _tasks.Reset();
                 Hub.Connected = s == RobotConnectionStatus.Connected;
                 Hub.Connection = s switch
                 {
@@ -122,12 +129,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 if (cameBack) _ = ReloadAsync(T("connexion rétablie", "connection restored"));
             });
             session.AuthenticationLost += reason => Hub.Post(() => _ = SessionExpiredAsync(reason));
-            session.Tracker.StateChanged += st => Hub.Post(() =>
-            {
-                Status.Apply(st);
-                RobotSettings.Apply(st);
-                Cleaning.Apply(st);
-            });
+            session.Tracker.StateChanged += st => Hub.Post(() => OnRobotState(st));
             session.Tracker.JdmChanged += jdm => Hub.Post(() =>
             {
                 Status.ApplyJdm(jdm);
@@ -157,18 +159,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// The robot's state, a new one: shown on every tab, and, when it starts a clean, told as a
+    /// Windows notification if the settings ask for it. On the UI thread.
+    /// </summary>
+    public void OnRobotState(RobotState state)
+    {
+        Status.Apply(state);
+        RobotSettings.Apply(state);
+        Cleaning.Apply(state);
+        NotifyTask(_tasks.OnState(state));
+    }
+
+    /// <summary>
     /// An event the robot pushed: written to the log, and turned into a Windows notification when the
     /// settings ask for one. On the UI thread.
     /// </summary>
     public void OnRobotEvent(string name, JsonObject json)
     {
         Hub.AddLog($"{name} {Truncate(json.ToJsonString(), 120)}");
+        NotifyTask(_tasks.OnEvent(name, json));
         switch (name)
         {
-            case "event.clean_finish.post":
-                if (AppSettings.NotifyCleanFinished)
-                    NotifyRequested?.Invoke(T("Nettoyage terminé", "Clean finished"), T("Le robot a terminé son nettoyage.", "The robot has finished cleaning."));
-                break;
             // The robot's report of the clean, finished or not: the cloud files it as a history
             // entry, which is also what the phone's end-of-clean notification follows.
             case "event.clean_record.post":
@@ -179,6 +190,57 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     NotifyRequested?.Invoke(T("Zone inaccessible", "Unreachable area"), T("Le robot n'a pas pu atteindre une ou plusieurs pièces sélectionnées.", "The robot could not reach one or more of the selected rooms."));
                 break;
         }
+    }
+
+    /// <summary>
+    /// What a clean starting, ending or being given up becomes: a notification, or nothing,
+    /// according to <see cref="AppSettings.TaskNotifications"/>. A clean given up counts as an end,
+    /// since it is the moment the user would otherwise wait for in vain.
+    /// </summary>
+    private void NotifyTask(CleaningTaskNotice? notice)
+    {
+        var mode = AppSettings.TaskNotifications;
+        switch (notice)
+        {
+            case { Change: CleaningTaskChange.Started } when mode == TaskNotificationMode.StartAndEnd:
+                NotifyRequested?.Invoke(T("Nettoyage commencé", "Cleaning started"), StartedText(notice));
+                break;
+            case { Change: CleaningTaskChange.Finished } when mode != TaskNotificationMode.None:
+                NotifyRequested?.Invoke(T("Nettoyage terminé", "Cleaning finished"), FinishedText(notice.Minutes));
+                break;
+            case { Change: CleaningTaskChange.Abandoned } when mode != TaskNotificationMode.None:
+                NotifyRequested?.Invoke(T("Nettoyage interrompu", "Cleaning interrupted"), T("Le robot a abandonné son nettoyage.", "The robot gave up cleaning."));
+                break;
+        }
+    }
+
+    /// <summary>
+    /// The robot's messages never say which rooms it set off for, so they are named only when this
+    /// window has just sent it to them; a clean begun from the phone, a schedule or the robot's own
+    /// button is told as it is, a zone being the one thing its state does say.
+    /// </summary>
+    private string StartedText(CleaningTaskNotice notice)
+    {
+        if (Cleaning.LastLaunch is { } launch && Hub.Time.GetUtcNow() - launch.At <= LaunchWindow)
+        {
+            var rooms = launch.Rooms;
+            if (rooms.Count == 0) return T("Le robot nettoie la zone.", "The robot is cleaning the zone.");
+            var names = rooms.Count <= 3
+                ? string.Join(", ", rooms)
+                : string.Join(", ", rooms.Take(3)) + T($" et {rooms.Count - 3} autre(s)", $" and {rooms.Count - 3} more");
+            return T($"Le robot nettoie : {names}.", $"The robot is cleaning: {names}.");
+        }
+        return notice.IsZone
+            ? T("Le robot nettoie une zone.", "The robot is cleaning a zone.")
+            : T("Le robot a commencé son nettoyage.", "The robot has started cleaning.");
+    }
+
+    /// <summary>How long it took, when the robot's report gives one (<c>record_use_time</c>, in minutes).</summary>
+    private static string FinishedText(int? minutes)
+    {
+        if (minutes is not > 0) return T("Le robot a terminé son nettoyage.", "The robot has finished cleaning.");
+        var duration = ScheduleEditorViewModel.FormatMinutes(minutes.Value);
+        return T($"Le robot a terminé son nettoyage en {duration}.", $"The robot has finished cleaning in {duration}.");
     }
 
     /// <summary>

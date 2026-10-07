@@ -355,6 +355,19 @@ Une fois le dernier lavage terminé, quelques minutes après la fin du nettoyage
 
 `record_task_status` vaut 1 pour une tâche menée à terme, 2 pour une tâche abandonnée par l'utilisateur, 4 pour une tâche abandonnée par le robot (échec de localisation, pièce injoignable). `record_clean_mode` vaut 0 pour un nettoyage de pièces et 4 pour une cartographie ou un nettoyage de zone. Plusieurs champs transportent des entiers négatifs encodés en non signé, par exemple `4294967276` pour -20. Le compte rendu arrive aussi pour une tâche interrompue ; le cloud range la tâche dans l'historique peu après, ce qui en fait le bon signal pour recharger celui-ci. Le téléphone efface alors le tracé de sa carte.
 
+Début et fin d'une tâche, tels que les captures les montrent (pièces, zone, cartographie, arrêts et abandons) :
+
+| Cas | Événements | État |
+|---|---|---|
+| nettoyage mené à bien | `startClean`, puis, minutes après `FULL_CLEAN_FINISHED`, `clean_finish` et `clean_record` (statut 1) dans la même seconde | `INACTIVE_*` → `FULL_CLEAN_RUNNING` … `FULL_CLEAN_FINISHED` → `INACTIVE_CHARGING` |
+| arrêt par l'utilisateur | `clean_record` (statut 2), jamais de `clean_finish` | `FULL_CLEAN_PAUSED` ou `RUNNING` → `ABORTED` |
+| échec de localisation | `locate_fail`, puis `clean_record` (statut 4), jamais de `clean_finish` | `FULL_CLEAN_DISCOVERING` → `FULL_CLEAN_RUNNING` → `INACTIVE_DISCHARGING` |
+| pièce injoignable | `Unable_all_area_recharge`, `clean_finish`, `clean_record` (statut 4, 0 minute, 0 dm²) | `FULL_CLEAN_FINISHED` → `INACTIVE_CHARGING` |
+| cartographie | `startBuildMap`, `clean_record` (statut 1, mode 4, sans `clean_finish`), `BuildMapFinish` | `MAPPING_RUNNING` → `MAPPING_FINISHED` |
+| nettoyage de zone | comme un nettoyage de pièces, avec un `clean_record` de mode 4 | `currentCleaningMode` à `spotZoneConfigured` |
+
+Un `startClean` n'est donc pas un départ : l'un d'eux est suivi aussitôt d'un `clean_record` de statut 2, avant un second `startClean` qui, lui, mène à `FULL_CLEAN_RUNNING`. C'est le passage à un état de nettoyage depuis un état qui n'en est pas un qui marque le début. Les reprises après une pause, une relocalisation (`FULL_CLEAN_DISCOVERING`), un lavage du rouleau ou une recharge au milieu du nettoyage (`FULL_CLEAN_CHARGING`) partent d'un état de nettoyage et n'en sont pas. Un `clean_finish` ne dit pas non plus que la tâche a réussi, la pièce injoignable en est la preuve : c'est `clean_record` qui tranche. DySS Cockpit en tire `CleaningTaskDetector` : début au passage décrit ci-dessus (jamais au premier état reçu, qui n'est qu'un point de départ, ni pour une cartographie), fin pour un statut 1 précédé d'un `clean_finish` (ou de mode 0 si celui-ci s'est perdu), « interrompu » pour un statut 4, rien pour un statut 2, et un même compte rendu, reconnu à son `record_start_time`, n'est annoncé qu'une fois.
+
 ### Codes de faute
 
 Le champ `nextActionRequired` distingue l'indicateur de statut de la vraie panne. La famille `21xx`, avec `LOG_ONLY`, sert d'indicateur ; un code à trois chiffres avec `WAIT_TO_CLEAR` est une vraie erreur.

@@ -45,7 +45,7 @@ L'application parle au robot comme l'application mobile MyDyson, avec le même c
 - **Nettoyer une zone** : un rectangle tracé sur la carte en cliquant deux coins opposés, puis déplacé ou redimensionné à la souris, nettoyé avec son propre type, sa puissance, son eau et ses passages. Un clic dans le vide de la carte ou la touche Échap l'efface.
 - **Station** : « Vider le collecteur » et « Laver et sécher », qui devient l'arrêt de l'action en cours.
 - **Consommables** : durée de vie restante de chaque pièce d'usure.
-- **Notifications Windows** à la fin d'un nettoyage, ou quand une pièce n'a pas pu être atteinte, même fenêtre fermée.
+- **Notifications Windows**, même fenêtre fermée : à la fin du nettoyage (avec sa durée), et, au choix, à son début (avec les pièces lancées depuis l'application) ; quand le robot abandonne son nettoyage (« Nettoyage interrompu ») ; quand une pièce n'a pas pu être atteinte. Rien n'est annoncé quand on arrête soi-même le nettoyage, ni pour une cartographie, ni quand le robot repart après une pause, un lavage de rouleau ou une reconnexion.
 
 ### Carte
 
@@ -79,7 +79,7 @@ Les tracés peuvent se caler sur la grille de 5 cm du robot.
 ### Réglages du robot, paramètres et journal
 
 - **Réglages du robot**, avec les libellés de l'application Android : lavage, station, voix. Chacun part au robot dès qu'on le change.
-- **Paramètres** de l'application, propres à cet ordinateur (rien n'est envoyé au robot) : les notifications (nettoyage terminé, zone inaccessible, avec un bouton de test), le comportement (rester dans la zone de notification à la fermeture de la fenêtre, démarrer avec Windows), la langue (automatique, français ou anglais, avec un bouton pour redémarrer), l'affichage de la carte, et la version avec un accès au dossier des fichiers de l'application.
+- **Paramètres** de l'application, propres à cet ordinateur (rien n'est envoyé au robot) : les notifications (aucune, fin de nettoyage seulement ou début et fin ; zone inaccessible ; un bouton de test), le comportement (rester dans la zone de notification à la fermeture de la fenêtre, démarrer avec Windows), la langue (automatique, français ou anglais, avec un bouton pour redémarrer), l'affichage de la carte, et la version avec un accès au dossier des fichiers de l'application.
 - **Journal** des événements du robot et des commandes envoyées. Une option enregistre aussi tous les messages échangés avec le robot, un fichier par jour, pour l'analyse du protocole.
 
 La connexion se rétablit seule après une coupure de réseau ou une mise en veille. Lancée hors ligne, l'application attend le retour du réseau.
@@ -169,7 +169,7 @@ Les tests utilisent xUnit v3 sur Microsoft.Testing.Platform, activé dans `globa
 
 | Projet | Contenu |
 |---|---|
-| `src/DyssCockpit.Core` | Bibliothèque sans interface : client REST (`DysonCloudClient`), client MQTT (`RobotMqttClient`), session longue durée avec reconnexion (`RobotSession`, sur une horloge injectable), modèle d'état des deux dialectes, cartes et grille d'occupation, séquences de commandes (`CleaningSequence`, `SpotCleanSequence`), horaires, session chiffrée par DPAPI (`SessionStore`). |
+| `src/DyssCockpit.Core` | Bibliothèque sans interface : client REST (`DysonCloudClient`), client MQTT (`RobotMqttClient`), session longue durée avec reconnexion (`RobotSession`, sur une horloge injectable), modèle d'état des deux dialectes, détection du début et de la fin d'un nettoyage (`CleaningTaskDetector`), cartes et grille d'occupation, séquences de commandes (`CleaningSequence`, `SpotCleanSequence`), horaires, session chiffrée par DPAPI (`SessionStore`). |
 | `src/DyssCockpit.Presentation` | Tout ce que montrent les fenêtres, sans dépendre d'un framework d'interface : un modèle de vue par onglet, qui partagent un `RobotHub` (session, journal, envoi de commandes, dialogues) et un `MapCatalog` (cartes et géométrie) ; la géométrie de la carte (`MapGeometry`, `RobotMarkerLayout`), ses couleurs, et ses gestes (`MapInteraction` : zoom, déplacement, clics, tracés). L'interface fournit le fil d'interface (`IUiDispatcher`) et les dialogues (`IDialogService`). Le journal sur disque (`FileLoggerProvider`) et son pont vers l'onglet Journal (`JournalLogger`) y sont aussi. |
 | `src/DyssCockpit.App` | Application WinUI 3 (`DyssCockpit.exe`) : point d'entrée à instance unique (`Program`), la fenêtre et ses vues, les dialogues (`ContentDialog`), les notifications, l'icône de la zone de notification (`TrayIcon`), le contrôle `MapView` ; `MapRenderer` et `RobotMarkers` dessinent la carte, le robot et la station avec Win2D. |
 | `src/DyssCockpit.Cli` | Ligne de commande `dyss`, pour explorer le protocole. |

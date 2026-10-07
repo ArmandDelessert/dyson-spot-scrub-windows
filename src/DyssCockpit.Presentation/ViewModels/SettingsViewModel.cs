@@ -37,6 +37,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _dialogs = dialogs;
         VersionText = $"DySS Cockpit {VersionOf(Assembly.GetExecutingAssembly())}";
         LanguageIndex = Math.Max(0, Array.IndexOf(Languages, settings.Language));
+        TaskNotificationsIndex = Math.Max(0, Array.IndexOf(TaskNotificationModes, settings.TaskNotifications));
         StartWithWindows = shell.StartsWithWindows;
         // A language chosen earlier and not yet applied: the page may have been opened again since.
         IsRestartRequired = settings.ChosenLanguage != _running;
@@ -52,10 +53,16 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     // ----- Notifications -----
 
-    public bool NotifyCleanFinished
+    /// <summary>The values of <see cref="AppSettings.TaskNotifications"/>, in the order the list shows them.</summary>
+    private static readonly TaskNotificationMode[] TaskNotificationModes = [TaskNotificationMode.None, TaskNotificationMode.EndOnly, TaskNotificationMode.StartAndEnd];
+
+    /// <summary>0 for none, 1 for the end of a clean only, 2 for its start and end.</summary>
+    [ObservableProperty] private int _taskNotificationsIndex;
+
+    partial void OnTaskNotificationsIndexChanged(int value)
     {
-        get => _settings.NotifyCleanFinished;
-        set => Update(_settings.NotifyCleanFinished, value, v => _settings.NotifyCleanFinished = v);
+        if (!_initialized || value < 0 || value >= TaskNotificationModes.Length) return;
+        _settings.TaskNotifications = TaskNotificationModes[value];
     }
 
     public bool NotifyUnreachable

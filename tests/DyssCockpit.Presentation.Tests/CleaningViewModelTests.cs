@@ -346,6 +346,28 @@ public class CleaningViewModelTests
     }
 
     [Fact]
+    public async Task WhatIsSentToCleanIsRememberedForTheNotificationThatTheCleanHasStarted()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        Assert.Null(vm.LastLaunch);
+        vm.Apply(Docked);
+
+        vm.ToggleZone("13");
+        vm.ToggleZone("10");
+        await vm.StartCleanCommand.ExecuteAsync(null);
+
+        // In the order they will be cleaned, which is the order they were ticked in.
+        Assert.Equal(["Couloir", "Cuisine"], vm.LastLaunch!.Rooms);
+
+        vm.ClearSelection();
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+        await vm.StartSpotCleanCommand.ExecuteAsync(null);
+
+        Assert.Empty(vm.LastLaunch!.Rooms);   // a zone has no room to name
+    }
+
+    [Fact]
     public async Task ASelectionRestoredByAReloadReEnablesTheStartButton()
     {
         var vm = New(out _);

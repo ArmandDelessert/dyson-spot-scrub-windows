@@ -415,6 +415,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             return Task.CompletedTask;
         }
         var settings = new RoomSettings(SpotCleanType.Value, SpotStrategy.Value, SpotWaterLevel.Value, SpotMopPass.Value);
+        LastLaunch = new LaunchedClean([], _hub.Time.GetUtcNow());
         return _hub.RunAsync(T($"nettoyage de la zone ({SpotSizeText.ToLower(CultureInfo.CurrentCulture)})", $"cleaning the zone ({SpotSizeText.ToLower(CultureInfo.CurrentCulture)})"),
             c => SpotCleanSequence.StartAsync(c, mapId, corners, settings, ct: _hub.Ct));
     }
@@ -434,8 +435,14 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             _hub.Message = T($"Identifiant de carte inattendu : {SelectedMap.Id}", $"Unexpected map id: {SelectedMap.Id}");
             return Task.CompletedTask;
         }
+        LastLaunch = new LaunchedClean(Zones.Where(z => z.Selected).OrderBy(z => z.Order).Select(z => z.Name).ToList(), _hub.Time.GetUtcNow());
         return _hub.RunAsync(T($"démarrage de {rooms.Count} pièce(s)", $"starting {rooms.Count} room(s)"), c => CleaningSequence.StartAsync(c, mapId, rooms));
     }
+
+    /// <summary>What this window last sent the robot to clean — the rooms, or none for a drawn zone — and when. The robot's own messages never say which rooms it set off for.</summary>
+    public LaunchedClean? LastLaunch { get; internal set; }
+
+    public sealed record LaunchedClean(IReadOnlyList<string> Rooms, DateTimeOffset At);
 
     /// <summary>Makes the selected map the account's active map, as the phone app does from its map picker.</summary>
     [RelayCommand]

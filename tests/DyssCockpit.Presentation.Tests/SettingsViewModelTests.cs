@@ -47,7 +47,7 @@ public sealed class SettingsViewModelTests : IDisposable
     {
         var (vm, _, _, _) = New();
 
-        Assert.True(vm.NotifyCleanFinished);
+        Assert.Equal(1, vm.TaskNotificationsIndex);   // the end of a clean only
         Assert.True(vm.NotifyUnreachable);
         Assert.True(vm.CloseToTray);
         Assert.False(vm.StartWithWindows);
@@ -76,16 +76,41 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.True(next.ShowCleanedArea);
         Assert.False(next.ShowFurniture);
         Assert.True(next.SmoothRobotMotion);
-        Assert.True(next.NotifyCleanFinished);   // untouched
+        Assert.Equal(TaskNotificationMode.EndOnly, next.TaskNotifications);   // untouched
+    }
+
+    [Fact]
+    public void TheNotificationsOfACleanAreChosenFromTheListAndRememberedByName()
+    {
+        var (vm, settings, _, _) = New();
+
+        vm.TaskNotificationsIndex = 2;
+        Assert.Equal(TaskNotificationMode.StartAndEnd, settings.TaskNotifications);
+        Assert.Contains("\"StartAndEnd\"", File.ReadAllText(_path), StringComparison.Ordinal);
+        Assert.Equal(TaskNotificationMode.StartAndEnd, AppSettings.Load(_path).TaskNotifications);
+
+        vm.TaskNotificationsIndex = 0;
+        Assert.Equal(TaskNotificationMode.None, AppSettings.Load(_path).TaskNotifications);
+
+        vm.TaskNotificationsIndex = -1;   // nothing selected, as a list does while it refreshes
+        Assert.Equal(TaskNotificationMode.None, settings.TaskNotifications);
+    }
+
+    [Fact]
+    public void AnUnknownModeInTheFileFallsBackToTheEndOfAClean()
+    {
+        File.WriteAllText(_path, """{"TaskNotifications":"Always"}""");
+
+        Assert.Equal(TaskNotificationMode.EndOnly, AppSettings.Load(_path).TaskNotifications);
     }
 
     [Fact]
     public void ThePageReflectsTheSettingsItIsGiven()
     {
-        var (vm, _, _, _) = New(s => { s.Language = "en"; s.NotifyCleanFinished = false; s.ShowTravelPath = false; });
+        var (vm, _, _, _) = New(s => { s.Language = "en"; s.TaskNotifications = TaskNotificationMode.StartAndEnd; s.ShowTravelPath = false; });
 
         Assert.Equal(2, vm.LanguageIndex);
-        Assert.False(vm.NotifyCleanFinished);
+        Assert.Equal(2, vm.TaskNotificationsIndex);
         Assert.False(vm.ShowTravelPath);
         Assert.True(vm.IsRestartRequired);   // English was chosen, French is running
     }

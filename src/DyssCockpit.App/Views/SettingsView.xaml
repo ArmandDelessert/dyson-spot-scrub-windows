@@ -16,11 +16,15 @@
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Nettoyage terminé", En="Clean finished"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Quand le robot a terminé son nettoyage.", En="When the robot has finished cleaning."}' Style="{StaticResource Caption}"/>
+                            <TextBlock Text='{local:Tr Fr="Notifications de début et de fin de nettoyage", En="Cleaning start and end notifications"}' Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
+                            <TextBlock Text='{local:Tr Fr="La fin comprend le cas où le robot abandonne son nettoyage.", En="The end includes the robot giving up its clean."}' Style="{StaticResource Caption}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.NotifyCleanFinished, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Nettoyage terminé", En="Clean finished"}'/>
+                        <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.TaskNotificationsIndex, Mode=TwoWay}" Width="260" VerticalAlignment="Center"
+                                  AutomationProperties.Name='{local:Tr Fr="Notifications de début et de fin de nettoyage", En="Cleaning start and end notifications"}'>
+                            <ComboBoxItem Content='{local:Tr Fr="Aucune", En="None"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="Fin de nettoyage seulement", En="Cleaning end only"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="Début et fin de nettoyage", En="Cleaning start and end"}'/>
+                        </ComboBox>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
