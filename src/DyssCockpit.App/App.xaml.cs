@@ -39,7 +39,7 @@ public partial class App : Application
         {
             "fr" => AppLanguage.French,
             "en" => AppLanguage.English,
-            _ => DisplaySettings.Load().ChosenLanguage,
+            _ => AppSettings.Load().ChosenLanguage,
         };
         _logFile = new FileLoggerProvider(SessionStore.Directory);
         _loggers = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Information).AddProvider(_logFile));
@@ -189,7 +189,7 @@ public partial class App : Application
             }
 
             // A screenshot may run beside the application: it reads the preferences, never writes them.
-            _shell = new ShellView(_window, ctx, _notifications, screenshot is null ? null : DisplaySettings.LoadReadOnly());
+            _shell = new ShellView(_window, ctx, _notifications, screenshot is null ? null : AppSettings.LoadReadOnly());
             _window.Show(_shell);
             _shell.Start();
             _shell.ViewModel.SummaryChanged += UpdateTray;
@@ -289,11 +289,11 @@ public partial class App : Application
     /// </summary>
     private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (_exiting || _tray is null || _shell?.ViewModel.Display is not { CloseToTray: true } display) return;
+        if (_exiting || _tray is null || _shell?.ViewModel.AppSettings is not { CloseToTray: true } settings) return;
         args.Cancel = true;
         sender.Hide();
-        if (display.TrayHintShown) return;
-        display.TrayHintShown = true;
+        if (settings.TrayHintShown) return;
+        settings.TrayHintShown = true;
         _notifications?.Show("DySS Cockpit",
             T("L'application reste ouverte dans la zone de notification pour suivre le robot. Pour la quitter, utilisez le menu de son icône.",
               "The application stays open in the notification area to keep track of the robot. To quit it, use its icon's menu."),

@@ -105,14 +105,14 @@ public sealed record OrientationOption(int QuarterTurns, string Label)
 public sealed partial class MapManagerViewModel : ObservableObject
 {
     private readonly RobotHub _hub;
-    private readonly DisplaySettings _display;
+    private readonly AppSettings _settings;
     /// <summary>The rooms gathered for a merge, in click order: the robot receives them in that order.</summary>
     private readonly List<ManagedRoom> _mergeSet = [];
 
-    public MapManagerViewModel(RobotHub hub, DisplaySettings display)
+    public MapManagerViewModel(RobotHub hub, AppSettings settings)
     {
         _hub = hub;
-        _display = display;
+        _settings = settings;
         RoomTypes = [new RoomTypeOption(null, T("Personnalisée (nom libre)", "Custom (free name)")),
                      .. RoomTypeLabels.All.Select(t => new RoomTypeOption(t.Type, t.Label))];
 
@@ -268,11 +268,11 @@ public sealed partial class MapManagerViewModel : ObservableObject
     /// </summary>
     public bool SnapToGrid
     {
-        get => _display.SnapToGrid;
+        get => _settings.SnapToGrid;
         set
         {
-            if (_display.SnapToGrid == value) return;
-            _display.SnapToGrid = value;
+            if (_settings.SnapToGrid == value) return;
+            _settings.SnapToGrid = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(GridActive));
         }
@@ -450,9 +450,9 @@ public sealed partial class MapManagerViewModel : ObservableObject
         SelectedRestrictionId = SelectedZone?.Id,
         SelectedFurnitureId = SelectedFurniture?.Id,
         // The furniture tab shows it whatever the display option says: it is what is being edited.
-        ShowFurniture = _display.ShowFurniture || Layer == MapLayer.Furniture,
-        ShowTravelPath = _display.ShowTravelPath,
-        ShowCleanedArea = _display.ShowCleanedArea,
+        ShowFurniture = _settings.ShowFurniture || Layer == MapLayer.Furniture,
+        ShowTravelPath = _settings.ShowTravelPath,
+        ShowCleanedArea = _settings.ShowCleanedArea,
     };
 
     // ---- Choosing rooms ----------------------------------------------------------

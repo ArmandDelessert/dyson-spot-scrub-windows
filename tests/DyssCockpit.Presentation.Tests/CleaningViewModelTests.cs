@@ -14,9 +14,9 @@ public class CleaningViewModelTests
     private static readonly (string Id, string Name, string? Type)[] Rooms =
         [("10", "Cuisine", "kitchen"), ("12", "Chambre", "bedroom"), ("13", "Couloir", "hallway")];
 
-    private static CleaningViewModel New(out RobotHub hub, params string[] maps) => New(out hub, new DisplaySettings(), maps);
+    private static CleaningViewModel New(out RobotHub hub, params string[] maps) => New(out hub, new AppSettings(), maps);
 
-    private static CleaningViewModel New(out RobotHub hub, DisplaySettings display, params string[] maps)
+    private static CleaningViewModel New(out RobotHub hub, AppSettings display, params string[] maps)
     {
         var list = maps.Length > 0 ? maps : [TestHub.Map("1000000002", "Étage", isCurrent: true, Rooms)];
         hub = TestHub.Create(
@@ -373,7 +373,7 @@ public class CleaningViewModelTests
     [Fact]
     public async Task TheDisplayPreferencesReachTheScene()
     {
-        var display = new DisplaySettings();
+        var display = new AppSettings();
         var vm = New(out _, display);
         await vm.LoadMapsAsync();
         Assert.True(vm.Scene.ShowFurniture);

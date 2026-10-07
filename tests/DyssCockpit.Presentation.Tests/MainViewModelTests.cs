@@ -20,7 +20,7 @@ public class MainViewModelTests
         var ctx = RobotContext.FromLogin(api, stored);
         await ctx.LoadDevicesAsync(ct: TestContext.Current.CancellationToken);
         var clock = new ObservedClock();
-        using var vm = new MainViewModel(ctx, new TestHub.InlineDispatcher(), new FakeDialogs(), clock, new DisplaySettings());
+        using var vm = new MainViewModel(ctx, new TestHub.InlineDispatcher(), new FakeDialogs(), clock, new AppSettings());
         int CredentialRequests() => handler.Requested.Count(p => p.Contains("iot-credentials", StringComparison.Ordinal));
 
         var start = vm.StartAsync();
@@ -45,7 +45,7 @@ public class MainViewModelTests
     {
         var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(new TestHub.RouteHandler())) { BearerToken = "test-token" };
         var stored = new StoredSession("test@example.invalid", "CH", "fr-CH", null, "test-token", DateTimeOffset.UnixEpoch);
-        using var vm = new MainViewModel(RobotContext.FromLogin(api, stored), new TestHub.InlineDispatcher(), new FakeDialogs(), display: new DisplaySettings());
+        using var vm = new MainViewModel(RobotContext.FromLogin(api, stored), new TestHub.InlineDispatcher(), new FakeDialogs(), settings: new AppSettings());
         var changes = 0;
         vm.SummaryChanged += () => changes++;
 

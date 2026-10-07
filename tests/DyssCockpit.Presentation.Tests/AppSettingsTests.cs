@@ -2,9 +2,9 @@ using DyssCockpit.Presentation.Services;
 
 namespace DyssCockpit.Presentation.Tests;
 
-public sealed class DisplaySettingsTests : IDisposable
+public sealed class AppSettingsTests : IDisposable
 {
-    private readonly string _path = Path.Combine(Path.GetTempPath(), $"dyss-display-{Guid.NewGuid():N}.json");
+    private readonly string _path = Path.Combine(Path.GetTempPath(), $"dyss-settings-{Guid.NewGuid():N}.json");
 
     public void Dispose()
     {
@@ -16,7 +16,7 @@ public sealed class DisplaySettingsTests : IDisposable
     {
         // The map has always drawn all of it; a preferences file that does not exist yet must not
         // change what an existing user sees.
-        var settings = DisplaySettings.Load(_path);
+        var settings = AppSettings.Load(_path);
 
         Assert.True(settings.ShowFurniture);
         Assert.True(settings.ShowTravelPath);
@@ -26,11 +26,11 @@ public sealed class DisplaySettingsTests : IDisposable
     [Fact]
     public void AChangeIsRememberedAcrossRuns()
     {
-        var first = DisplaySettings.Load(_path);
+        var first = AppSettings.Load(_path);
         first.ShowFurniture = false;
         first.ShowExportButton = false;
 
-        var second = DisplaySettings.Load(_path);
+        var second = AppSettings.Load(_path);
 
         Assert.False(second.ShowFurniture);
         Assert.True(second.ShowTravelPath);
@@ -43,49 +43,49 @@ public sealed class DisplaySettingsTests : IDisposable
     {
         // A screenshot may run beside the application: it must not touch the user's file, nor
         // record messages into the daily file the application is writing.
-        var user = DisplaySettings.Load(_path);
+        var user = AppSettings.Load(_path);
         user.ShowFurniture = false;
         user.RecordMessages = true;
         var before = File.ReadAllText(_path);
 
-        var shot = DisplaySettings.LoadReadOnly(_path);
+        var shot = AppSettings.LoadReadOnly(_path);
         Assert.False(shot.ShowFurniture);
         Assert.False(shot.RecordMessages);
         shot.ShowFurniture = true;
         shot.Language = "en";
 
         Assert.Equal(before, File.ReadAllText(_path));
-        Assert.True(DisplaySettings.Load(_path).RecordMessages);
+        Assert.True(AppSettings.Load(_path).RecordMessages);
     }
 
     [Fact]
     public void TheCleanedAreaIsOffUntilChosenThenRemembered()
     {
-        var first = DisplaySettings.Load(_path);
+        var first = AppSettings.Load(_path);
         Assert.False(first.ShowCleanedArea);
         first.ShowCleanedArea = true;
 
-        Assert.True(DisplaySettings.Load(_path).ShowCleanedArea);
+        Assert.True(AppSettings.Load(_path).ShowCleanedArea);
     }
 
     [Fact]
     public void SmoothingTheRobotIsOffUntilChosenThenRemembered()
     {
-        var first = DisplaySettings.Load(_path);
+        var first = AppSettings.Load(_path);
         Assert.False(first.SmoothRobotMotion);
         first.SmoothRobotMotion = true;
 
-        Assert.True(DisplaySettings.Load(_path).SmoothRobotMotion);
+        Assert.True(AppSettings.Load(_path).SmoothRobotMotion);
     }
     [Fact]
     public void LoadingDoesNotLookLikeAChange()
     {
         // Otherwise every launch would redraw both maps before anything was even displayed.
-        var first = DisplaySettings.Load(_path);
+        var first = AppSettings.Load(_path);
         first.ShowTravelPath = false;
 
         var changes = 0;
-        var second = DisplaySettings.Load(_path);
+        var second = AppSettings.Load(_path);
         second.Changed += () => changes++;
 
         Assert.False(second.ShowTravelPath);
@@ -100,7 +100,7 @@ public sealed class DisplaySettingsTests : IDisposable
     {
         File.WriteAllText(_path, """{"ShowFurniture":false}""");
 
-        var settings = DisplaySettings.Load(_path);
+        var settings = AppSettings.Load(_path);
 
         Assert.False(settings.ShowFurniture);
         Assert.True(settings.ShowTravelPath);
@@ -112,7 +112,7 @@ public sealed class DisplaySettingsTests : IDisposable
     {
         File.WriteAllText(_path, "{ this is not json");
 
-        var settings = DisplaySettings.Load(_path);
+        var settings = AppSettings.Load(_path);
 
         Assert.True(settings.ShowFurniture);
         Assert.True(settings.ShowTravelPath);
@@ -121,13 +121,13 @@ public sealed class DisplaySettingsTests : IDisposable
     [Fact]
     public void ClosingTheWindowKeepsTheAppInTheNotificationAreaUnlessTurnedOff()
     {
-        var first = DisplaySettings.Load(_path);
+        var first = AppSettings.Load(_path);
         Assert.True(first.CloseToTray);
         Assert.False(first.TrayHintShown);
 
         first.CloseToTray = false;
         first.TrayHintShown = true;
-        var second = DisplaySettings.Load(_path);
+        var second = AppSettings.Load(_path);
 
         Assert.False(second.CloseToTray);
         Assert.True(second.TrayHintShown);
@@ -138,7 +138,7 @@ public sealed class DisplaySettingsTests : IDisposable
     {
         File.WriteAllText(_path, """{"ShowFurniture":false,"RecordMessages":true}""");
 
-        var settings = DisplaySettings.Load(_path);
+        var settings = AppSettings.Load(_path);
 
         Assert.True(settings.CloseToTray);
         Assert.False(settings.TrayHintShown);
@@ -149,7 +149,7 @@ public sealed class DisplaySettingsTests : IDisposable
     public void AnInstanceWithNoFileBehavesButWritesNothing()
     {
         // What tests and previews use: the settings work for the run without touching %APPDATA%.
-        var settings = new DisplaySettings();
+        var settings = new AppSettings();
         var changes = 0;
         settings.Changed += () => changes++;
 

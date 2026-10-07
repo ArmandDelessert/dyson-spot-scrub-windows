@@ -51,7 +51,7 @@ public sealed class MapScene
     /// <summary>Zone id to its position in the clean order, shown as a badge.</summary>
     public IReadOnlyDictionary<string, int>? ZoneOrder { get; init; }
 
-    /// <summary>Draw the furniture outlines. See <see cref="Services.DisplaySettings"/>.</summary>
+    /// <summary>Draw the furniture outlines. See <see cref="Services.AppSettings"/>.</summary>
     public bool ShowFurniture { get; init; } = true;
     /// <summary>Draw the stretches where the robot was only repositioning, not working.</summary>
     public bool ShowTravelPath { get; init; } = true;
@@ -72,7 +72,7 @@ public sealed class MapScene
     public DockActivity DockActivity { get; init; }
     /// <summary>The robot sits on its dock: drawn on the plate, under the tanks, rather than where it reports itself.</summary>
     public bool RobotDocked { get; init; }
-    /// <summary>Glide the robot between reported positions; see <see cref="Services.DisplaySettings.SmoothRobotMotion"/>.</summary>
+    /// <summary>Glide the robot between reported positions; see <see cref="Services.AppSettings.SmoothRobotMotion"/>.</summary>
     public bool SmoothRobotMotion { get; init; }
 
     /// <summary>

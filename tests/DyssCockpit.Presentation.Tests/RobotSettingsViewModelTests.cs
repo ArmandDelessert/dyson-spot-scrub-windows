@@ -4,18 +4,18 @@ using DyssCockpit.Core;
 namespace DyssCockpit.Presentation.Tests;
 
 /// <summary>
-/// The Réglages tab. The tests lean on one fact: with no MQTT session, any attempt to send a
+/// The robot settings page. The tests lean on one fact: with no MQTT session, any attempt to send a
 /// command sets the hub's message to "Robot non connecté" — so that message is a reliable witness
 /// of whether a control tried to write to the robot.
 /// </summary>
-public class SettingsViewModelTests
+public class RobotSettingsViewModelTests
 {
     private const string NotConnected = "Robot non connecté.";
 
-    private static SettingsViewModel New(out RobotHub hub)
+    private static RobotSettingsViewModel New(out RobotHub hub)
     {
         hub = TestHub.Create();
-        return new SettingsViewModel(hub);
+        return new RobotSettingsViewModel(hub);
     }
 
     private static RobotState State(string json) => RobotState.Parse(json)!;

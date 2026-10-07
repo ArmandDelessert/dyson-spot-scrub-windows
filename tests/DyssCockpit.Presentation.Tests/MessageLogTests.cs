@@ -67,9 +67,9 @@ public sealed class MessageLogTests : IDisposable
     [Fact]
     public void TheJournalOnlyRecordsWhileTheBoxIsTickedAndRemembersIt()
     {
-        var settingsFile = Path.Combine(_dir, "display.json");
+        var settingsFile = Path.Combine(_dir, "settings.json");
         var hub = TestHub.Create();
-        var settings = DisplaySettings.Load(settingsFile);
+        var settings = AppSettings.Load(settingsFile);
         using var journal = new JournalViewModel(hub, settings, new MessageLog(_dir));
 
         journal.CaptureMessage(Message(DateTimeOffset.Now));
@@ -80,8 +80,8 @@ public sealed class MessageLogTests : IDisposable
         Assert.Single(Directory.GetFiles(_dir, "messages-*"));
         Assert.StartsWith("1 message(s) aujourd'hui", journal.RecordInfo, StringComparison.Ordinal);
 
-        Assert.True(DisplaySettings.Load(settingsFile).RecordMessages);
+        Assert.True(AppSettings.Load(settingsFile).RecordMessages);
         journal.RecordMessages = false;
-        Assert.False(DisplaySettings.Load(settingsFile).RecordMessages);
+        Assert.False(AppSettings.Load(settingsFile).RecordMessages);
     }
 }

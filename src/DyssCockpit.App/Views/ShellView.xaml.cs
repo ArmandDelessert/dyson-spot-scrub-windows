@@ -24,25 +24,25 @@ public sealed partial class ShellView : UserControl
     private readonly DashboardView _dashboard;
     private readonly HistoryView _history;
     private readonly SchedulesView _schedules;
-    private readonly SettingsView _settings;
+    private readonly RobotSettingsView _robotSettings;
     private readonly JournalView _journal;
     private MapManagerView? _mapManager;
     /// <summary>The page to go back to when the map manager closes.</summary>
     private NavigationViewItem? _beforeMaps;
     private bool _started;
 
-    /// <param name="display">The display preferences; null reads the stored ones, see <see cref="DisplaySettings.LoadReadOnly"/> for a screenshot.</param>
-    internal ShellView(MainWindow window, RobotContext ctx, NotificationService notifications, DisplaySettings? display = null)
+    /// <param name="settings">The application settings; null reads the stored ones, see <see cref="AppSettings.LoadReadOnly"/> for a screenshot.</param>
+    internal ShellView(MainWindow window, RobotContext ctx, NotificationService notifications, AppSettings? settings = null)
     {
         _window = window;
         _notifications = notifications;
-        ViewModel = new MainViewModel(ctx, new WinUiDispatcher(DispatcherQueue), new WinUiDialogService(window), display: display);
+        ViewModel = new MainViewModel(ctx, new WinUiDispatcher(DispatcherQueue), new WinUiDialogService(window), settings: settings);
         InitializeComponent();
 
         _dashboard = new DashboardView(ViewModel);
         _history = new HistoryView(ViewModel.History);
         _schedules = new SchedulesView(ViewModel.Schedules);
-        _settings = new SettingsView(ViewModel.Settings);
+        _robotSettings = new RobotSettingsView(ViewModel.RobotSettings);
         _journal = new JournalView(ViewModel.Journal);
 
         ViewModel.LoggedOut += () =>
@@ -62,7 +62,7 @@ public sealed partial class ShellView : UserControl
 
         Loaded += (_, _) => _window.TitleBar.IsPaneToggleButtonVisible = true;
         Nav.SelectedItem = DashboardItem;
-        (ViewModel.Display.Language switch { "fr" => LanguageFrench, "en" => LanguageEnglish, _ => LanguageAuto }).IsChecked = true;
+        (ViewModel.AppSettings.Language switch { "fr" => LanguageFrench, "en" => LanguageEnglish, _ => LanguageAuto }).IsChecked = true;
         StartWithWindowsItem.IsChecked = StartupRegistration.IsEnabled;
         PreviewKeyDown += OnPreviewKeyDown;
         KeyDown += OnKeyDown;
@@ -92,9 +92,9 @@ public sealed partial class ShellView : UserControl
     /// </summary>
     private async void Language_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not RadioMenuFlyoutItem { Tag: string language } || language == ViewModel.Display.Language) return;
-        ViewModel.Display.Language = language;
-        if (ViewModel.Display.ChosenLanguage == DyssCockpit.Core.Translation.Current) return;
+        if (sender is not RadioMenuFlyoutItem { Tag: string language } || language == ViewModel.AppSettings.Language) return;
+        ViewModel.AppSettings.Language = language;
+        if (ViewModel.AppSettings.ChosenLanguage == DyssCockpit.Core.Translation.Current) return;
         if (!await ViewModel.Hub.Dialogs.ConfirmAsync(T("Changer de langue", "Change language"),
                 T("La nouvelle langue s'applique au redémarrage de l'application. Redémarrer maintenant ?",
                   "The new language applies when the application restarts. Restart now?"))) return;
@@ -113,7 +113,7 @@ public sealed partial class ShellView : UserControl
         {
             "history" => _history,
             "schedules" => _schedules,
-            "settings" => _settings,
+            "robot-settings" => _robotSettings,
             "journal" => _journal,
             "maps" => OpenMapManager(),
             _ => _dashboard,
@@ -142,10 +142,10 @@ public sealed partial class ShellView : UserControl
 
     private void OnPaneToggleRequested(TitleBar sender, object args) => Nav.IsPaneOpen = !Nav.IsPaneOpen;
 
-    /// <summary>0 the dashboard, 1 the history (its latest clean chosen), then the schedules, the settings, the journal.</summary>
+    /// <summary>0 the dashboard, 1 the history (its latest clean chosen), then the schedules, the robot settings, the journal.</summary>
     public void SelectTab(int index)
     {
-        NavigationViewItem[] items = [DashboardItem, HistoryItem, SchedulesItem, SettingsItem, JournalItem];
+        NavigationViewItem[] items = [DashboardItem, HistoryItem, SchedulesItem, RobotSettingsItem, JournalItem];
         Nav.SelectedItem = items[Math.Clamp(index, 0, items.Length - 1)];
         if (index == 1) ViewModel.History.SelectFirstClean();
     }

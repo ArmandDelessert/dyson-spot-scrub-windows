@@ -11,7 +11,7 @@ public sealed class LanguageSwitching;
 [Collection("Language")]
 public sealed class EnglishTests : IDisposable
 {
-    private readonly string _path = Path.Combine(Path.GetTempPath(), $"dyss-display-{Guid.NewGuid():N}.json");
+    private readonly string _path = Path.Combine(Path.GetTempPath(), $"dyss-settings-{Guid.NewGuid():N}.json");
 
     public void Dispose()
     {
@@ -37,15 +37,15 @@ public sealed class EnglishTests : IDisposable
     [Fact]
     public void TheLanguageIsWindowsOwnUntilOneIsChosenThenRemembered()
     {
-        var first = DisplaySettings.Load(_path);
+        var first = AppSettings.Load(_path);
         Assert.Equal("auto", first.Language);
 
         first.Language = "en";
-        var second = DisplaySettings.Load(_path);
+        var second = AppSettings.Load(_path);
         Assert.Equal("en", second.Language);
         Assert.Equal(AppLanguage.English, second.ChosenLanguage);
 
         second.Language = "fr";
-        Assert.Equal(AppLanguage.French, DisplaySettings.Load(_path).ChosenLanguage);
+        Assert.Equal(AppLanguage.French, AppSettings.Load(_path).ChosenLanguage);
     }
 }

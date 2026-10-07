@@ -13,7 +13,7 @@ namespace DyssCockpit.Presentation.ViewModels;
 /// session; the UI dispatcher and the dialogs, both provided by the UI; the journal; the connection
 /// and busy strip; the lifetime token that stops REST calls on shutdown; and <see cref="RunAsync"/>,
 /// the one way commands reach the robot. The tab view models (<see cref="StatusViewModel"/>, <see cref="CleaningViewModel"/>,
-/// <see cref="HistoryViewModel"/>, <see cref="SettingsViewModel"/>, <see cref="JournalViewModel"/>)
+/// <see cref="HistoryViewModel"/>, <see cref="RobotSettingsViewModel"/>, <see cref="JournalViewModel"/>)
 /// each take one of these; <see cref="MainViewModel"/> owns it and wires the session into it.
 /// </summary>
 public sealed partial class RobotHub : ObservableObject, IDisposable

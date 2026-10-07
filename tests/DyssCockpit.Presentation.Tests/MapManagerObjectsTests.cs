@@ -28,13 +28,13 @@ public class MapManagerObjectsTests
     /// <summary>What the prompts answer; every test gets its own.</summary>
     private readonly FakeDialogs _dialogs = new();
 
-    private async Task<MapManagerViewModel> LoadedAsync(string map = Objects, bool active = true, DisplaySettings? display = null)
+    private async Task<MapManagerViewModel> LoadedAsync(string map = Objects, bool active = true, AppSettings? display = null)
     {
         var hub = TestHub.Create(_dialogs,
             ("persistent-map-metadata", "[" + TestHub.Map("1000000002", "Étage", isCurrent: active, ("10", "Cuisine", "kitchen")) + "]"),
             ("persistent-maps", map),
             ("live-maps/mapping", """{"dimensions":{"width":2,"height":2,"resolution":0.5,"offsetX":0,"offsetY":0},"mapData":[10,10,10,10]}"""));
-        var vm = new MapManagerViewModel(hub, display ?? new DisplaySettings());
+        var vm = new MapManagerViewModel(hub, display ?? new AppSettings());
         await vm.LoadAsync("1000000002");
         for (var i = 0; i < 100 && vm.Rooms.Count == 0; i++) await Task.Delay(10);
         return vm;
@@ -270,7 +270,7 @@ public class MapManagerObjectsTests
     [Fact]
     public async Task TheFurnitureTabShowsFurnitureEvenWhenTheDisplayHidesIt()
     {
-        var vm = await LoadedAsync(display: new DisplaySettings { ShowFurniture = false });
+        var vm = await LoadedAsync(display: new AppSettings { ShowFurniture = false });
         Assert.False(vm.Scene.ShowFurniture);
 
         vm.Layer = MapLayer.Furniture;
@@ -337,7 +337,7 @@ public class MapManagerObjectsTests
     [Fact]
     public async Task TheGridBoxDecidesForZonesAndFurnitureButACutAlwaysSnaps()
     {
-        var display = new DisplaySettings();
+        var display = new AppSettings();
         var vm = await LoadedAsync(display: display);
         Assert.True(vm.SnapToGrid);   // on unless unticked
         Assert.True(vm.GridActive);

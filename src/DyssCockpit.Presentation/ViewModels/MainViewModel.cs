@@ -11,7 +11,7 @@ namespace DyssCockpit.Presentation.ViewModels;
 /// The dashboard: connects to the robot, routes what it pushes to the tab view models, and owns
 /// the session's lifetime (refresh timer, logout, expiry, shutdown). The tabs themselves live in
 /// <see cref="StatusViewModel"/>, <see cref="CleaningViewModel"/>, <see cref="HistoryViewModel"/>,
-/// <see cref="SchedulesViewModel"/>, <see cref="SettingsViewModel"/> and
+/// <see cref="SchedulesViewModel"/>, <see cref="RobotSettingsViewModel"/> and
 /// <see cref="JournalViewModel"/>, sharing a <see cref="RobotHub"/>.
 /// </summary>
 public sealed partial class MainViewModel : ObservableObject, IDisposable
@@ -30,11 +30,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public StatusViewModel Status { get; }
     public CleaningViewModel Cleaning { get; }
     public HistoryViewModel History { get; }
-    public SettingsViewModel Settings { get; }
+    public RobotSettingsViewModel RobotSettings { get; }
     public JournalViewModel Journal { get; }
     public SchedulesViewModel Schedules { get; }
-    /// <summary>What this window draws; unlike the Réglages tab, none of it is sent to the robot.</summary>
-    public DisplaySettings Display { get; }
+    /// <summary>The application's own settings; unlike the robot settings, none of it is sent to the robot.</summary>
+    public AppSettings AppSettings { get; }
 
     public string RobotName => _ctx.Robot?.Name ?? "Robot";
     public string Serial => _ctx.Robot?.SerialNumber ?? "";
@@ -64,25 +64,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <param name="ui">The UI thread, where everything the robot pushes is applied.</param>
     /// <param name="dialogs">The questions the dashboard and the windows it opens put to the user.</param>
     /// <param name="time">The clock of the refresh timer and of every wait; the system's unless a test moves it by hand.</param>
-    /// <param name="display">The display preferences; null reads the stored ones.</param>
-    public MainViewModel(RobotContext ctx, IUiDispatcher ui, IDialogService dialogs, TimeProvider? time = null, DisplaySettings? display = null)
+    /// <param name="settings">The display preferences; null reads the stored ones.</param>
+    public MainViewModel(RobotContext ctx, IUiDispatcher ui, IDialogService dialogs, TimeProvider? time = null, AppSettings? settings = null)
     {
         _ctx = ctx;
         Hub = new RobotHub(ctx, ui, dialogs, time);
-        Display = display ?? DisplaySettings.Load();
+        AppSettings = settings ?? AppSettings.Load();
         _maps = new MapCatalog(Hub);
         Status = new StatusViewModel(Hub);
-        Cleaning = new CleaningViewModel(Hub, _maps, Display);
-        History = new HistoryViewModel(Hub, _maps, Display);
-        Settings = new SettingsViewModel(Hub);
-        Journal = new JournalViewModel(Hub, Display);
+        Cleaning = new CleaningViewModel(Hub, _maps, AppSettings);
+        History = new HistoryViewModel(Hub, _maps, AppSettings);
+        RobotSettings = new RobotSettingsViewModel(Hub);
+        Journal = new JournalViewModel(Hub, AppSettings);
         Schedules = new SchedulesViewModel(Hub, _maps, () => History.History.Select(c => c.Summary));
 
         // Both maps bake in the display preferences, so a change has to redraw them rather than
         // wait for the next robot message. (A change of theme is the map views' own business: they
         // redraw themselves in the new colours.)
         _redrawMaps = () => Hub.Post(() => { Cleaning.RebuildScene(); History.RebuildScene(); });
-        Display.Changed += _redrawMaps;
+        AppSettings.Changed += _redrawMaps;
 
         Status.PropertyChanged += (_, e) =>
         {
@@ -124,7 +124,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             session.Tracker.StateChanged += st => Hub.Post(() =>
             {
                 Status.Apply(st);
-                Settings.Apply(st);
+                RobotSettings.Apply(st);
                 Cleaning.Apply(st);
             });
             session.Tracker.JdmChanged += jdm => Hub.Post(() =>
@@ -222,7 +222,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand] private void ManageMaps() => MapManagerRequested?.Invoke();
 
     /// <summary>Builds the map manager's view model, which shares this session but keeps its own copy of the map.</summary>
-    public MapManagerViewModel CreateMapManager() => new(Hub, Display);
+    public MapManagerViewModel CreateMapManager() => new(Hub, AppSettings);
 
     /// <summary>Called once the map manager has changed something, to pick up new names and a new layout.</summary>
     public Task ReloadMapsAsync()
@@ -296,7 +296,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Releases what the dashboard owns outright; the robot context is released by <see cref="ShutdownAsync"/>.</summary>
     public void Dispose()
     {
-        Display.Changed -= _redrawMaps;
+        AppSettings.Changed -= _redrawMaps;
         Journal.Dispose();
         Cleaning.Dispose();
         Hub.Dispose();

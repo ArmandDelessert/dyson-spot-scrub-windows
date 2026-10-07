@@ -5,20 +5,20 @@ using Microsoft.UI.Xaml.Controls;
 namespace DyssCockpit.App.Views;
 
 /// <summary>The robot's settings, with the official app's wording; each one is sent as soon as it changes.</summary>
-public sealed partial class SettingsView : UserControl, INotifyPropertyChanged
+public sealed partial class RobotSettingsView : UserControl, INotifyPropertyChanged
 {
-    public SettingsView(SettingsViewModel viewModel)
+    public RobotSettingsView(RobotSettingsViewModel viewModel)
     {
         ViewModel = viewModel;
         InitializeComponent();
         // The slider works in doubles, the robot's volume in whole steps.
         viewModel.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(SettingsViewModel.Volume)) PropertyChanged?.Invoke(this, new(nameof(VolumeValue)));
+            if (e.PropertyName == nameof(RobotSettingsViewModel.Volume)) PropertyChanged?.Invoke(this, new(nameof(VolumeValue)));
         };
     }
 
-    public SettingsViewModel ViewModel { get; }
+    public RobotSettingsViewModel ViewModel { get; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

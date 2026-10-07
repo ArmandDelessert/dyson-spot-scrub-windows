@@ -18,13 +18,13 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
 {
     private readonly RobotHub _hub;
     private readonly MapCatalog _maps;
-    private readonly DisplaySettings _display;
+    private readonly AppSettings _settings;
 
-    public CleaningViewModel(RobotHub hub, MapCatalog maps, DisplaySettings display)
+    public CleaningViewModel(RobotHub hub, MapCatalog maps, AppSettings settings)
     {
         _hub = hub;
         _maps = maps;
-        _display = display;
+        _settings = settings;
         // A click on a room ticks it; on empty space it clears the ticks, or the drawn zone. While
         // a zone is being drawn, clicks pick its corners; once drawn, it can be dragged or
         // stretched from its corners like a restriction zone.
@@ -41,7 +41,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<MapItem> Maps => _maps.Maps;
     /// <summary>Exposed so the map toolbar can bind straight to it: a Popup sits outside the window's visual tree, where an ancestor lookup would find nothing.</summary>
-    public DisplaySettings Display => _display;
+    public AppSettings AppSettings => _settings;
     [ObservableProperty] private MapItem? _selectedMap;
     public ObservableCollection<ZoneItem> Zones { get; } = new();
     [ObservableProperty] private MapScene _scene = new();
@@ -250,14 +250,14 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             DirtSpots = isCurrent && !_activity.TaskOver ? _liveDirt : null,
             SelectedZoneIds = Zones.Where(z => z.Selected).Select(z => z.Id).ToHashSet(),
             ZoneOrder = Zones.Where(z => z.Selected).ToDictionary(z => z.Id, z => z.Order),
-            ShowFurniture = _display.ShowFurniture,
-            ShowTravelPath = _display.ShowTravelPath,
-            ShowCleanedArea = _display.ShowCleanedArea,
+            ShowFurniture = _settings.ShowFurniture,
+            ShowTravelPath = _settings.ShowTravelPath,
+            ShowCleanedArea = _settings.ShowCleanedArea,
             SpotZone = SpotCorners,
             RobotActivity = isCurrent ? _activity.Robot : RobotActivity.Idle,
             DockActivity = isCurrent ? _activity.Dock : DockActivity.Idle,
             RobotDocked = isCurrent && _activity.Docked,
-            SmoothRobotMotion = _display.SmoothRobotMotion,
+            SmoothRobotMotion = _settings.SmoothRobotMotion,
         };
     }
 

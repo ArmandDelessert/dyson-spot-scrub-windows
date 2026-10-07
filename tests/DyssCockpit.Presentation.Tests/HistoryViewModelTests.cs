@@ -36,7 +36,7 @@ public class HistoryViewModelTests
             ("clean-maps", OneClean));
         var maps = new MapCatalog(hub);
         _ = maps.LoadAsync();
-        return new HistoryViewModel(hub, maps, new DisplaySettings());
+        return new HistoryViewModel(hub, maps, new AppSettings());
     }
 
     [Fact]

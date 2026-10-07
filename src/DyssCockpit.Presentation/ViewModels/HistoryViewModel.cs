@@ -38,7 +38,7 @@ public sealed partial class CleanItem(CleanSummary Summary) : ObservableObject
 }
 
 /// <summary>The Historique tab: the list of past cleans and the selected one's trail on its map.</summary>
-public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, DisplaySettings display) : ObservableObject
+public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, AppSettings settings) : ObservableObject
 {
     private readonly Dictionary<string, Task<CleanDetail>> _details = new();
 
@@ -200,9 +200,9 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, Disp
             Path = _path,
             Obstacles = _obstacles,
             DirtSpots = _dirt,
-            ShowFurniture = display.ShowFurniture,
-            ShowTravelPath = display.ShowTravelPath,
-            ShowCleanedArea = display.ShowCleanedArea,
+            ShowFurniture = settings.ShowFurniture,
+            ShowTravelPath = settings.ShowTravelPath,
+            ShowCleanedArea = settings.ShowCleanedArea,
         };
     }
 

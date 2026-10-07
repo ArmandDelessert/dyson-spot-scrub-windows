@@ -11,7 +11,7 @@ public sealed class AtomicFileTests : IDisposable
     [Fact]
     public void WritesANewFileAndLeavesNothingElseBehind()
     {
-        var path = Path.Combine(_folder, "display.json");
+        var path = Path.Combine(_folder, "settings.json");
 
         AtomicFile.WriteAllText(path, """{"ShowFurniture":false}""");
 
@@ -35,7 +35,7 @@ public sealed class AtomicFileTests : IDisposable
     public void TextIsWrittenAsUtf8WithoutAByteOrderMark()
     {
         // What File.WriteAllText wrote before, and what the readers expect.
-        var path = Path.Combine(_folder, "display.json");
+        var path = Path.Combine(_folder, "settings.json");
 
         AtomicFile.WriteAllText(path, "Pièce");
 
@@ -46,7 +46,7 @@ public sealed class AtomicFileTests : IDisposable
     public void AFailedReplacementLeavesTheTargetAsItWasAndNoTemporaryFile()
     {
         // A folder where the file should be: the final move cannot happen.
-        var path = Path.Combine(_folder, "display.json");
+        var path = Path.Combine(_folder, "settings.json");
         Directory.CreateDirectory(path);
         File.WriteAllText(Path.Combine(path, "inside.txt"), "untouched");
 

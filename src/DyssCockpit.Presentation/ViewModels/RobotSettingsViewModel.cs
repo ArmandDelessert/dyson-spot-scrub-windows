@@ -10,11 +10,11 @@ public sealed record BackWashOption(string Key, string Label, string? Descriptio
 public sealed record DryOption(int Hours, string Label, string Description);
 
 /// <summary>
-/// The Réglages tab, with the official app's wording. Each control writes to the robot as soon as
+/// The robot settings page (Réglages du robot), with the official app's wording. Each control writes to the robot as soon as
 /// the user changes it; values the robot pushes back through <see cref="Apply"/> must not trigger
 /// that write again, hence <see cref="_applyingState"/>.
 /// </summary>
-public sealed partial class SettingsViewModel(RobotHub hub) : ObservableObject
+public sealed partial class RobotSettingsViewModel(RobotHub hub) : ObservableObject
 {
     private bool _applyingState;
 

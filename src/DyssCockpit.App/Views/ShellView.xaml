@@ -17,7 +17,7 @@
             <NavigationViewItem x:Name="SchedulesItem" Content='{local:Tr Fr="Horaires", En="Schedules"}' Tag="schedules">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE787;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="SettingsItem" Content='{local:Tr Fr="Réglages du robot", En="Robot settings"}' Tag="settings">
+            <NavigationViewItem x:Name="RobotSettingsItem" Content='{local:Tr Fr="Réglages du robot", En="Robot settings"}' Tag="robot-settings">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="JournalItem" Content='{local:Tr Fr="Journal", En="Log"}' Tag="journal">
@@ -75,7 +75,7 @@
                             <AppBarButton.Icon><FontIcon Glyph="&#xE713;"/></AppBarButton.Icon>
                             <AppBarButton.Flyout>
                                 <MenuFlyout>
-                                    <ToggleMenuFlyoutItem IsChecked="{x:Bind ViewModel.Display.CloseToTray, Mode=TwoWay}"
+                                    <ToggleMenuFlyoutItem IsChecked="{x:Bind ViewModel.AppSettings.CloseToTray, Mode=TwoWay}"
                                                           Text='{local:Tr Fr="Fermer la fenêtre garde l&apos;application dans la zone de notification", En="Closing the window keeps the application in the notification area"}'/>
                                     <ToggleMenuFlyoutItem x:Name="StartWithWindowsItem" Click="StartWithWindows_Click"
                                                           Text='{local:Tr Fr="Démarrer avec Windows, dans la zone de notification", En="Start with Windows, in the notification area"}'/>

@@ -97,7 +97,7 @@ Le menu « Options » de l'en-tête règle ce comportement (la fermeture de la f
 
 L'exécutable n'est pas signé : au premier lancement, Windows SmartScreen demande une confirmation (« Informations complémentaires », puis « Exécuter quand même »).
 
-La session (chiffrée pour le compte Windows), les préférences, le journal (`journal-AAAA-MM-JJ.log`, un fichier par jour gardé une semaine) et, si l'option est active, l'enregistrement des messages (dossier `messages`) sont dans `%LOCALAPPDATA%\DySS Cockpit`. Aucune donnée n'est envoyée ailleurs qu'au cloud Dyson.
+La session (chiffrée pour le compte Windows), les préférences de l'application (`settings.json`), le journal (`journal-AAAA-MM-JJ.log`, un fichier par jour gardé une semaine) et, si l'option est active, l'enregistrement des messages (dossier `messages`) sont dans `%LOCALAPPDATA%\DySS Cockpit`. Aucune donnée n'est envoyée ailleurs qu'au cloud Dyson.
 
 Configuration requise : Windows 10 version 2004 (build 19041) ou ultérieure, ou Windows 11, et un robot Dyson Spot+Scrub AI connecté à Internet.
 
@@ -205,7 +205,7 @@ DyssCockpit.exe --screenshot connexion.png --after 3 --login
 DyssCockpit.exe --screenshot dashboard.png --after 15 --lang en
 ```
 
-`--tab` choisit la page (`0` tableau de bord, `1` historique, `2` horaires, `3` réglages, `4` journal). `--manage-maps` photographie la gestion des cartes (onglet `--layer 0` à `2`, carte `--map-id`). `--login` montre la connexion sans toucher à la session enregistrée. `--lang fr` ou `--lang en` impose la langue, sans changer celle choisie. `--export-icon` régénère l'icône à partir du dessin du robot, et avec `--alert` celle de la zone de notification à pastille rouge ; [assets/logo.svg](assets/logo.svg) en est la version vectorielle.
+`--tab` choisit la page (`0` tableau de bord, `1` historique, `2` horaires, `3` réglages du robot, `4` journal). `--manage-maps` photographie la gestion des cartes (onglet `--layer 0` à `2`, carte `--map-id`). `--login` montre la connexion sans toucher à la session enregistrée. `--lang fr` ou `--lang en` impose la langue, sans changer celle choisie. `--export-icon` régénère l'icône à partir du dessin du robot, et avec `--alert` celle de la zone de notification à pastille rouge ; [assets/logo.svg](assets/logo.svg) en est la version vectorielle.
 
 Ces options tournent à côté de l'application si elle est ouverte, sans passer par l'instance unique. Une capture lit les préférences sans jamais les écrire et n'enregistre pas les messages. Hors diagnostic, `--minimized` démarre l'application directement dans la zone de notification : c'est l'option qu'utilise le démarrage avec Windows.
 

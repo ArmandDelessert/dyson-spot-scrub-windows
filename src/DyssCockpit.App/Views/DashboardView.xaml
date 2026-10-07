@@ -199,12 +199,12 @@
                             <DropDownButton.Flyout>
                                 <Flyout Placement="BottomEdgeAlignedRight">
                                     <StackPanel MaxWidth="300">
-                                        <CheckBox IsChecked="{x:Bind ViewModel.Display.ShowFurniture, Mode=TwoWay}" Content='{local:Tr Fr="Afficher les meubles", En="Show furniture"}'/>
-                                        <CheckBox IsChecked="{x:Bind ViewModel.Display.ShowTravelPath, Mode=TwoWay}" Content='{local:Tr Fr="Afficher les déplacements sans nettoyage", En="Show travel without cleaning"}'/>
-                                        <CheckBox IsChecked="{x:Bind ViewModel.Display.ShowCleanedArea, Mode=TwoWay}" Content='{local:Tr Fr="Afficher la surface nettoyée", En="Show the cleaned area"}'
+                                        <CheckBox IsChecked="{x:Bind ViewModel.AppSettings.ShowFurniture, Mode=TwoWay}" Content='{local:Tr Fr="Afficher les meubles", En="Show furniture"}'/>
+                                        <CheckBox IsChecked="{x:Bind ViewModel.AppSettings.ShowTravelPath, Mode=TwoWay}" Content='{local:Tr Fr="Afficher les déplacements sans nettoyage", En="Show travel without cleaning"}'/>
+                                        <CheckBox IsChecked="{x:Bind ViewModel.AppSettings.ShowCleanedArea, Mode=TwoWay}" Content='{local:Tr Fr="Afficher la surface nettoyée", En="Show the cleaned area"}'
                                                   ToolTipService.ToolTip='{local:Tr Fr="Élargit le trajet à la largeur du robot, là où il a nettoyé.", En="Widens the path to the robot&apos;s width where it cleaned."}'/>
-                                        <CheckBox IsChecked="{x:Bind ViewModel.Display.ShowExportButton, Mode=TwoWay}" Content='{local:Tr Fr="Afficher le bouton d&apos;export PNG", En="Show the PNG export button"}'/>
-                                        <CheckBox IsChecked="{x:Bind ViewModel.Display.SmoothRobotMotion, Mode=TwoWay}" Content='{local:Tr Fr="Lisser les déplacements du robot", En="Smooth the robot&apos;s movements"}'
+                                        <CheckBox IsChecked="{x:Bind ViewModel.AppSettings.ShowExportButton, Mode=TwoWay}" Content='{local:Tr Fr="Afficher le bouton d&apos;export PNG", En="Show the PNG export button"}'/>
+                                        <CheckBox IsChecked="{x:Bind ViewModel.AppSettings.SmoothRobotMotion, Mode=TwoWay}" Content='{local:Tr Fr="Lisser les déplacements du robot", En="Smooth the robot&apos;s movements"}'
                                                   ToolTipService.ToolTip='{local:Tr Fr="Le robot glisse d&apos;une position à la suivante au lieu de sauter, avec un léger retard.", En="The robot glides from one position to the next instead of jumping, with a slight delay."}'/>
                                         <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0"
                                                    Text='{local:Tr Fr="Ces réglages ne concernent que cet affichage : rien n&apos;est envoyé au robot.", En="These settings only affect this display: nothing is sent to the robot."}'/>
@@ -214,7 +214,7 @@
                         </DropDownButton>
                         <Button Content='{local:Tr Fr="Réinitialiser le zoom", En="Reset zoom"}' Click="ResetZoom_Click"/>
                         <Button Content='{local:Tr Fr="Exporter en PNG", En="Export as PNG"}' Command="{x:Bind ViewModel.Cleaning.ExportMapCommand}"
-                                Visibility="{x:Bind ViewModel.Display.ShowExportButton, Mode=OneWay}"/>
+                                Visibility="{x:Bind ViewModel.AppSettings.ShowExportButton, Mode=OneWay}"/>
                     </StackPanel>
                 </Grid>
                 <controls:MapView x:Name="MapCanvas" Grid.Row="1" Interaction="{x:Bind ViewModel.Cleaning.Canvas}"

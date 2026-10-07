@@ -6,14 +6,15 @@ using DyssCockpit.Core;
 namespace DyssCockpit.Presentation.Services;
 
 /// <summary>
-/// What this window draws, as opposed to what the robot does: preferences that belong to the
-/// installation, not to the account. Kept apart from the Réglages tab on purpose — everything
-/// there is sent to the robot and visible from the phone app, whereas nothing here leaves this
-/// machine. Stored in clear next to the session, since none of it is sensitive.
+/// The application's own settings, as opposed to the robot's: preferences that belong to the
+/// installation, not to the account — what the map draws, the language, what the window does when
+/// it is closed. Kept apart from the robot settings on purpose: everything on that page is sent to
+/// the robot and visible from the phone app, whereas nothing here leaves this machine. Stored in
+/// clear as settings.json next to the session, since none of it is sensitive.
 /// </summary>
-public sealed partial class DisplaySettings : ObservableObject
+public sealed partial class AppSettings : ObservableObject
 {
-    private static string DefaultPath => Path.Combine(SessionStore.Directory, "display.json");
+    private static string DefaultPath => Path.Combine(SessionStore.Directory, "settings.json");
 
     /// <summary>Where <see cref="Save"/> writes. Null on a plain instance, which then only lives for the run — that is what tests use.</summary>
     private string? _path;
@@ -83,9 +84,9 @@ public sealed partial class DisplaySettings : ObservableObject
     /// Reads the stored preferences, falling back to the defaults for anything missing or
     /// unreadable, and remembers changes from then on. <paramref name="path"/> is for tests.
     /// </summary>
-    public static DisplaySettings Load(string? path = null)
+    public static AppSettings Load(string? path = null)
     {
-        var settings = new DisplaySettings { _path = path ?? DefaultPath };
+        var settings = new AppSettings { _path = path ?? DefaultPath };
         try
         {
             if (File.Exists(settings._path) && JsonSerializer.Deserialize<Stored>(File.ReadAllText(settings._path)) is { } s)
@@ -117,7 +118,7 @@ public sealed partial class DisplaySettings : ObservableObject
     /// and messages are not recorded, since both processes would write the same daily file and the
     /// one that fails would turn recording off for good.
     /// </summary>
-    public static DisplaySettings LoadReadOnly(string? path = null)
+    public static AppSettings LoadReadOnly(string? path = null)
     {
         var settings = Load(path);
         settings._path = null;

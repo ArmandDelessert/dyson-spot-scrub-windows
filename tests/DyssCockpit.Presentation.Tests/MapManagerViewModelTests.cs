@@ -32,7 +32,7 @@ public class MapManagerViewModelTests
                 + TestHub.Map("1000000003", "Rez", isCurrent: false, ("20", "Salon", "livingRoom")) + "]"),
             ("persistent-maps", Rooms),
             ("live-maps/mapping", """{"dimensions":{"width":2,"height":2,"resolution":0.5,"offsetX":0,"offsetY":0},"mapData":[10,10,11,11]}"""));
-        return new MapManagerViewModel(hub, new DisplaySettings());
+        return new MapManagerViewModel(hub, new AppSettings());
     }
 
     private async Task<MapManagerViewModel> LoadedAsync(bool firstIsActive = true)
@@ -70,7 +70,7 @@ public class MapManagerViewModelTests
                 + TestHub.Map("2", "Milieu", isCurrent: true, ("10", "Cuisine", "kitchen")) + "]"),
             ("persistent-maps", Rooms),
             ("live-maps/mapping", """{"dimensions":{"width":2,"height":2,"resolution":0.5,"offsetX":0,"offsetY":0},"mapData":[10,10,11,11]}"""));
-        var vm = new MapManagerViewModel(hub, new DisplaySettings());
+        var vm = new MapManagerViewModel(hub, new AppSettings());
 
         await vm.LoadAsync();
 

@@ -15,7 +15,7 @@ namespace DyssCockpit.Presentation.ViewModels;
 /// <see cref="MessageLog"/>), for finding what the tracker doesn't know yet. The tick is kept
 /// from one run to the next.
 /// </summary>
-public sealed partial class JournalViewModel(RobotHub hub, DisplaySettings settings, MessageLog? log = null) : ObservableObject, IDisposable
+public sealed partial class JournalViewModel(RobotHub hub, AppSettings settings, MessageLog? log = null) : ObservableObject, IDisposable
 {
     private readonly MessageLog _log = log ?? new MessageLog();
 
