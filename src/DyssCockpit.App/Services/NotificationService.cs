@@ -12,6 +12,12 @@ namespace DyssCockpit.App.Services;
 /// </summary>
 internal sealed partial class NotificationService : IDisposable
 {
+    /// <summary>What Windows shows above each notification, and names this application's entry in its notification settings.</summary>
+    private const string AppName = "DySS Cockpit";
+
+    /// <summary>The application's icon, shown beside each notification.</summary>
+    private static string IconPath => Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
+
     private readonly bool _registered;
     private Action? _onClick;
 
@@ -22,7 +28,12 @@ internal sealed partial class NotificationService : IDisposable
             var manager = AppNotificationManager.Default;
             // Raised on a background thread; subscribed before registering, as the SDK requires.
             manager.NotificationInvoked += (_, _) => ui.TryEnqueue(() => _onClick?.Invoke());
-            manager.Register();
+            // Registered with a name and an icon of its own: without them Windows names the
+            // notifications after the executable (DyssCockpit) and draws its icon from the file.
+            // It takes both from here at the first notification sent from a folder and keeps
+            // them (an .ico is accepted): changing them later shows up from another folder, or
+            // once the folder's entries under HKCU\Software\Classes\AppUserModelId are removed.
+            manager.Register(AppName, new Uri(IconPath));
             _registered = true;
         }
         catch (Exception ex)
