@@ -45,7 +45,7 @@ public sealed partial class ShellView : UserControl
         _history = new HistoryView(ViewModel.History);
         _schedules = new SchedulesView(ViewModel.Schedules);
         _robotSettings = new RobotSettingsView(ViewModel.RobotSettings);
-        _settings = new SettingsView(new SettingsViewModel(ViewModel.AppSettings, shell, ViewModel.Hub.Dialogs));
+        _settings = new SettingsView(new SettingsViewModel(ViewModel.AppSettings, shell, ViewModel.Hub.Dialogs, logout: ViewModel.LogoutCommand, accountEmail: ViewModel.AccountEmail));
         _journal = new JournalView(ViewModel.Journal);
 
         ViewModel.LoggedOut += () =>

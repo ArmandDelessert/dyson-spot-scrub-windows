@@ -79,7 +79,7 @@ Les tracés peuvent se caler sur la grille de 5 cm du robot.
 ### Réglages du robot, paramètres et journal
 
 - **Réglages du robot**, avec les libellés de l'application Android : lavage, station, voix. Chacun part au robot dès qu'on le change.
-- **Paramètres** de l'application, propres à cet ordinateur (rien n'est envoyé au robot) : les notifications (aucune, fin de nettoyage seulement ou début et fin ; zone inaccessible ; un bouton de test), le comportement (rester dans la zone de notification à la fermeture de la fenêtre, démarrer avec Windows), la langue (automatique, français ou anglais, avec un bouton pour redémarrer), l'affichage de la carte, et la version avec un accès au dossier des fichiers de l'application.
+- **Paramètres** de l'application, propres à cet ordinateur (rien n'est envoyé au robot) : les notifications (aucune, fin de nettoyage seulement ou début et fin ; zone inaccessible ; un bouton de test), le comportement (rester dans la zone de notification à la fermeture de la fenêtre, démarrer avec Windows), la langue (automatique, français ou anglais, avec un bouton pour redémarrer), l'affichage de la carte, la durée de conservation des journaux et des messages enregistrés, le compte MyDyson (c'est là que se trouve « Se déconnecter », que l'on utilise rarement), et la version, suivie du numéro de commit dont elle est issue, avec un accès au dossier des journaux.
 - **Journal** des événements du robot et des commandes envoyées. Une option enregistre aussi tous les messages échangés avec le robot, un fichier par jour (dossier `Messages`), pour l'analyse du protocole.
 
 La connexion se rétablit seule après une coupure de réseau ou une mise en veille. Lancée hors ligne, l'application attend le retour du réseau.

@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Windows.Input;
 using System.Runtime.CompilerServices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -29,13 +30,18 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly bool _initialized;
 
     /// <param name="running">The language the application is running in; null for the one it was started in.</param>
-    public SettingsViewModel(AppSettings settings, IAppShell shell, IDialogService dialogs, AppLanguage? running = null)
+    /// <param name="logout">What the "Se déconnecter" button does: the dashboard's own, which asks first. Nothing when null.</param>
+    /// <param name="accountEmail">The account the application is signed in to, shown above that button.</param>
+    public SettingsViewModel(AppSettings settings, IAppShell shell, IDialogService dialogs, AppLanguage? running = null,
+        ICommand? logout = null, string accountEmail = "")
     {
+        LogoutCommand = logout ?? new RelayCommand(() => { });
+        AccountText = string.IsNullOrEmpty(accountEmail) ? "" : T($"Connecté avec {accountEmail}", $"Signed in as {accountEmail}");
         _running = running ?? Translation.Current;
         _settings = settings;
         _shell = shell;
         _dialogs = dialogs;
-        VersionText = $"DySS Cockpit {VersionOf(Assembly.GetExecutingAssembly())}";
+        VersionText = VersionTextOf(Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
         LanguageIndex = Math.Max(0, Array.IndexOf(Languages, settings.Language));
         TaskNotificationsIndex = Math.Max(0, Array.IndexOf(TaskNotificationModes, settings.TaskNotifications));
         LogRetentionIndex = Math.Max(0, AppSettings.RetentionChoices.IndexOf(settings.LogRetentionDays));
@@ -52,6 +58,21 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public static string VersionOf(string? informationalVersion) =>
         string.IsNullOrWhiteSpace(informationalVersion) ? "?" : informationalVersion.Split('+')[0];
+
+    /// <summary>The first characters of the commit the build was made from, which the build puts after a "+"; null when it says none.</summary>
+    public static string? CommitOf(string? informationalVersion)
+    {
+        var parts = informationalVersion?.Split('+', 2);
+        return parts is { Length: 2 } && parts[1].Trim() is { Length: > 0 } commit ? commit[..Math.Min(7, commit.Length)] : null;
+    }
+
+    /// <summary>
+    /// "DySS Cockpit 0.1.0 (a1b2c3d)": the version, then the commit it was built from. The commit is
+    /// always given rather than only for builds numbered 0.x: it is what tells apart two builds of
+    /// the same development version, and costs a release nothing.
+    /// </summary>
+    public static string VersionTextOf(string? informationalVersion) =>
+        $"DySS Cockpit {VersionOf(informationalVersion)}" + (CommitOf(informationalVersion) is { } commit ? $" ({commit})" : "");
 
     // ----- Notifications -----
 
@@ -183,6 +204,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     // ----- About -----
 
     public string VersionText { get; }
+
+    // ----- Account -----
+
+    /// <summary>"Connecté avec …" and the e-mail of the account; empty when it is not known.</summary>
+    public string AccountText { get; }
+
+    /// <summary>Signs out of the MyDyson account, after asking: the dashboard's own command, which then leaves for the login.</summary>
+    public ICommand LogoutCommand { get; }
 
     [RelayCommand]
     private void OpenLogsFolder() => _shell.OpenLogsFolder();

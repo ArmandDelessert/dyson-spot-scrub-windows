@@ -98,7 +98,10 @@
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Text='{local:Tr Fr="Afficher les déplacements sans nettoyage", En="Show travel without cleaning"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Afficher les déplacements sans nettoyage", En="Show travel without cleaning"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Ajoute au trajet les parcours où le robot se déplace sans nettoyer, par exemple pour se repositionner.", En="Adds to the path the stretches where the robot moves without cleaning, for instance to reposition itself."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                        </StackPanel>
                         <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowTravelPath, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
                                       AutomationProperties.Name='{local:Tr Fr="Afficher les déplacements sans nettoyage", En="Show travel without cleaning"}'/>
                     </Grid>
@@ -169,6 +172,19 @@
                         </ComboBox>                    </Grid>
                 </StackPanel>
             </Border>
+            <!-- Account -->
+            <TextBlock Text='{local:Tr Fr="Compte", En="Account"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <Border Style="{StaticResource Card}">
+                <Grid Style="{StaticResource Setting}">
+                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text='{local:Tr Fr="Compte MyDyson", En="MyDyson account"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                        <TextBlock Text="{x:Bind ViewModel.AccountText}" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Content='{local:Tr Fr="Se déconnecter", En="Log out"}' Command="{x:Bind ViewModel.LogoutCommand}" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
             <!-- About -->
             <TextBlock Text='{local:Tr Fr="À propos", En="About"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">

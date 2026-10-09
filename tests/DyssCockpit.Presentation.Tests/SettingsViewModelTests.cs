@@ -273,6 +273,25 @@ public sealed class SettingsViewModelTests : IDisposable
     public void TheVersionIsWhatTheBuildCarriesWithoutTheCommit(string? informational, string expected) =>
         Assert.Equal(expected, SettingsViewModel.VersionOf(informational));
 
+    [Theory]
+    [InlineData("0.0.0-dev+ada1ea8dc42b3bfa43d6e11107dbccf81928f8bf", "ada1ea8")]
+    [InlineData("1.2.3+0123abc", "0123abc")]
+    [InlineData("1.2.3+abc", "abc")]
+    [InlineData("1.2.3", null)]
+    [InlineData("1.2.3+", null)]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public void TheCommitIsTheFirstSevenCharactersAfterThePlus(string? informational, string? expected) =>
+        Assert.Equal(expected, SettingsViewModel.CommitOf(informational));
+
+    [Theory]
+    [InlineData("0.0.0-dev+ada1ea8dc42b3bfa43d6e11107dbccf81928f8bf", "DySS Cockpit 0.0.0-dev (ada1ea8)")]
+    [InlineData("0.1.0-beta.1+0123abcdef", "DySS Cockpit 0.1.0-beta.1 (0123abc)")]
+    [InlineData("1.0.0", "DySS Cockpit 1.0.0")]
+    [InlineData(null, "DySS Cockpit ?")]
+    public void TheVersionLineGivesTheVersionThenItsCommitWhenThereIsOne(string? informational, string expected) =>
+        Assert.Equal(expected, SettingsViewModel.VersionTextOf(informational));
+
     [Fact]
     public void TheAboutLineNamesTheApplicationAndItsVersion()
     {
@@ -280,5 +299,28 @@ public sealed class SettingsViewModelTests : IDisposable
 
         Assert.StartsWith("DySS Cockpit ", vm.VersionText, StringComparison.Ordinal);
         Assert.DoesNotContain('+', vm.VersionText);
+    }
+
+    [Fact]
+    public void TheLogoutButtonRunsTheDashboardsOwnCommandAndTheAccountIsNamedAboveIt()
+    {
+        var logouts = 0;
+        var vm = new SettingsViewModel(AppSettings.Load(_path), new FakeShell(), new FakeDialogs(), AppLanguage.French,
+            logout: new CommunityToolkit.Mvvm.Input.RelayCommand(() => logouts++), accountEmail: "someone@example.invalid");
+
+        vm.LogoutCommand.Execute(null);
+
+        Assert.Equal(1, logouts);
+        Assert.Equal("Connecté avec someone@example.invalid", vm.AccountText);
+    }
+
+    [Fact]
+    public void WithoutAnAccountTheButtonDoesNothingAndNothingIsSaid()
+    {
+        var (vm, _, _, _) = New();
+
+        vm.LogoutCommand.Execute(null);
+
+        Assert.Equal("", vm.AccountText);
     }
 }

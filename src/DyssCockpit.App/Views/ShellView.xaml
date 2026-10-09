@@ -64,9 +64,7 @@
                         <AppBarButton Label='{local:Tr Fr="Actualiser", En="Refresh"}' Command="{x:Bind ViewModel.RefreshCommand}">
                             <AppBarButton.Icon><FontIcon Glyph="&#xE72C;"/></AppBarButton.Icon>
                         </AppBarButton>
-                        <AppBarButton Label='{local:Tr Fr="Se déconnecter", En="Log out"}' Command="{x:Bind ViewModel.LogoutCommand}">
-                            <AppBarButton.Icon><FontIcon Glyph="&#xF3B1;"/></AppBarButton.Icon>
-                        </AppBarButton>
+
                         <AppBarButton Label='{local:Tr Fr="Quitter", En="Quit"}' Click="Quit_Click"
                                       ToolTipService.ToolTip='{local:Tr Fr="Quitter DySS Cockpit", En="Quit DySS Cockpit"}'>
                             <AppBarButton.Icon><FontIcon Glyph="&#xE7E8;"/></AppBarButton.Icon>
