@@ -2,8 +2,50 @@
 
 Ce document décrit comment l'application Android MyDyson dialogue avec le robot Dyson Spot+Scrub AI (nom interne RB05), tel que DySS Cockpit le reproduit. Il est établi à partir de captures MQTT réelles prises du 19 septembre au 1er octobre 2026 et de la décompilation de l'APK MyDyson 6.4.26360, sur un robot au firmware `RB05PR.01.000.0436`, région `eu-west-1`. Dans les exemples, le numéro de série est remplacé par `SERIAL` et les identifiants de carte par `1000000001`, `1000000002`…
 
+## Key findings
+
+*For readers who do not read French: the rest of this document is in French, but its JSON payloads and tables read without translation. Summary of what the captures show.*
+
+**Architecture**
+
+- There is no local network service. Everything goes through the cloud: the REST API of the mobile app (`appapi.cp.dyson.com`) for login, devices, maps and schedules, and AWS IoT over MQTT for the live state and the commands (topics `RB05/{serial}/status`, `status/jdm`, `command`, `command/jdm`).
+- Logging in takes the account email, the password and a one-time code sent by email. The provisioning call must come first, and request bodies are case-sensitive (`{"Serial": …}`, not `{"serial": …}`).
+- The AWS IoT credentials are short-lived, but they come in clear text in API responses. Captures contain the serial number and the map and room names: scrub them before sharing.
+
+**The transport matters as much as the credentials**
+
+- The custom-authorizer token of the IoT credentials only gives full rights when it is the MQTT username on a direct TLS connection to port 443 with ALPN `mqtt`, which is what the official app does.
+- Given in the query string of an MQTT-over-WebSocket URL, the same token can subscribe but not publish; a SigV4-presigned WebSocket can only connect.
+- The certificate revocation check has to be disabled (its server is unreachable from some networks); the certificate itself is still validated.
+- Subscribing to `+/{serial}/#` also captures the commands sent by the official app, which makes it a good way to learn the protocol.
+
+**Two dialects on the same topics**
+
+- The classic dialect uses a `msg` field; the newer one, `jdm`, is JSON-RPC with a `method` field. The phone's code contains no jdm method name: it calls the REST API and the cloud relays the request to the robot.
+- In a jdm answer, `data.result` (0 or 1) is the verdict; the `code` of the envelope is not reliable.
+- The robot does not push everything: the state is polled with `REQUEST-CURRENT-STATE` every 30 s plus a `prop.get` of 42 properties. A few values (`work_time`, `back_to_wash`) are pushed, but can also be asked for.
+
+**Cleaning**
+
+- Starting a cleaning is a sequence: `set_preference`, `START`, `set_cur_map`, `set_room_clean`. A pause is `ctrl_value` 2; an abort must carry the current state.
+- The record of a cleaning (`clean_finish`, `clean_record`) arrives minutes after the cleaning ends, after the last wash. `record_task_status` tells how it ended: 1 done, 2 stopped by the user, 4 aborted by the robot.
+- The path of the robot is streamed in batches of a flat array (`cur_path`) with an `update` flag.
+
+**Maps**
+
+- The occupancy grid has 5 cm cells, and the cell values encode the rooms. The rotation of a map is set through the REST API (`PUT` of `orientation`).
+- `delete_room` is relayed by the cloud but refused by the robot. Only the active map can safely be edited.
+
+**Schedules and time zone**
+
+- The schedules are held by the robot; the detail is read from the REST API (`unifiedscheduler/{serial}/events?productType=804`). The days are a bitmask with Monday = 1, while the REST API numbers Sunday as 0.
+- On firmware `RB05PR.01.000.0436`, the robot fires its schedules at Beijing time (UTC+8) and refuses a time zone change (result 1 in jdm, HTTP 424 in REST).
+
+These observations were made between 19 September and 1 October 2026, on one robot in region `eu-west-1`. They may change with a firmware or app update.
+
 ## Sommaire
 
+- [Key findings](#key-findings)
 - [Vue d'ensemble](#vue-densemble)
 - [Connexion](#connexion)
 - [Dialecte classique](#dialecte-classique)

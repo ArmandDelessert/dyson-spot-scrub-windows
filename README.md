@@ -20,7 +20,7 @@ Le robot sur le site de Dyson : [présentation](https://www.dyson.ch/fr_ch/aspir
 
 - **Install**: download the zip of the [latest release](https://github.com/ArmandDelessert/dyson-spot-scrub-windows/releases/latest) for x64 or ARM64, unzip it and run `DyssCockpit.exe` (not signed: SmartScreen asks once). Sign in with your MyDyson account (email, password, then a one-time code). Requires Windows 10 version 2004 or later, or Windows 11.
 - **Unofficial**: the API was reverse-engineered from the Android app, for interoperability, and may change at any time. Use at your own risk. Not affiliated with, endorsed or supported by Dyson.
-- **For developers**: the protocol is documented in [docs/protocole.md](docs/protocole.md), in French; its JSON payloads and tables read without translation. The key finding: the custom-authorizer token of `POST /v2/authorize/iot-credentials` only allows publishing commands when it is given as the MQTT username, on a direct TLS connection to port 443 with ALPN `mqtt`, the official app's transport. Over MQTT on WebSocket, the same token can subscribe but not publish (see [Comment ça marche](#comment-ça-marche)).
+- **For developers**: the protocol is documented in [docs/protocole.md](docs/protocole.md), in French; its JSON payloads and tables read without translation, and it opens with an English [summary of the key findings](docs/protocole.md#key-findings). The main one: the custom-authorizer token of `POST /v2/authorize/iot-credentials` only allows publishing commands when it is given as the MQTT username, on a direct TLS connection to port 443 with ALPN `mqtt`, the official app's transport. Over MQTT on WebSocket, the same token can subscribe but not publish (see [Comment ça marche](#comment-ça-marche)).
 - **License**: [MIT](LICENSE).
 
 ## Sommaire
@@ -96,6 +96,8 @@ La page « Paramètres » règle ce comportement (la fermeture de la fenêtre pe
 1. Télécharger le zip de la [dernière version](https://github.com/ArmandDelessert/dyson-spot-scrub-windows/releases/latest), pour processeur x64 ou ARM64.
 2. Le décompresser et lancer `DyssCockpit.exe`, dans le dossier. Rien d'autre à installer : .NET et le Windows App SDK sont embarqués.
 3. Se connecter avec son compte MyDyson (e-mail, mot de passe, puis code reçu par e-mail). Le robot doit déjà être enregistré dans l'application mobile.
+
+Pour essayer le dernier commit de `main`, avant toute version, il y a la pré-version [`dev`](https://github.com/ArmandDelessert/dyson-spot-scrub-windows/releases/tag/dev).
 
 L'exécutable n'est pas signé : au premier lancement, Windows SmartScreen demande une confirmation (« Informations complémentaires », puis « Exécuter quand même »).
 
@@ -215,7 +217,8 @@ Ces options tournent à côté de l'application si elle est ouverte, sans passer
 
 - `global.json` épingle le SDK. `Directory.Build.props` active les analyseurs .NET et traite tout avertissement comme une erreur ; il porte aussi le nom du produit et la version. `Directory.Packages.props` centralise les versions des paquets.
 - `.github/workflows/ci.yml` compile et lance les tests à chaque push, sur toutes les branches.
-- `.github/workflows/release.yml` publie une version à chaque tag.
+- `.github/workflows/release.yml` publie une version à chaque tag, et la pré-version `dev` à chaque push sur `main`.
+- `.github/dependabot.yml` propose chaque semaine, sous forme de pull requests, les mises à jour des paquets NuGet et des actions GitHub.
 - Chaque texte de l'interface est écrit une seule fois avec ses deux langues côte à côte : `T("Tableau de bord", "Dashboard")` en C#, `{local:Tr Fr="Tableau de bord", En="Dashboard"}` en XAML, l'attribut étant alors entre apostrophes et une apostrophe du texte s'écrivant `&apos;`. La ligne de commande reste en français.
 
 ### Publier une version
@@ -226,6 +229,10 @@ Le numéro de version vient du tag Git. Pousser un tag `vX.Y.Z` (ou `vX.Y.Z-beta
 git tag v1.0.0
 git push origin v1.0.0
 ```
+
+Chaque push sur `main` publie aussi la release `dev`, une pré-version qui est remplacée à chaque fois : elle contient les zips du dernier commit de `main`, sous la version `0.0.0-dev.N` (N est le numéro de l'exécution). Elle n'est jamais la « dernière version » du lien d'installation, qui reste la dernière release d'un tag. Les changements de documentation seulement ne la déclenchent pas.
+
+Le workflow peut aussi être lancé à la main (Actions, « Release », « Run workflow ») : il compile, teste et publie, mais garde les zips en artefact de l'exécution au lieu de créer une release, ce qui permet de l'essayer sans rien publier.
 
 Une compilation locale porte la version `0.0.0-dev`.
 

@@ -1,14 +1,34 @@
 name: Release
 
-# Pushing a tag v1.2.3 builds that version, runs the tests, and publishes a GitHub release with the
-# application for x64 and ARM64: a self-contained folder each, zipped, carrying .NET and the
-# Windows App SDK, with nothing to install. A tag with a suffix (v1.2.3-beta.1) gives a pre-release.
+# Builds the application for x64 and ARM64, each a self-contained folder (it carries .NET and the
+# Windows App SDK, nothing to install) in a zip with its SHA-256 checksum, in three ways:
+#  - pushing a tag v1.2.3 publishes that version as a GitHub release; a suffix (v1.2.3-beta.1) makes it a pre-release;
+#  - every push to main replaces the "dev" pre-release with a build of that commit (version 0.0.0-dev.N), so
+#    there is always a download that matches main. It leaves "latest release" to the last tagged version;
+#  - "Run workflow", on any branch, builds the same zips and keeps them as a workflow artifact only: a way to
+#    check this file, or to try a branch, without publishing anything.
 on:
   push:
     tags: ['v*']
+    branches: [main]
+    # Branch pushes only (tags ignore path filters): a change that leaves the application as it was is no new build.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'assets/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.github/dependabot.yml'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write   # to create the release
+
+# A newer push to main replaces a build still running; a tag, or a manual run, is never cancelled.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
 
 jobs:
   release:
@@ -21,15 +41,25 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Version from the tag
+      - name: Version
         id: version
         shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
-          $tag = '${{ github.ref_name }}'
-          $m = [regex]::Match($tag, '^v(\d+\.\d+\.\d+)(-[0-9A-Za-z.-]+)?$')
-          if (-not $m.Success) { throw "Tag « $tag » : attendu vX.Y.Z ou vX.Y.Z-suffixe." }
-          "version=$($tag.Substring(1))" >> $env:GITHUB_OUTPUT
-          "prerelease=$($m.Groups[2].Success.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          if ($env:REF_TYPE -eq 'tag') {
+            $m = [regex]::Match($env:REF_NAME, '^v(\d+\.\d+\.\d+)(-[0-9A-Za-z.-]+)?$')
+            if (-not $m.Success) { throw "Tag « $($env:REF_NAME) » : attendu vX.Y.Z ou vX.Y.Z-suffixe." }
+            $version = $env:REF_NAME.Substring(1)
+            $prerelease = $m.Groups[2].Success
+          } else {
+            $version = "0.0.0-dev.$($env:RUN_NUMBER)"
+            $prerelease = $true
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$($prerelease.ToString().ToLower())" >> $env:GITHUB_OUTPUT
 
       - name: Test
         run: dotnet test --solution DyssCockpit.slnx --configuration Release -p:Version=${{ steps.version.outputs.version }}
@@ -51,7 +81,16 @@ jobs:
           Get-ChildItem dist/*.zip | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
             Set-Content dist/SHA256SUMS.txt -Encoding ascii
 
-      - name: Release
+      - name: Keep the build (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+          retention-days: 7
+
+      - name: Release (tag)
+        if: github.event_name == 'push' && github.ref_type == 'tag'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,3 +98,26 @@ jobs:
           $flags = @('--generate-notes', '--title', 'Version ${{ steps.version.outputs.version }}')
           if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { $flags += '--prerelease' }
           gh release create '${{ github.ref_name }}' (Get-ChildItem dist/*).FullName @flags
+
+      - name: Release (dev build of main)
+        if: github.event_name == 'push' && github.ref_type == 'branch'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $short = $env:GITHUB_SHA.Substring(0, 7)
+          $subject = git log -1 --format=%s
+          @"
+          Construite automatiquement à partir du dernier commit de ``main`` ($short) : « $subject ».
+
+          Elle remplace la précédente à chaque changement et peut être instable. La version stable est la dernière version publiée avec un numéro.
+          "@ | Set-Content notes.md -Encoding utf8
+          # The previous dev build goes, with its tag: the new release makes the tag again, on this commit.
+          $existing = gh release list --limit 100 --json tagName --jq '.[].tagName'
+          if ($existing -contains 'dev') {
+            gh release delete dev --cleanup-tag --yes
+            if ($LASTEXITCODE -ne 0) { throw "Suppression de la version de développement impossible." }
+          }
+          gh release create dev (Get-ChildItem dist/*).FullName --target $env:GITHUB_SHA --prerelease `
+            --title "Version de développement ($short)" --notes-file notes.md
+          if ($LASTEXITCODE -ne 0) { throw "Création de la version de développement impossible." }
