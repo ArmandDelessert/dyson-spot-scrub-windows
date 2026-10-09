@@ -38,6 +38,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         VersionText = $"DySS Cockpit {VersionOf(Assembly.GetExecutingAssembly())}";
         LanguageIndex = Math.Max(0, Array.IndexOf(Languages, settings.Language));
         TaskNotificationsIndex = Math.Max(0, Array.IndexOf(TaskNotificationModes, settings.TaskNotifications));
+        LogRetentionIndex = Math.Max(0, AppSettings.RetentionChoices.IndexOf(settings.LogRetentionDays));
+        MessageRetentionIndex = Math.Max(0, AppSettings.RetentionChoices.IndexOf(settings.MessageRetentionDays));
         StartWithWindows = shell.StartsWithWindows;
         // A language chosen earlier and not yet applied: the page may have been opened again since.
         IsRestartRequired = settings.ChosenLanguage != _running;
@@ -156,6 +158,26 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         get => _settings.SmoothRobotMotion;
         set => Update(_settings.SmoothRobotMotion, value, v => _settings.SmoothRobotMotion = v);
+    }
+
+    // ----- Retention -----
+
+    /// <summary>The position of <see cref="AppSettings.LogRetentionDays"/> among <see cref="AppSettings.RetentionChoices"/>: 1, 3, 7, 14, 30, 90 days, then for ever.</summary>
+    [ObservableProperty] private int _logRetentionIndex;
+
+    /// <summary>The same for <see cref="AppSettings.MessageRetentionDays"/>.</summary>
+    [ObservableProperty] private int _messageRetentionIndex;
+
+    partial void OnLogRetentionIndexChanged(int value)
+    {
+        if (!_initialized || value < 0 || value >= AppSettings.RetentionChoices.Length) return;
+        _settings.LogRetentionDays = AppSettings.RetentionChoices[value];
+    }
+
+    partial void OnMessageRetentionIndexChanged(int value)
+    {
+        if (!_initialized || value < 0 || value >= AppSettings.RetentionChoices.Length) return;
+        _settings.MessageRetentionDays = AppSettings.RetentionChoices[value];
     }
 
     // ----- About -----

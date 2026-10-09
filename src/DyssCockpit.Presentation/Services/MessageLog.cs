@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using DyssCockpit.Core;
@@ -7,20 +6,30 @@ namespace DyssCockpit.Presentation.Services;
 
 /// <summary>
 /// Every message exchanged with the robot, one JSON object per line, in one file per day under
-/// %LOCALAPPDATA%\DySS Cockpit\messages — the same line shape as the CLI's "watch --log" and the captures
+/// %LOCALAPPDATA%\DySS Cockpit\Messages — the same line shape as the CLI's "watch --log" and the captures
 /// made so far. Files older than <see cref="KeepDays"/> days are deleted when a new day starts, so
 /// leaving it on for good does not fill the disk. Written from the MQTT thread.
 /// </summary>
-public sealed class MessageLog(string? directory = null) : IDisposable
+public sealed class MessageLog(string? directory = null, int keepDays = MessageLog.DefaultKeepDays, TimeProvider? time = null) : IDisposable
 {
-    public const int KeepDays = 30;
+    public const int DefaultKeepDays = 30;
     private const string Prefix = "messages-";
+    private const string Extension = ".jsonl";
 
     private readonly object _gate = new();
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
     private StreamWriter? _writer;
     private DateOnly _day;
+    private int _keepDays = keepDays;
 
-    public string Directory { get; } = directory ?? Path.Combine(SessionStore.Directory, "messages");
+    public string Directory { get; } = directory ?? AppFolders.Messages(SessionStore.Directory);
+
+    /// <summary>How many days back the files are kept; zero or less keeps them all.</summary>
+    public int KeepDays
+    {
+        get { lock (_gate) return _keepDays; }
+        set { lock (_gate) _keepDays = value; }
+    }
     public string? CurrentFile { get; private set; }
     /// <summary>Messages written to today's file since it was opened by this run.</summary>
     public int Count { get; private set; }
@@ -47,26 +56,24 @@ public sealed class MessageLog(string? directory = null) : IDisposable
     {
         CloseWriter();
         System.IO.Directory.CreateDirectory(Directory);
-        CurrentFile = Path.Combine(Directory, $"{Prefix}{day:yyyy-MM-dd}.jsonl");
+        CurrentFile = Path.Combine(Directory, $"{Prefix}{day:yyyy-MM-dd}{Extension}");
         // Appended to, so a restart during the day keeps one file. No byte order mark: it breaks JSON parsers.
         _writer = new StreamWriter(CurrentFile, append: true, new UTF8Encoding(false)) { AutoFlush = true };
         _day = day;
         Count = 0;
-        DeleteOldFiles(day);
+        DatedFiles.DeleteOlderThan(Directory, Prefix, Extension, day, _keepDays);
     }
 
-    private void DeleteOldFiles(DateOnly today)
+    /// <summary>
+    /// Deletes the files that are too old as of today. A day that starts does it by itself while
+    /// messages are being recorded; this is for when they are not, at start-up and when the
+    /// number of days is changed.
+    /// </summary>
+    public void Purge()
     {
-        foreach (var file in System.IO.Directory.EnumerateFiles(Directory, $"{Prefix}*.jsonl"))
-        {
-            var stamp = Path.GetFileNameWithoutExtension(file)[Prefix.Length..];
-            if (DateOnly.TryParseExact(stamp, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
-                && d < today.AddDays(-KeepDays))
-            {
-                try { File.Delete(file); }
-                catch (IOException) { }   // open elsewhere: next time
-            }
-        }
+        int days;
+        lock (_gate) days = _keepDays;
+        DatedFiles.DeleteOlderThan(Directory, Prefix, Extension, DateOnly.FromDateTime(_time.GetLocalNow().DateTime), days);
     }
 
     /// <summary>Closes today's file; the next message opens it again.</summary>

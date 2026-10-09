@@ -2,6 +2,7 @@ using System.Text.Json;
 using DyssCockpit.Presentation.Services;
 using DyssCockpit.Presentation.ViewModels;
 using DyssCockpit.Core;
+using Microsoft.Extensions.Time.Testing;
 
 namespace DyssCockpit.Presentation.Tests;
 
@@ -62,6 +63,74 @@ public sealed class MessageLogTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_dir, "messages-2026-08-01.jsonl")));
         Assert.True(File.Exists(Path.Combine(_dir, "messages-2026-08-27.jsonl")));   // exactly 30 days: kept
         Assert.True(File.Exists(Path.Combine(_dir, "autre-fichier.txt")));
+    }
+
+    private string Day(string stamp)
+    {
+        Directory.CreateDirectory(_dir);
+        var path = Path.Combine(_dir, $"messages-{stamp}.jsonl");
+        File.WriteAllText(path, "{}");
+        return path;
+    }
+
+    /// <summary>A clock at noon on 9 October 2026, UTC.</summary>
+    private static FakeTimeProvider Clock()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 9, 12, 0, 0, TimeSpan.Zero));
+        clock.SetLocalTimeZone(TimeZoneInfo.Utc);
+        return clock;
+    }
+
+    [Fact]
+    public void TheNumberOfDaysKeptIsTheOneAskedFor()
+    {
+        var old = Day("2026-09-20");
+        var recent = Day("2026-09-24");
+
+        using (var log = new MessageLog(_dir, keepDays: 3)) log.Write(Message(Noon(2026, 9, 26)));
+
+        Assert.False(File.Exists(old));
+        Assert.True(File.Exists(recent));
+    }
+
+    [Fact]
+    public void ZeroDaysKeepsEverythingForEver()
+    {
+        var ancient = Day("2020-01-01");
+
+        using (var log = new MessageLog(_dir, keepDays: 0, time: Clock()))
+        {
+            log.Write(Message(Noon(2026, 9, 26)));
+            log.Purge();
+        }
+
+        Assert.True(File.Exists(ancient));
+    }
+
+    [Fact]
+    public void ClearingOldRecordsDoesNotNeedAnythingToBeRecorded()
+    {
+        var old = Day("2026-09-01");
+        var recent = Day("2026-10-01");
+        using var log = new MessageLog(_dir, keepDays: 30, time: Clock());
+
+        log.Purge();
+
+        Assert.False(File.Exists(old));
+        Assert.True(File.Exists(recent));
+    }
+
+    [Fact]
+    public void TheJournalAppliesANewNumberOfDaysAsSoonAsItIsChosen()
+    {
+        var threeWeeks = Day("2026-09-18");
+        var settings = AppSettings.Load(Path.Combine(_dir, "settings.json"));
+        using var journal = new JournalViewModel(TestHub.Create(), settings, new MessageLog(_dir, time: Clock()));
+        Assert.True(File.Exists(threeWeeks));   // 30 days is the default, nothing is cleared by opening the tab
+
+        settings.MessageRetentionDays = 14;
+
+        Assert.False(File.Exists(threeWeeks));
     }
 
     [Fact]

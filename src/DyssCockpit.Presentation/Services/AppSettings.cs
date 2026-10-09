@@ -91,6 +91,18 @@ public sealed partial class AppSettings : ObservableObject
     /// <summary>A Windows notification when the robot could not reach a room it was sent to. On by default.</summary>
     [ObservableProperty] private bool _notifyUnreachable = true;
 
+    /// <summary>The numbers of days the settings page offers for keeping the logs and the message records; 0 is "for ever".</summary>
+    public static readonly System.Collections.Immutable.ImmutableArray<int> RetentionChoices = [1, 3, 7, 14, 30, 90, 0];
+
+    /// <summary>
+    /// How many days back the log files are kept, 0 for ever. One of <see cref="RetentionChoices"/>:
+    /// a number written into the file by hand that is not one of them is read as the default.
+    /// </summary>
+    [ObservableProperty] private int _logRetentionDays = 7;
+
+    /// <summary>How many days back the records of the robot's messages are kept, 0 for ever. See <see cref="LogRetentionDays"/>.</summary>
+    [ObservableProperty] private int _messageRetentionDays = 30;
+
     /// <summary>The language <see cref="Language"/> stands for on this machine.</summary>
     public AppLanguage ChosenLanguage => Language switch
     {
@@ -126,6 +138,8 @@ public sealed partial class AppSettings : ObservableObject
                 settings.TrayHintShown = s.TrayHintShown ?? false;
                 settings.TaskNotifications = Enum.TryParse<TaskNotificationMode>(s.TaskNotifications, out var mode) && Enum.IsDefined(mode) ? mode : TaskNotificationMode.EndOnly;
                 settings.NotifyUnreachable = s.NotifyUnreachable ?? true;
+                settings.LogRetentionDays = s.LogRetentionDays is { } logDays && RetentionChoices.Contains(logDays) ? logDays : 7;
+                settings.MessageRetentionDays = s.MessageRetentionDays is { } messageDays && RetentionChoices.Contains(messageDays) ? messageDays : 30;
                 settings._loading = false;
             }
         }
@@ -162,7 +176,7 @@ public sealed partial class AppSettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable)));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -182,7 +196,9 @@ public sealed partial class AppSettings : ObservableObject
     partial void OnTrayHintShownChanged(bool value) => Save();
     partial void OnTaskNotificationsChanged(TaskNotificationMode value) => Save();
     partial void OnNotifyUnreachableChanged(bool value) => Save();
+    partial void OnLogRetentionDaysChanged(int value) => Save();
+    partial void OnMessageRetentionDaysChanged(int value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null, int? LogRetentionDays = null, int? MessageRetentionDays = null);
 }

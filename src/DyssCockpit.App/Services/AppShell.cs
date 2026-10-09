@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DyssCockpit.Core;
 using DyssCockpit.Presentation;
+using DyssCockpit.Presentation.Services;
 using Microsoft.Extensions.Logging;
 
 namespace DyssCockpit.App.Services;
@@ -26,8 +27,9 @@ internal sealed partial class AppShell(NotificationService notifications, Func<s
     {
         try
         {
-            Directory.CreateDirectory(SessionStore.Directory);
-            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{SessionStore.Directory}\"") { UseShellExecute = true });
+            var logs = AppFolders.Logs(SessionStore.Directory);
+            Directory.CreateDirectory(logs);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{logs}\"") { UseShellExecute = true });
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {

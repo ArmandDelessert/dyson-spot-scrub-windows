@@ -24,6 +24,39 @@ public sealed class AppSettingsTests : IDisposable
     }
 
     [Fact]
+    public void LogsAreKeptAWeekAndMessagesAMonthByDefault()
+    {
+        var settings = AppSettings.Load(_path);
+
+        Assert.Equal(7, settings.LogRetentionDays);
+        Assert.Equal(30, settings.MessageRetentionDays);
+    }
+
+    [Fact]
+    public void ARetentionIsRememberedAndForEverIsZero()
+    {
+        var first = AppSettings.Load(_path);
+        first.LogRetentionDays = 0;
+        first.MessageRetentionDays = 90;
+
+        var second = AppSettings.Load(_path);
+
+        Assert.Equal(0, second.LogRetentionDays);
+        Assert.Equal(90, second.MessageRetentionDays);
+    }
+
+    [Fact]
+    public void ARetentionWrittenByHandThatTheListDoesNotOfferFallsBackToTheDefault()
+    {
+        File.WriteAllText(_path, """{"LogRetentionDays":10,"MessageRetentionDays":-5}""");
+
+        var settings = AppSettings.Load(_path);
+
+        Assert.Equal(7, settings.LogRetentionDays);
+        Assert.Equal(30, settings.MessageRetentionDays);
+    }
+
+    [Fact]
     public void AChangeIsRememberedAcrossRuns()
     {
         var first = AppSettings.Load(_path);

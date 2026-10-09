@@ -18,7 +18,7 @@ namespace DyssCockpit.App;
     Justification = "The application's lifetime is its process's: the notifications and the icon are disposed when the window closes, the log when the process exits.")]
 public partial class App : Application
 {
-    /// <summary>The log on disk, %LOCALAPPDATA%\DySS Cockpit\journal-2026-10-05.log: one file a day, kept a week.</summary>
+    /// <summary>The log on disk, %LOCALAPPDATA%\DySS Cockpit\Logs\dyss-cockpit-2026-10-05.log: one file a day, kept as long as the settings say.</summary>
     private readonly FileLoggerProvider _logFile;
     private readonly ILoggerFactory _loggers;
     private readonly ILogger _logger;
@@ -35,13 +35,18 @@ public partial class App : Application
     public App()
     {
         // The language comes first: the XAML resources loaded just below already carry texts.
+        var stored = AppSettings.Load();
         Translation.Current = Option(Environment.GetCommandLineArgs(), "--lang") switch
         {
             "fr" => AppLanguage.French,
             "en" => AppLanguage.English,
-            _ => AppSettings.Load().ChosenLanguage,
+            _ => stored.ChosenLanguage,
         };
-        _logFile = new FileLoggerProvider(SessionStore.Directory);
+        // What an earlier version left at the top of the data folder goes where it belongs, before
+        // the log is opened, and the records too old are cleared whether or not any is being made.
+        AppFolders.MigrateLegacyLayout(SessionStore.Directory);
+        using (var records = new MessageLog(keepDays: stored.MessageRetentionDays)) records.Purge();
+        _logFile = new FileLoggerProvider(AppFolders.Logs(SessionStore.Directory), retentionDays: stored.LogRetentionDays);
         _loggers = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Information).AddProvider(_logFile));
         _logger = _loggers.CreateLogger<App>();
         // Written out on the way out, whichever it is: the window closed, a headless export done.
@@ -196,6 +201,11 @@ public partial class App : Application
             _shell = new ShellView(_window, ctx, _notifications, shell, settings);
             _window.Show(_shell);
             _shell.Start();
+            var shown = _shell.ViewModel.AppSettings;
+            shown.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(AppSettings.LogRetentionDays)) _logFile.RetentionDays = shown.LogRetentionDays;
+            };
             _shell.ViewModel.SummaryChanged += UpdateTray;
             UpdateTray();
             var loggedOut = await _shell.Finished;

@@ -57,6 +57,36 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.False(vm.ShowCleanedArea);
         Assert.True(vm.ShowExportButton);
         Assert.False(vm.SmoothRobotMotion);
+        Assert.Equal(2, vm.LogRetentionIndex);       // 7 days
+        Assert.Equal(4, vm.MessageRetentionIndex);   // 30 days
+    }
+
+    [Fact]
+    public void TheRetentionIsChosenFromTheListAndWrittenAsADayCount()
+    {
+        var (vm, settings, _, _) = New();
+
+        vm.LogRetentionIndex = 0;
+        vm.MessageRetentionIndex = 6;   // the last: for ever
+
+        Assert.Equal(1, settings.LogRetentionDays);
+        Assert.Equal(0, settings.MessageRetentionDays);
+        var next = AppSettings.Load(_path);
+        Assert.Equal(1, next.LogRetentionDays);
+        Assert.Equal(0, next.MessageRetentionDays);
+
+        vm.LogRetentionIndex = -1;   // nothing selected, as a list does while it refreshes
+        vm.LogRetentionIndex = 7;
+        Assert.Equal(1, settings.LogRetentionDays);
+    }
+
+    [Fact]
+    public void ARetentionAlreadyStoredIsShownAtItsPlaceInTheList()
+    {
+        var (vm, _, _, _) = New(s => { s.LogRetentionDays = 90; s.MessageRetentionDays = 0; });
+
+        Assert.Equal(5, vm.LogRetentionIndex);
+        Assert.Equal(6, vm.MessageRetentionIndex);
     }
 
     [Fact]

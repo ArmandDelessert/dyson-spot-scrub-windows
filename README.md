@@ -80,7 +80,7 @@ Les tracés peuvent se caler sur la grille de 5 cm du robot.
 
 - **Réglages du robot**, avec les libellés de l'application Android : lavage, station, voix. Chacun part au robot dès qu'on le change.
 - **Paramètres** de l'application, propres à cet ordinateur (rien n'est envoyé au robot) : les notifications (aucune, fin de nettoyage seulement ou début et fin ; zone inaccessible ; un bouton de test), le comportement (rester dans la zone de notification à la fermeture de la fenêtre, démarrer avec Windows), la langue (automatique, français ou anglais, avec un bouton pour redémarrer), l'affichage de la carte, et la version avec un accès au dossier des fichiers de l'application.
-- **Journal** des événements du robot et des commandes envoyées. Une option enregistre aussi tous les messages échangés avec le robot, un fichier par jour, pour l'analyse du protocole.
+- **Journal** des événements du robot et des commandes envoyées. Une option enregistre aussi tous les messages échangés avec le robot, un fichier par jour (dossier `Messages`), pour l'analyse du protocole.
 
 La connexion se rétablit seule après une coupure de réseau ou une mise en veille. Lancée hors ligne, l'application attend le retour du réseau.
 
@@ -98,7 +98,7 @@ La page « Paramètres » règle ce comportement (la fermeture de la fenêtre pe
 
 L'exécutable n'est pas signé : au premier lancement, Windows SmartScreen demande une confirmation (« Informations complémentaires », puis « Exécuter quand même »).
 
-La session (chiffrée pour le compte Windows), les préférences de l'application (`settings.json`), le journal (`journal-AAAA-MM-JJ.log`, un fichier par jour gardé une semaine) et, si l'option est active, l'enregistrement des messages (dossier `messages`) sont dans `%LOCALAPPDATA%\DySS Cockpit`. Aucune donnée n'est envoyée ailleurs qu'au cloud Dyson.
+Les données sont dans `%LOCALAPPDATA%\DySS Cockpit`, rangées comme celles de HusqA Cockpit : la session (`session.bin`, chiffrée pour le compte Windows), les préférences de l'application (`settings.json`) et les horaires (`schedules.json`) en haut ; le journal de l'application dans `Logs` (`dyss-cockpit-AAAA-MM-JJ.log`, un fichier par jour) ; et, si l'option est active, l'enregistrement des messages du robot dans `Messages` (`messages-AAAA-MM-JJ.jsonl`, un fichier par jour). La page « Paramètres » règle combien de temps les journaux (7 jours par défaut) et les messages (30 jours par défaut) sont gardés, de 1 jour à « Toujours conserver » ; les fichiers plus anciens sont supprimés au démarrage, à chaque nouveau jour et dès que la durée est raccourcie. Un dossier laissé par une version antérieure (`journal-…`, `messages`, `erreurs.log`) est rangé au premier lancement. Aucune donnée n'est envoyée ailleurs qu'au cloud Dyson.
 
 Configuration requise : Windows 10 version 2004 (build 19041) ou ultérieure, ou Windows 11, et un robot Dyson Spot+Scrub AI connecté à Internet.
 

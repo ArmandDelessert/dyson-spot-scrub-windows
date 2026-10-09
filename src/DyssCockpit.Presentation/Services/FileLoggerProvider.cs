@@ -6,27 +6,38 @@ using Microsoft.Extensions.Logging;
 namespace DyssCockpit.Presentation.Services;
 
 /// <summary>
-/// The application's log on disk: one file a day, journal-2026-10-05.log, kept a week. Lines are
-/// queued and written by a thread of their own, so logging never waits for the disk; disposing
-/// writes out what is still queued. Taken from HusqA Cockpit, with two changes: the file name is a
-/// parameter, and only files of that name are cleaned up, the folder being shared with the
-/// session and the preferences.
+/// The application's log on disk: one file a day, Logs\dyss-cockpit-2026-10-05.log, kept for
+/// <see cref="RetentionDays"/> days. Lines are queued and written by a thread of their own, so
+/// logging never waits for the disk; disposing writes out what is still queued. Taken from HusqA
+/// Cockpit, with three changes: the file name is a parameter, only files of that name are cleaned
+/// up, and how long they are kept can be changed, and is applied again each day for an application
+/// that stays open for weeks.
 /// </summary>
 public sealed class FileLoggerProvider : ILoggerProvider
 {
-    private static readonly TimeSpan Retention = TimeSpan.FromDays(7);
+    /// <summary>The start of every log file's name, which then goes on with the day: dyss-cockpit-2026-10-05.log.</summary>
+    public const string DefaultPrefix = "dyss-cockpit-";
+
+    private const string Extension = ".log";
 
     private readonly string _folder;
     private readonly string _prefix;
     private readonly LogLevel _minimumLevel;
+    private readonly TimeProvider _time;
     private readonly BlockingCollection<string> _queue = new(boundedCapacity: 10_000);
     private readonly Thread _writer;
+    private int _retentionDays;
+    private DateOnly _purgedOn;
 
-    public FileLoggerProvider(string folder, string prefix = "journal-", LogLevel minimumLevel = LogLevel.Information)
+    /// <param name="retentionDays">How many days back the files are kept; zero or less keeps them all.</param>
+    public FileLoggerProvider(string folder, string prefix = DefaultPrefix, LogLevel minimumLevel = LogLevel.Information,
+        int retentionDays = 7, TimeProvider? time = null)
     {
         _folder = folder;
         _prefix = prefix;
         _minimumLevel = minimumLevel;
+        _time = time ?? TimeProvider.System;
+        _retentionDays = retentionDays;
         Directory.CreateDirectory(folder);
         DeleteOldLogs();
         _writer = new Thread(WriteLoop) { IsBackground = true, Name = "Log writer" };
@@ -34,7 +45,20 @@ public sealed class FileLoggerProvider : ILoggerProvider
     }
 
     /// <summary>The file written today.</summary>
-    public string CurrentFile => Path.Combine(_folder, $"{_prefix}{DateTime.Now:yyyy-MM-dd}.log");
+    public string CurrentFile => Path.Combine(_folder, $"{_prefix}{Today:yyyy-MM-dd}{Extension}");
+
+    private DateOnly Today => DateOnly.FromDateTime(_time.GetLocalNow().DateTime);
+
+    /// <summary>How many days back the files are kept, zero or less for ever. Changing it deletes what is now too old at once.</summary>
+    public int RetentionDays
+    {
+        get => Volatile.Read(ref _retentionDays);
+        set
+        {
+            Volatile.Write(ref _retentionDays, value);
+            DeleteOldLogs();
+        }
+    }
 
     public ILogger CreateLogger(string categoryName) => new FileLogger(this, ShortName(categoryName));
 
@@ -61,6 +85,8 @@ public sealed class FileLoggerProvider : ILoggerProvider
         {
             try
             {
+                // A new day: the old files are looked at again, since the application may have run for weeks.
+                if (Today != _purgedOn) DeleteOldLogs();
                 File.AppendAllText(CurrentFile, line, Encoding.UTF8);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -72,17 +98,8 @@ public sealed class FileLoggerProvider : ILoggerProvider
 
     private void DeleteOldLogs()
     {
-        try
-        {
-            foreach (var file in Directory.EnumerateFiles(_folder, $"{_prefix}*.log"))
-            {
-                if (DateTime.Now - File.GetLastWriteTime(file) > Retention) File.Delete(file);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Tried again at the next start.
-        }
+        _purgedOn = Today;
+        DatedFiles.DeleteOlderThan(_folder, _prefix, Extension, _purgedOn, RetentionDays);
     }
 
     private sealed class FileLogger(FileLoggerProvider owner, string category) : ILogger

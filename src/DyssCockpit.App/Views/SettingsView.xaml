@@ -131,6 +131,44 @@
                 </StackPanel>
             </Border>
 
+            <!-- File retention -->
+            <TextBlock Text='{local:Tr Fr="Conservation des fichiers", En="File retention"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Journaux de l&apos;application", En="Application logs"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Un fichier par jour, dans le dossier Logs. Les plus anciens sont supprimés.", En="One file a day, in the Logs folder. The oldest are deleted."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.LogRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center"
+                                  AutomationProperties.Name='{local:Tr Fr="Durée de conservation", En="Retention"}'>
+                            <ComboBoxItem Content='{local:Tr Fr="1 jour", En="1 day"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="3 jours", En="3 days"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="7 jours", En="7 days"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="14 jours", En="14 days"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="30 jours", En="30 days"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="90 jours", En="90 days"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="Toujours conserver", En="Keep forever"}'/>
+                        </ComboBox>                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Messages du robot enregistrés", En="Recorded robot messages"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Ce que l&apos;onglet Journal enregistre quand on le demande, dans le dossier Messages. Un fichier par jour.", En="What the Log tab records when asked to, in the Messages folder. One file a day."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.MessageRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center"
+                                  AutomationProperties.Name='{local:Tr Fr="Durée de conservation", En="Retention"}'>
+                            <ComboBoxItem Content='{local:Tr Fr="1 jour", En="1 day"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="3 jours", En="3 days"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="7 jours", En="7 days"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="14 jours", En="14 days"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="30 jours", En="30 days"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="90 jours", En="90 days"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="Toujours conserver", En="Keep forever"}'/>
+                        </ComboBox>                    </Grid>
+                </StackPanel>
+            </Border>
             <!-- About -->
             <TextBlock Text='{local:Tr Fr="À propos", En="About"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
