@@ -22,6 +22,9 @@ public interface IAppShell
     /// </summary>
     string? Restart();
 
-    /// <summary>Opens the folder holding the session, the settings and the logs.</summary>
+    /// <summary>Opens the folder holding the application's logs.</summary>
     void OpenLogsFolder();
+
+    /// <summary>Opens the folder holding the records of the robot's messages.</summary>
+    void OpenMessagesFolder();
 }

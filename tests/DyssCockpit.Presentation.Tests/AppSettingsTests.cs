@@ -12,15 +12,58 @@ public sealed class AppSettingsTests : IDisposable
     }
 
     [Fact]
-    public void EverythingIsOnByDefault()
+    public void TheMapDrawsEverythingButTheExportButtonAndTheSmoothingByDefault()
     {
-        // The map has always drawn all of it; a preferences file that does not exist yet must not
-        // change what an existing user sees.
         var settings = AppSettings.Load(_path);
 
         Assert.True(settings.ShowFurniture);
         Assert.True(settings.ShowTravelPath);
-        Assert.True(settings.ShowExportButton);
+        Assert.True(settings.ShowCleanedArea);
+        Assert.False(settings.ShowExportButton);
+        Assert.False(settings.SmoothRobotMotion);
+    }
+
+    [Fact]
+    public void TheFileIsWrittenOneSettingALineForAPersonToRead()
+    {
+        var settings = AppSettings.Load(_path);
+        settings.ShowFurniture = false;
+
+        var text = File.ReadAllText(_path);
+
+        Assert.Contains("\n", text, StringComparison.Ordinal);
+        Assert.Contains("\"ShowFurniture\": false", text, StringComparison.Ordinal);
+        Assert.False(AppSettings.Load(_path).ShowFurniture);
+    }
+
+    [Theory]
+    [InlineData("fr-FR", "fr-FR")]
+    [InlineData("en-US", "en-US")]
+    [InlineData("", "")]
+    [InlineData("fr", "fr-FR")]        // the first versions
+    [InlineData("en", "en-US")]
+    [InlineData("auto", "")]
+    [InlineData("fr-CH", "fr-FR")]     // any French is French
+    [InlineData("EN-gb", "en-US")]
+    [InlineData("de-DE", "")]          // a language the application does not have: Windows' own
+    [InlineData(null, "")]
+    public void TheLanguageIsStoredAsACultureNameAndTheOldValuesAreStillRead(string? stored, string expected)
+    {
+        File.WriteAllText(_path, stored is null ? "{}" : $$"""{"Language":"{{stored}}"}""");
+
+        Assert.Equal(expected, AppSettings.Load(_path).Language);
+        Assert.Equal(expected, AppSettings.NormalizeLanguage(stored));
+    }
+
+    [Fact]
+    public void AnOldLanguageValueIsWrittenBackAsACultureNameAtTheNextSave()
+    {
+        File.WriteAllText(_path, """{"Language":"fr","ShowFurniture":true}""");
+        var settings = AppSettings.Load(_path);
+
+        settings.SnapToGrid = false;   // any change saves
+
+        Assert.Contains("\"Language\": \"fr-FR\"", File.ReadAllText(_path), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -85,20 +128,20 @@ public sealed class AppSettingsTests : IDisposable
         Assert.False(shot.ShowFurniture);
         Assert.False(shot.RecordMessages);
         shot.ShowFurniture = true;
-        shot.Language = "en";
+        shot.Language = "en-US";
 
         Assert.Equal(before, File.ReadAllText(_path));
         Assert.True(AppSettings.Load(_path).RecordMessages);
     }
 
     [Fact]
-    public void TheCleanedAreaIsOffUntilChosenThenRemembered()
+    public void TheCleanedAreaIsOnUntilTurnedOffThenRemembered()
     {
         var first = AppSettings.Load(_path);
-        Assert.False(first.ShowCleanedArea);
-        first.ShowCleanedArea = true;
+        Assert.True(first.ShowCleanedArea);
+        first.ShowCleanedArea = false;
 
-        Assert.True(AppSettings.Load(_path).ShowCleanedArea);
+        Assert.False(AppSettings.Load(_path).ShowCleanedArea);
     }
 
     [Fact]
@@ -137,7 +180,8 @@ public sealed class AppSettingsTests : IDisposable
 
         Assert.False(settings.ShowFurniture);
         Assert.True(settings.ShowTravelPath);
-        Assert.True(settings.ShowExportButton);
+        Assert.True(settings.ShowCleanedArea);
+        Assert.False(settings.ShowExportButton);
     }
 
     [Fact]

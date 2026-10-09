@@ -29,6 +29,9 @@ public sealed partial class AppSettings : ObservableObject
 {
     private static string DefaultPath => Path.Combine(SessionStore.Directory, "settings.json");
 
+    /// <summary>The file is meant to be read, and edited, by a person: one setting a line, as HusqA Cockpit's is.</summary>
+    private static readonly JsonSerializerOptions FileFormat = new() { WriteIndented = true };
+
     /// <summary>Where <see cref="Save"/> writes. Null on a plain instance, which then only lives for the run — that is what tests use.</summary>
     private string? _path;
 
@@ -41,8 +44,8 @@ public sealed partial class AppSettings : ObservableObject
     /// </summary>
     [ObservableProperty] private bool _showTravelPath = true;
 
-    /// <summary>Whether the map toolbar offers the PNG export at all.</summary>
-    [ObservableProperty] private bool _showExportButton = true;
+    /// <summary>Whether the map toolbar offers the PNG export at all. Off by default: the export is an occasional need, not a daily one.</summary>
+    [ObservableProperty] private bool _showExportButton;
 
     /// <summary>
     /// Every message exchanged with the robot written to a daily file (see <see cref="MessageLog"/>).
@@ -62,15 +65,17 @@ public sealed partial class AppSettings : ObservableObject
 
     /// <summary>
     /// The surface cleaned: each stretch the robot worked on is drawn as wide as the robot, under the
-    /// trail. Off by default, the trail alone being the lighter picture.
+    /// trail. On by default: it is what shows what got cleaned; off leaves the trail alone, the lighter picture.
     /// </summary>
-    [ObservableProperty] private bool _showCleanedArea;
+    [ObservableProperty] private bool _showCleanedArea = true;
 
     /// <summary>
-    /// The language of the application: <c>"fr"</c>, <c>"en"</c>, or <c>"auto"</c> for Windows' own (French on a
-    /// French Windows, English otherwise). Read once at start-up, see <see cref="ChosenLanguage"/>.
+    /// The language of the application, as the name of a culture, which is what HusqA Cockpit writes too:
+    /// <c>"fr-FR"</c>, <c>"en-US"</c>, or empty for Windows' own (French on a French Windows, English
+    /// otherwise). Read once at start-up, see <see cref="ChosenLanguage"/>. A file written by an earlier
+    /// version (<c>"fr"</c>, <c>"en"</c>, <c>"auto"</c>) is read all the same, see <see cref="NormalizeLanguage"/>.
     /// </summary>
-    [ObservableProperty] private string _language = "auto";
+    [ObservableProperty] private string _language = "";
 
     /// <summary>
     /// Closing the window leaves the application in the notification area, still connected to the
@@ -107,12 +112,23 @@ public sealed partial class AppSettings : ObservableObject
     [ObservableProperty] private int _messageRetentionDays = 30;
 
     /// <summary>The language <see cref="Language"/> stands for on this machine.</summary>
-    public AppLanguage ChosenLanguage => Language switch
+    public AppLanguage ChosenLanguage => NormalizeLanguage(Language) switch
     {
-        "fr" => AppLanguage.French,
-        "en" => AppLanguage.English,
+        "fr-FR" => AppLanguage.French,
+        "en-US" => AppLanguage.English,
         _ => Translation.FromCulture(CultureInfo.CurrentUICulture),
     };
+
+    /// <summary>
+    /// What is stored for a language: <c>"fr-FR"</c> for any French (<c>"fr"</c>, <c>"fr-CH"</c>…), <c>"en-US"</c> for any
+    /// English, and empty for anything else, <c>"auto"</c> of the first versions included, which means Windows' own.
+    /// </summary>
+    public static string NormalizeLanguage(string? language)
+    {
+        var name = language?.Trim() ?? "";
+        if (name.StartsWith("fr", StringComparison.OrdinalIgnoreCase)) return "fr-FR";
+        return name.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? "en-US" : "";
+    }
 
     /// <summary>Raised after any of the above changes, once they have been written back to disk.</summary>
     public event Action? Changed;
@@ -131,12 +147,12 @@ public sealed partial class AppSettings : ObservableObject
                 settings._loading = true;
                 settings.ShowFurniture = s.ShowFurniture ?? true;
                 settings.ShowTravelPath = s.ShowTravelPath ?? true;
-                settings.ShowExportButton = s.ShowExportButton ?? true;
+                settings.ShowExportButton = s.ShowExportButton ?? false;
                 settings.RecordMessages = s.RecordMessages ?? false;
                 settings.SnapToGrid = s.SnapToGrid ?? true;
                 settings.SmoothRobotMotion = s.SmoothRobotMotion ?? false;
-                settings.ShowCleanedArea = s.ShowCleanedArea ?? false;
-                settings.Language = s.Language is "fr" or "en" ? s.Language : "auto";
+                settings.ShowCleanedArea = s.ShowCleanedArea ?? true;
+                settings.Language = NormalizeLanguage(s.Language);
                 settings.CloseToTray = s.CloseToTray ?? true;
                 settings.TrayHintShown = s.TrayHintShown ?? false;
                 settings.TaskNotifications = Enum.TryParse<TaskNotificationMode>(s.TaskNotifications, out var mode) && Enum.IsDefined(mode) ? mode : TaskNotificationMode.EndOnly;
@@ -180,7 +196,7 @@ public sealed partial class AppSettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays, NotifyRobotFault)));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays, NotifyRobotFault), FileFormat));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

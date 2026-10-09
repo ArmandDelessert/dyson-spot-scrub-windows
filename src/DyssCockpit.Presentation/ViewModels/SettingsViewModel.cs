@@ -20,7 +20,7 @@ namespace DyssCockpit.Presentation.ViewModels;
 public sealed partial class SettingsViewModel : ObservableObject
 {
     /// <summary>The values of <see cref="AppSettings.Language"/>, in the order the language list shows them.</summary>
-    private static readonly string[] Languages = ["auto", "fr", "en"];
+    private static readonly string[] Languages = ["", "fr-FR", "en-US"];
 
     private readonly AppSettings _settings;
     private readonly IAppShell _shell;
@@ -28,13 +28,21 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// <summary>The language the application is running in: a different choice is only applied at the next start.</summary>
     private readonly AppLanguage _running;
     private readonly bool _initialized;
+    /// <summary>The folder the logs and the records are in, and the clock that dates them: the folder's files are counted before a shorter retention deletes them.</summary>
+    private readonly string _dataFolder;
+    private readonly TimeProvider _time;
+    private bool _reverting;
 
     /// <param name="running">The language the application is running in; null for the one it was started in.</param>
     /// <param name="logout">What the "Se déconnecter" button does: the dashboard's own, which asks first. Nothing when null.</param>
     /// <param name="accountEmail">The account the application is signed in to, shown above that button.</param>
+    /// <param name="dataFolder">The application's data folder; null for the user's own.</param>
+    /// <param name="time">The clock the files' ages are counted on; the system's unless a test sets it.</param>
     public SettingsViewModel(AppSettings settings, IAppShell shell, IDialogService dialogs, AppLanguage? running = null,
-        ICommand? logout = null, string accountEmail = "")
+        ICommand? logout = null, string accountEmail = "", string? dataFolder = null, TimeProvider? time = null)
     {
+        _dataFolder = dataFolder ?? SessionStore.Directory;
+        _time = time ?? TimeProvider.System;
         LogoutCommand = logout ?? new RelayCommand(() => { });
         AccountText = string.IsNullOrEmpty(accountEmail) ? "" : T($"Connecté avec {accountEmail}", $"Signed in as {accountEmail}");
         _running = running ?? Translation.Current;
@@ -47,6 +55,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         LogRetentionIndex = Math.Max(0, AppSettings.RetentionChoices.IndexOf(settings.LogRetentionDays));
         MessageRetentionIndex = Math.Max(0, AppSettings.RetentionChoices.IndexOf(settings.MessageRetentionDays));
         StartWithWindows = shell.StartsWithWindows;
+        // The recording may be stopped from elsewhere (a disk that fills): the switch follows.
+        settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AppSettings.RecordMessages)) OnPropertyChanged(nameof(RecordMessages));
+        };
         // A language chosen earlier and not yet applied: the page may have been opened again since.
         IsRestartRequired = settings.ChosenLanguage != _running;
         _initialized = true;
@@ -197,15 +210,60 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     partial void OnLogRetentionIndexChanged(int value)
     {
-        if (!_initialized || value < 0 || value >= AppSettings.RetentionChoices.Length) return;
-        _settings.LogRetentionDays = AppSettings.RetentionChoices[value];
+        if (!_initialized || _reverting || value < 0 || value >= AppSettings.RetentionChoices.Length) return;
+        _ = ChangeRetentionAsync(AppSettings.RetentionChoices[value], days => AppFolders.LogsOlderThan(_dataFolder, days, Today),
+            T("Journaux de l'application", "Application logs"), T("de journal", "log"),
+            apply: days => _settings.LogRetentionDays = days,
+            revert: () => Revert(() => LogRetentionIndex = AppSettings.RetentionChoices.IndexOf(_settings.LogRetentionDays)));
     }
 
     partial void OnMessageRetentionIndexChanged(int value)
     {
-        if (!_initialized || value < 0 || value >= AppSettings.RetentionChoices.Length) return;
-        _settings.MessageRetentionDays = AppSettings.RetentionChoices[value];
+        if (!_initialized || _reverting || value < 0 || value >= AppSettings.RetentionChoices.Length) return;
+        _ = ChangeRetentionAsync(AppSettings.RetentionChoices[value], days => AppFolders.MessagesOlderThan(_dataFolder, days, Today),
+            T("Messages enregistrés", "Recorded messages"), T("d'enregistrement de messages", "message record"),
+            apply: days => _settings.MessageRetentionDays = days,
+            revert: () => Revert(() => MessageRetentionIndex = AppSettings.RetentionChoices.IndexOf(_settings.MessageRetentionDays)));
     }
+
+    private DateOnly Today => DateOnly.FromDateTime(_time.GetLocalNow().DateTime);
+
+    /// <summary>
+    /// Applies a number of days; first asks, when it makes files go that are there now (a shorter
+    /// retention is deleted at once, and no bin takes the files back), and puts the list back on what
+    /// it was if the user says no.
+    /// </summary>
+    private async Task ChangeRetentionAsync(int days, Func<int, int> countOlder, string title, string kind, Action<int> apply, Action revert)
+    {
+        var count = countOlder(days);
+        if (count > 0 && !await _dialogs.ConfirmAsync(title,
+                T($"{count} fichier(s) {kind}, plus ancien(s) que {days} jour(s), seront supprimé(s) tout de suite, sans pouvoir être récupéré(s).\n\nContinuer ?",
+                  $"{count} {kind} file(s) older than {days} day(s) will be deleted at once, and cannot be recovered.\n\nContinue?")))
+        {
+            revert();
+            return;
+        }
+        apply(days);
+    }
+
+    private void Revert(Action putBack)
+    {
+        _reverting = true;
+        try { putBack(); }
+        finally { _reverting = false; }
+    }
+
+    // ----- Messages recorded -----
+
+    /// <summary>Every message exchanged with the robot written to a daily file, for finding what the application does not know yet. Off by default.</summary>
+    public bool RecordMessages
+    {
+        get => _settings.RecordMessages;
+        set => Update(_settings.RecordMessages, value, v => _settings.RecordMessages = v);
+    }
+
+    [RelayCommand]
+    private void OpenMessagesFolder() => _shell.OpenMessagesFolder();
 
     // ----- About -----
 

@@ -143,14 +143,14 @@
                 </StackPanel>
             </Border>
 
-            <!-- File retention -->
-            <TextBlock Text='{local:Tr Fr="Conservation des fichiers", En="File retention"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <!-- Logs: the application's own, and the recording of the robot's messages -->
+            <TextBlock Text='{local:Tr Fr="Journaux", En="Logs"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Journaux de l&apos;application", En="Application logs"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Conservation des journaux de l&apos;application", En="Keep the application logs"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
                             <TextBlock Text='{local:Tr Fr="Un fichier par jour, dans le dossier Logs. Les plus anciens sont supprimés.", En="One file a day, in the Logs folder. The oldest are deleted."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.LogRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center"
@@ -166,8 +166,18 @@
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Messages du robot enregistrés", En="Recorded robot messages"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Ce que l&apos;onglet Journal enregistre quand on le demande, dans le dossier Messages. Un fichier par jour.", En="What the Log tab records when asked to, in the Messages folder. One file a day."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <TextBlock Text='{local:Tr Fr="Enregistrer tous les messages", En="Record all messages"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Garde chaque message échangé avec le robot, un fichier par jour dans le dossier Messages, pour repérer ceux que l&apos;application ne connaît pas encore.", En="Keeps every message exchanged with the robot, one file a day in the Messages folder, to spot the ones the application does not know yet."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <HyperlinkButton Content='{local:Tr Fr="Ouvrir le dossier des messages", En="Open the messages folder"}' Command="{x:Bind ViewModel.OpenMessagesFolderCommand}" Padding="0" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.RecordMessages, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Enregistrer tous les messages", En="Record all messages"}'/>
+                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Conservation des messages enregistrés", En="Keep the recorded messages"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Les enregistrements plus anciens sont supprimés, que l&apos;enregistrement soit activé ou non.", En="Older records are deleted, whether recording is on or not."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.MessageRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center"
                                   AutomationProperties.Name='{local:Tr Fr="Durée de conservation", En="Retention"}'>

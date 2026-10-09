@@ -11,6 +11,14 @@ public static class AppFolders
 
     public static string Messages(string root) => Path.Combine(root, "Messages");
 
+    /// <summary>How many log files are more than <paramref name="days"/> days old as of <paramref name="today"/>, which a retention of that many days would delete.</summary>
+    internal static int LogsOlderThan(string root, int days, DateOnly today) =>
+        DatedFiles.CountOlderThan(Logs(root), FileLoggerProvider.DefaultPrefix, FileLoggerProvider.Extension, today, days);
+
+    /// <summary>The same for the records of the robot's messages.</summary>
+    internal static int MessagesOlderThan(string root, int days, DateOnly today) =>
+        DatedFiles.CountOlderThan(Messages(root), MessageLog.Prefix, MessageLog.Extension, today, days);
+
     /// <summary>
     /// Brings what an earlier version left at the top of the folder to its place: the log files
     /// (<c>journal-2026-10-05.log</c>, now <c>Logs\dyss-cockpit-2026-10-05.log</c>), the folder

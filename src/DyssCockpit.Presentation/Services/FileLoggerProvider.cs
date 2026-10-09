@@ -18,7 +18,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
     /// <summary>The start of every log file's name, which then goes on with the day: dyss-cockpit-2026-10-05.log.</summary>
     public const string DefaultPrefix = "dyss-cockpit-";
 
-    private const string Extension = ".log";
+    internal const string Extension = ".log";
 
     private readonly string _folder;
     private readonly string _prefix;

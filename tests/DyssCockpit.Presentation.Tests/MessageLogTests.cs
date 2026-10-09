@@ -144,13 +144,13 @@ public sealed class MessageLogTests : IDisposable
         journal.CaptureMessage(Message(DateTimeOffset.Now));
         Assert.Empty(Directory.Exists(_dir) ? Directory.GetFiles(_dir, "messages-*") : []);
 
-        journal.RecordMessages = true;
+        settings.RecordMessages = true;
         journal.CaptureMessage(Message(DateTimeOffset.Now));
         Assert.Single(Directory.GetFiles(_dir, "messages-*"));
         Assert.StartsWith("1 message(s) aujourd'hui", journal.RecordInfo, StringComparison.Ordinal);
 
         Assert.True(AppSettings.Load(settingsFile).RecordMessages);
-        journal.RecordMessages = false;
+        settings.RecordMessages = false;
         Assert.False(AppSettings.Load(settingsFile).RecordMessages);
     }
 }

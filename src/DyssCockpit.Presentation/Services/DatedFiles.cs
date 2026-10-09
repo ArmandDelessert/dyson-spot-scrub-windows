@@ -16,16 +16,10 @@ internal static class DatedFiles
     /// </summary>
     public static void DeleteOlderThan(string folder, string prefix, string extension, DateOnly today, int days)
     {
-        if (days <= 0 || !Directory.Exists(folder)) return;
         try
         {
-            foreach (var file in Directory.EnumerateFiles(folder, $"{prefix}*{extension}"))
+            foreach (var file in OlderThan(folder, prefix, extension, today, days))
             {
-                var name = Path.GetFileName(file);
-                var stamp = name[prefix.Length..^extension.Length];
-                if (!DateOnly.TryParseExact(stamp, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
-                    || day >= today.AddDays(-days))
-                    continue;
                 try { File.Delete(file); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }   // open elsewhere: next time
             }
@@ -34,5 +28,23 @@ internal static class DatedFiles
         {
             // Tried again at the next start, or the next day.
         }
+    }
+
+    /// <summary>How many files <see cref="DeleteOlderThan"/> would delete: what the user is told before it is done.</summary>
+    public static int CountOlderThan(string folder, string prefix, string extension, DateOnly today, int days)
+    {
+        try { return OlderThan(folder, prefix, extension, today, days).Count; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return 0; }
+    }
+
+    private static List<string> OlderThan(string folder, string prefix, string extension, DateOnly today, int days)
+    {
+        if (days <= 0 || !Directory.Exists(folder)) return [];
+        return Directory.EnumerateFiles(folder, $"{prefix}*{extension}").Where(file =>
+        {
+            var stamp = Path.GetFileName(file)[prefix.Length..^extension.Length];
+            return DateOnly.TryParseExact(stamp, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
+                && day < today.AddDays(-days);
+        }).ToList();
     }
 }

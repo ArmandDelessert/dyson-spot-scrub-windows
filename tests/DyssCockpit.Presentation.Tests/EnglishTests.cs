@@ -69,14 +69,14 @@ public sealed class EnglishTests : IDisposable
     public void TheLanguageIsWindowsOwnUntilOneIsChosenThenRemembered()
     {
         var first = AppSettings.Load(_path);
-        Assert.Equal("auto", first.Language);
+        Assert.Equal("", first.Language);
 
-        first.Language = "en";
+        first.Language = "en-US";
         var second = AppSettings.Load(_path);
-        Assert.Equal("en", second.Language);
+        Assert.Equal("en-US", second.Language);
         Assert.Equal(AppLanguage.English, second.ChosenLanguage);
 
-        second.Language = "fr";
+        second.Language = "fr-FR";
         Assert.Equal(AppLanguage.French, AppSettings.Load(_path).ChosenLanguage);
     }
 }

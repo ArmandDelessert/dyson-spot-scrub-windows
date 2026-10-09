@@ -400,16 +400,16 @@ public class CleaningViewModelTests
         await vm.LoadMapsAsync();
         Assert.True(vm.Scene.ShowFurniture);
         Assert.True(vm.Scene.ShowTravelPath);
-        Assert.False(vm.Scene.ShowCleanedArea);
+        Assert.True(vm.Scene.ShowCleanedArea);
 
         display.ShowFurniture = false;
         display.ShowTravelPath = false;
-        display.ShowCleanedArea = true;
+        display.ShowCleanedArea = false;
         vm.RebuildScene();
 
         Assert.False(vm.Scene.ShowFurniture);
         Assert.False(vm.Scene.ShowTravelPath);
-        Assert.True(vm.Scene.ShowCleanedArea);
+        Assert.False(vm.Scene.ShowCleanedArea);
     }
 
     [Fact]

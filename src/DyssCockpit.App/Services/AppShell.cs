@@ -23,13 +23,16 @@ internal sealed partial class AppShell(NotificationService notifications, Func<s
 
     public string? Restart() => restart();
 
-    public void OpenLogsFolder()
+    public void OpenLogsFolder() => OpenFolder(AppFolders.Logs(SessionStore.Directory));
+
+    public void OpenMessagesFolder() => OpenFolder(AppFolders.Messages(SessionStore.Directory));
+
+    private void OpenFolder(string folder)
     {
         try
         {
-            var logs = AppFolders.Logs(SessionStore.Directory);
-            Directory.CreateDirectory(logs);
-            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{logs}\"") { UseShellExecute = true });
+            Directory.CreateDirectory(folder);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
@@ -37,6 +40,6 @@ internal sealed partial class AppShell(NotificationService notifications, Func<s
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The logs folder could not be opened")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A data folder could not be opened")]
     private static partial void LogOpenFailed(ILogger logger, Exception exception);
 }

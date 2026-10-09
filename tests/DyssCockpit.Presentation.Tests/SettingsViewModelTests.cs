@@ -1,6 +1,7 @@
 using DyssCockpit.Core;
 using DyssCockpit.Presentation.Services;
 using DyssCockpit.Presentation.ViewModels;
+using Microsoft.Extensions.Time.Testing;
 
 namespace DyssCockpit.Presentation.Tests;
 
@@ -12,6 +13,7 @@ public sealed class SettingsViewModelTests : IDisposable
     public void Dispose()
     {
         if (File.Exists(_path)) File.Delete(_path);
+        if (Directory.Exists(_dataFolder)) Directory.Delete(_dataFolder, recursive: true);
     }
 
     private sealed class FakeShell : IAppShell
@@ -31,15 +33,22 @@ public sealed class SettingsViewModelTests : IDisposable
         }
 
         public void OpenLogsFolder() => LogsFolderOpened++;
+
+        public int MessagesFolderOpened { get; private set; }
+
+        public void OpenMessagesFolder() => MessagesFolderOpened++;
     }
 
-    private (SettingsViewModel Vm, AppSettings Settings, FakeShell Shell, FakeDialogs Dialogs) New(Action<AppSettings>? prepare = null)
+    /// <summary>The data folder the page counts old files in: this test's own, never the user's.</summary>
+    private readonly string _dataFolder = Directory.CreateTempSubdirectory("dyss-data-").FullName;
+
+    private (SettingsViewModel Vm, AppSettings Settings, FakeShell Shell, FakeDialogs Dialogs) New(Action<AppSettings>? prepare = null, TimeProvider? time = null)
     {
         var settings = AppSettings.Load(_path);
         prepare?.Invoke(settings);
         var shell = new FakeShell();
         var dialogs = new FakeDialogs();
-        return (new SettingsViewModel(settings, shell, dialogs, running: AppLanguage.French), settings, shell, dialogs);
+        return (new SettingsViewModel(settings, shell, dialogs, running: AppLanguage.French, dataFolder: _dataFolder, time: time), settings, shell, dialogs);
     }
 
     [Fact]
@@ -55,9 +64,10 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal(0, vm.LanguageIndex);
         Assert.True(vm.ShowFurniture);
         Assert.True(vm.ShowTravelPath);
-        Assert.False(vm.ShowCleanedArea);
-        Assert.True(vm.ShowExportButton);
+        Assert.True(vm.ShowCleanedArea);
+        Assert.False(vm.ShowExportButton);
         Assert.False(vm.SmoothRobotMotion);
+        Assert.False(vm.RecordMessages);
         Assert.Equal(2, vm.LogRetentionIndex);       // 7 days
         Assert.Equal(4, vm.MessageRetentionIndex);   // 30 days
     }
@@ -79,6 +89,100 @@ public sealed class SettingsViewModelTests : IDisposable
         vm.LogRetentionIndex = -1;   // nothing selected, as a list does while it refreshes
         vm.LogRetentionIndex = 7;
         Assert.Equal(1, settings.LogRetentionDays);
+    }
+
+    private static string Touch(string folder, string name)
+    {
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, name);
+        File.WriteAllText(path, "x");
+        return path;
+    }
+
+    /// <summary>A clock at noon on 9 October 2026, UTC.</summary>
+    private static FakeTimeProvider Clock()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 9, 12, 0, 0, TimeSpan.Zero));
+        clock.SetLocalTimeZone(TimeZoneInfo.Utc);
+        return clock;
+    }
+
+    [Fact]
+    public void ShorteningTheRetentionAsksFirstWhenFilesWouldGoAndSaysHowMany()
+    {
+        var (vm, settings, _, dialogs) = New(time: Clock());
+        var logs = AppFolders.Logs(_dataFolder);
+        Touch(logs, "dyss-cockpit-2026-10-08.log");   // yesterday
+        Touch(logs, "dyss-cockpit-2026-10-04.log");   // 5 days
+        Touch(logs, "dyss-cockpit-2026-10-01.log");   // 8 days: already past the 7 of today
+        var asked = new List<(string Title, string Message)>();
+        dialogs.Confirm = (title, message) => { asked.Add((title, message)); return true; };
+
+        vm.LogRetentionIndex = 0;   // 1 day: the 5 and 8 days old files would go
+
+        var (title, message) = Assert.Single(asked);
+        Assert.Equal("Journaux de l'application", title);
+        Assert.Contains("2 fichier(s) de journal", message, StringComparison.Ordinal);
+        Assert.Contains("1 jour(s)", message, StringComparison.Ordinal);
+        Assert.Equal(1, settings.LogRetentionDays);
+    }
+
+    [Fact]
+    public void RefusingPutsTheListAndTheSettingBackAsTheyWere()
+    {
+        var (vm, settings, _, dialogs) = New(time: Clock());
+        Touch(AppFolders.Messages(_dataFolder), "messages-2026-08-01.jsonl");
+        dialogs.Confirm = (_, _) => false;
+
+        vm.MessageRetentionIndex = 1;   // 3 days
+
+        Assert.Equal(30, settings.MessageRetentionDays);
+        Assert.Equal(4, vm.MessageRetentionIndex);
+        Assert.Equal(30, AppSettings.Load(_path).MessageRetentionDays);
+    }
+
+    [Fact]
+    public void NothingIsAskedWhenNothingWouldBeDeleted()
+    {
+        var (vm, settings, _, dialogs) = New(time: Clock());
+        Touch(AppFolders.Logs(_dataFolder), "dyss-cockpit-2026-10-09.log");
+        var asked = 0;
+        dialogs.Confirm = (_, _) => { asked++; return false; };   // would refuse, if asked
+
+        vm.LogRetentionIndex = 0;   // 1 day: today's file stays
+        vm.MessageRetentionIndex = 6;   // for ever
+        vm.LogRetentionIndex = 3;       // 14 days, longer than before
+
+        Assert.Equal(0, asked);
+        Assert.Equal(14, settings.LogRetentionDays);
+        Assert.Equal(0, settings.MessageRetentionDays);
+    }
+
+    [Fact]
+    public void RecordingTheMessagesIsASwitchOfThePageAndFollowsAChangeMadeElsewhere()
+    {
+        var (vm, settings, _, _) = New();
+        var raised = new List<string?>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        vm.RecordMessages = true;
+        Assert.True(settings.RecordMessages);
+        Assert.True(AppSettings.Load(_path).RecordMessages);
+
+        settings.RecordMessages = false;   // a disk that filled up stops the recording
+        Assert.False(vm.RecordMessages);
+        Assert.Contains(nameof(SettingsViewModel.RecordMessages), raised);
+    }
+
+    [Fact]
+    public void TheMessagesFolderIsOpenedByTheShell()
+    {
+        var (vm, _, shell, _) = New();
+
+        vm.OpenMessagesFolderCommand.Execute(null);
+
+        Assert.Equal(1, shell.MessagesFolderOpened);
+        Assert.Equal(0, shell.LogsFolderOpened);
     }
 
     [Fact]
@@ -140,7 +244,7 @@ public sealed class SettingsViewModelTests : IDisposable
     [Fact]
     public void ThePageReflectsTheSettingsItIsGiven()
     {
-        var (vm, _, _, _) = New(s => { s.Language = "en"; s.TaskNotifications = TaskNotificationMode.StartAndEnd; s.ShowTravelPath = false; });
+        var (vm, _, _, _) = New(s => { s.Language = "en-US"; s.TaskNotifications = TaskNotificationMode.StartAndEnd; s.ShowTravelPath = false; });
 
         Assert.Equal(2, vm.LanguageIndex);
         Assert.Equal(2, vm.TaskNotificationsIndex);
@@ -151,10 +255,10 @@ public sealed class SettingsViewModelTests : IDisposable
     [Fact]
     public void ALanguageChosenEarlierAndNotYetAppliedStillAsksForTheRestart()
     {
-        var (french, _, _, _) = New(s => s.Language = "fr");
+        var (french, _, _, _) = New(s => s.Language = "fr-FR");
         Assert.False(french.IsRestartRequired);
 
-        var (english, _, _, _) = New(s => s.Language = "en");
+        var (english, _, _, _) = New(s => s.Language = "en-US");
         Assert.True(english.IsRestartRequired);
     }
 
@@ -165,8 +269,8 @@ public sealed class SettingsViewModelTests : IDisposable
         var raised = new List<string?>();
         vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
-        vm.ShowExportButton = false;
-        vm.ShowExportButton = false;   // the same value again
+        vm.ShowExportButton = true;
+        vm.ShowExportButton = true;   // the same value again
 
         Assert.Equal([nameof(SettingsViewModel.ShowExportButton)], raised);
     }
@@ -178,17 +282,17 @@ public sealed class SettingsViewModelTests : IDisposable
         var (vm, settings, _, _) = New();
 
         vm.LanguageIndex = 2;
-        Assert.Equal("en", settings.Language);
+        Assert.Equal("en-US", settings.Language);
         Assert.True(vm.IsRestartRequired);
 
         vm.LanguageIndex = 1;
-        Assert.Equal("fr", settings.Language);
+        Assert.Equal("fr-FR", settings.Language);
         Assert.False(vm.IsRestartRequired);
 
 
         // Windows' own language is whatever the machine has, so for automatic only what is stored is checked.
         vm.LanguageIndex = 0;
-        Assert.Equal("auto", settings.Language);
+        Assert.Equal("", settings.Language);
     }
 
     [Fact]
@@ -242,6 +346,7 @@ public sealed class SettingsViewModelTests : IDisposable
         public void ShowNotification(string title, string body) { }
         public string? Restart() => null;
         public void OpenLogsFolder() { }
+        public void OpenMessagesFolder() { }
     }
 
     [Fact]

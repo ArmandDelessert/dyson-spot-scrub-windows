@@ -3,7 +3,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:DyssCockpit.App">
     <!-- The dashboard: a page per subject, picked from the pane, under a header that says which
-         robot this is and how the link to it stands, whatever page is on show. -->
+         robot this is and how the link to it stands, whatever page is on show. The top of the pane
+         holds what is looked at day to day (the dashboard, the history, the schedules); the bottom
+         what is looked at now and then or about the setup (the maps, the robot's settings, the log),
+         and the application's settings, always last. -->
     <NavigationView x:Name="Nav" PaneDisplayMode="Left" OpenPaneLength="230" IsSettingsVisible="False"
                     IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False"
                     SelectionChanged="Nav_SelectionChanged">
@@ -17,17 +20,17 @@
             <NavigationViewItem x:Name="SchedulesItem" Content='{local:Tr Fr="Horaires", En="Schedules"}' Tag="schedules">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE787;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="RobotSettingsItem" Content='{local:Tr Fr="Réglages du robot", En="Robot settings"}' Tag="robot-settings">
-                <NavigationViewItem.Icon><FontIcon Glyph="&#xE9E9;"/></NavigationViewItem.Icon>
-            </NavigationViewItem>
-            <NavigationViewItem x:Name="JournalItem" Content='{local:Tr Fr="Journal", En="Log"}' Tag="journal">
-                <NavigationViewItem.Icon><FontIcon Glyph="&#xE8FD;"/></NavigationViewItem.Icon>
-            </NavigationViewItem>
         </NavigationView.MenuItems>
         <NavigationView.FooterMenuItems>
             <NavigationViewItem x:Name="MapsItem" Content='{local:Tr Fr="Gérer les cartes", En="Manage maps"}' Tag="maps"
                                 ToolTipService.ToolTip='{local:Tr Fr="Renommer les cartes et les pièces, fusionner ou diviser des pièces, zones et meubles, lancer une cartographie", En="Rename maps and rooms, merge or split rooms, zones and furniture, start mapping"}'>
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE81E;"/></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="RobotSettingsItem" Content='{local:Tr Fr="Réglages du robot", En="Robot settings"}' Tag="robot-settings">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE9E9;"/></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="JournalItem" Content='{local:Tr Fr="Journal", En="Log"}' Tag="journal">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE8FD;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="SettingsItem" Content='{local:Tr Fr="Paramètres", En="Settings"}' Tag="settings">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></NavigationViewItem.Icon>

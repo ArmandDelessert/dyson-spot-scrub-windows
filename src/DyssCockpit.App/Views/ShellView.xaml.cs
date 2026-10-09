@@ -29,9 +29,14 @@ public sealed partial class ShellView : UserControl
     private readonly SettingsView _settings;
     private readonly JournalView _journal;
     private MapManagerView? _mapManager;
-    /// <summary>The page to go back to when the map manager closes.</summary>
-    private NavigationViewItem? _beforeMaps;
+    /// <summary>The pages visited before this one, the last first to come back to: what the back button, the mouse's and the keyboard's go through.</summary>
+    private readonly List<NavigationViewItem> _visited = [];
+    private NavigationViewItem? _current;
+    private bool _goingBack;
     private bool _started;
+
+    /// <summary>How many pages the back button remembers.</summary>
+    private const int HistoryLength = 30;
 
     /// <param name="settings">The application settings; null reads the stored ones, see <see cref="AppSettings.LoadReadOnly"/> for a screenshot.</param>
     internal ShellView(MainWindow window, RobotContext ctx, NotificationService notifications, IAppShell shell, AppSettings? settings = null)
@@ -63,10 +68,17 @@ public sealed partial class ShellView : UserControl
         _window.TitleBar.PaneToggleRequested += OnPaneToggleRequested;
         _window.TitleBar.BackRequested += OnBackRequested;
 
-        Loaded += (_, _) => _window.TitleBar.IsPaneToggleButtonVisible = true;
+        Loaded += (_, _) =>
+        {
+            _window.TitleBar.IsPaneToggleButtonVisible = true;
+            _window.TitleBar.IsBackButtonVisible = true;
+            _window.TitleBar.IsBackButtonEnabled = _visited.Count > 0;
+        };
         Nav.SelectedItem = DashboardItem;
         PreviewKeyDown += OnPreviewKeyDown;
         KeyDown += OnKeyDown;
+        // The mouse's back button, which a page that handles its clicks (the map) must not keep from us.
+        AddHandler(PointerPressedEvent, new PointerEventHandler(OnPointerPressed), handledEventsToo: true);
     }
 
     public MainViewModel ViewModel { get; }
@@ -90,6 +102,12 @@ public sealed partial class ShellView : UserControl
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
+        if (!_goingBack && _current is not null && _current != item)
+        {
+            _visited.Add(_current);
+            if (_visited.Count > HistoryLength) _visited.RemoveAt(0);
+        }
+        _current = item;
         if (item != MapsItem) CloseMapManager();
         Page.Content = item.Tag switch
         {
@@ -101,8 +119,25 @@ public sealed partial class ShellView : UserControl
             "maps" => OpenMapManager(),
             _ => _dashboard,
         };
-        if (item != MapsItem) _beforeMaps = item;
-        _window.TitleBar.IsBackButtonVisible = item == MapsItem;
+        _window.TitleBar.IsBackButtonEnabled = _visited.Count > 0;
+    }
+
+    /// <summary>Back to the page before this one; nothing when there is none.</summary>
+    private void GoBack()
+    {
+        if (_visited.Count == 0) return;
+        var previous = _visited[^1];
+        _visited.RemoveAt(_visited.Count - 1);
+        _goingBack = true;
+        try { Nav.SelectedItem = previous; }
+        finally { _goingBack = false; }
+    }
+
+    private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsXButton1Pressed) return;
+        GoBack();
+        e.Handled = true;
     }
 
     /// <summary>The map manager works off its own copy of the map, so it is built afresh each time it opens, on the map the dashboard shows.</summary>
@@ -121,11 +156,11 @@ public sealed partial class ShellView : UserControl
         _mapManager = null;
     }
 
-    private void OnBackRequested(TitleBar sender, object args) => Nav.SelectedItem = _beforeMaps ?? DashboardItem;
+    private void OnBackRequested(TitleBar sender, object args) => GoBack();
 
     private void OnPaneToggleRequested(TitleBar sender, object args) => Nav.IsPaneOpen = !Nav.IsPaneOpen;
 
-    /// <summary>0 the dashboard, 1 the history (its latest clean chosen), then the schedules, the robot settings, the journal, the application's settings.</summary>
+    /// <summary>0 the dashboard, 1 the history (its latest clean chosen), then the schedules, the robot settings, the journal, the application's settings (in that order, whatever the pane's).</summary>
     public void SelectTab(int index)
     {
         NavigationViewItem[] items = [DashboardItem, HistoryItem, SchedulesItem, RobotSettingsItem, JournalItem, SettingsItem];
@@ -144,6 +179,12 @@ public sealed partial class ShellView : UserControl
     /// <summary>A shape being dragged is put back first, on the way down, so nothing else can take the key from it.</summary>
     private void OnPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        if (e.Key == VirtualKey.GoBack)
+        {
+            GoBack();
+            e.Handled = true;
+            return;
+        }
         if (e.Key != VirtualKey.Escape) return;
         if (ReferenceEquals(Page.Content, _mapManager) && _mapManager?.Cancel() == true) e.Handled = true;
         else if (ReferenceEquals(Page.Content, _dashboard) && _dashboard.Map.CancelGesture()) e.Handled = true;

@@ -13,8 +13,8 @@ namespace DyssCockpit.Presentation.Services;
 public sealed class MessageLog(string? directory = null, int keepDays = MessageLog.DefaultKeepDays, TimeProvider? time = null) : IDisposable
 {
     public const int DefaultKeepDays = 30;
-    private const string Prefix = "messages-";
-    private const string Extension = ".jsonl";
+    internal const string Prefix = "messages-";
+    internal const string Extension = ".jsonl";
 
     private readonly object _gate = new();
     private readonly TimeProvider _time = time ?? TimeProvider.System;
