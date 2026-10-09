@@ -88,6 +88,9 @@ public sealed partial class AppSettings : ObservableObject
     /// </summary>
     [ObservableProperty] private TaskNotificationMode _taskNotifications = TaskNotificationMode.EndOnly;
 
+    /// <summary>A Windows notification when the robot starts to report a fault that needs someone, see <see cref="RobotFaultWatcher"/>. On by default.</summary>
+    [ObservableProperty] private bool _notifyRobotFault = true;
+
     /// <summary>A Windows notification when the robot could not reach a room it was sent to. On by default.</summary>
     [ObservableProperty] private bool _notifyUnreachable = true;
 
@@ -138,6 +141,7 @@ public sealed partial class AppSettings : ObservableObject
                 settings.TrayHintShown = s.TrayHintShown ?? false;
                 settings.TaskNotifications = Enum.TryParse<TaskNotificationMode>(s.TaskNotifications, out var mode) && Enum.IsDefined(mode) ? mode : TaskNotificationMode.EndOnly;
                 settings.NotifyUnreachable = s.NotifyUnreachable ?? true;
+                settings.NotifyRobotFault = s.NotifyRobotFault ?? true;
                 settings.LogRetentionDays = s.LogRetentionDays is { } logDays && RetentionChoices.Contains(logDays) ? logDays : 7;
                 settings.MessageRetentionDays = s.MessageRetentionDays is { } messageDays && RetentionChoices.Contains(messageDays) ? messageDays : 30;
                 settings._loading = false;
@@ -176,7 +180,7 @@ public sealed partial class AppSettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays)));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays, NotifyRobotFault)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -196,9 +200,10 @@ public sealed partial class AppSettings : ObservableObject
     partial void OnTrayHintShownChanged(bool value) => Save();
     partial void OnTaskNotificationsChanged(TaskNotificationMode value) => Save();
     partial void OnNotifyUnreachableChanged(bool value) => Save();
+    partial void OnNotifyRobotFaultChanged(bool value) => Save();
     partial void OnLogRetentionDaysChanged(int value) => Save();
     partial void OnMessageRetentionDaysChanged(int value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null, int? LogRetentionDays = null, int? MessageRetentionDays = null);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null, int? LogRetentionDays = null, int? MessageRetentionDays = null, bool? NotifyRobotFault = null);
 }

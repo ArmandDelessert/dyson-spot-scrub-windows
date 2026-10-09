@@ -88,6 +88,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.TaskNotifications = TaskNotificationModes[value];
     }
 
+    public bool NotifyRobotFault
+    {
+        get => _settings.NotifyRobotFault;
+        set => Update(_settings.NotifyRobotFault, value, v => _settings.NotifyRobotFault = v);
+    }
+
     public bool NotifyUnreachable
     {
         get => _settings.NotifyUnreachable;

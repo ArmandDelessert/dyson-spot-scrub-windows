@@ -29,6 +29,15 @@
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Panne du robot", En="Robot fault"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Quand le robot signale une faute qui demande votre intervention, par exemple une localisation impossible.", En="When the robot reports a fault that needs you, for instance when it cannot locate itself."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.NotifyRobotFault, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Panne du robot", En="Robot fault"}'/>
+                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
                             <TextBlock Text='{local:Tr Fr="Zone inaccessible", En="Unreachable area"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
                             <TextBlock Text='{local:Tr Fr="Quand le robot n&apos;a pas pu atteindre une pièce sélectionnée.", En="When the robot could not reach a selected room."}' Style="{StaticResource Caption}"/>
                         </StackPanel>

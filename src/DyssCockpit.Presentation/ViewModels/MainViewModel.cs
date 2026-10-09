@@ -27,6 +27,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private RobotConnectionStatus _lastStatus = RobotConnectionStatus.Disconnected;
     private readonly MapCatalog _maps;
     private readonly CleaningTaskDetector _tasks = new();
+    private readonly RobotFaultWatcher _faults = new();
 
     /// <summary>How long after this window sent the robot to clean its rooms are still the ones a start is told with.</summary>
     private static readonly TimeSpan LaunchWindow = TimeSpan.FromMinutes(2);
@@ -117,7 +118,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 _lastStatus = s;
                 // What the robot does while the link is down is not seen starting: the first state
                 // after it is a starting point, not a clean that has just begun.
-                if (s != RobotConnectionStatus.Connected) _tasks.Reset();
+                if (s != RobotConnectionStatus.Connected)
+                {
+                    _tasks.Reset();
+                    _faults.Reset();
+                }
                 Hub.Connected = s == RobotConnectionStatus.Connected;
                 Hub.Connection = s switch
                 {
@@ -168,6 +173,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RobotSettings.Apply(state);
         Cleaning.Apply(state);
         NotifyTask(_tasks.OnState(state));
+        NotifyFaults(_faults.OnState(state));
+    }
+
+    /// <summary>A fault the robot has just started to report: a notification, if the settings want one. The window and the icon's badge show it anyway.</summary>
+    private void NotifyFaults(IReadOnlyList<ActiveFault> faults)
+    {
+        if (faults.Count == 0 || !AppSettings.NotifyRobotFault) return;
+        var what = string.Join(", ", faults.Select(StatusViewModel.Describe));
+        NotifyRequested?.Invoke(T("Panne du robot", "Robot fault"), faults.Count == 1
+            ? T($"Le robot signale la {what}.", $"The robot reports {what}.")
+            : T($"Le robot signale plusieurs fautes : {what}.", $"The robot reports several faults: {what}."));
     }
 
     /// <summary>

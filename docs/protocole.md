@@ -377,6 +377,7 @@ Le champ `nextActionRequired` distingue l'indicateur de statut de la vraie panne
 | `0` | absent | plus aucune faute |
 | `501` | `WAIT_TO_CLEAR` | transitoire, au retour sur la base après un abandon |
 | `589` | `WAIT_TO_CLEAR` | **échec de localisation**, précédé de `event.locate_fail.post` |
+| `2007` | `USER_CONTINUE` | **pièce injoignable** : apparaît avec `event.Unable_all_area_recharge.post`, reste pendant `FULL_CLEAN_FINISHED` et la remise en charge, puis disparaît |
 | `2102` | `LOG_ONLY` | nettoyage ou cartographie terminé |
 | `2103` | `LOG_ONLY` | en charge |
 | `2104` | `LOG_ONLY` | abandonné |
@@ -384,6 +385,8 @@ Le champ `nextActionRequired` distingue l'indicateur de statut de la vraie panne
 | `2108` | `LOG_ONLY` | localisation en cours, avec `FULL_CLEAN_DISCOVERING` |
 | `2109` | `LOG_ONLY` | pendant le nettoyage |
 | `2110`, `2112` | `LOG_ONLY` | cartographie en cours |
+
+Tous les messages d'état des captures portent `activeFaults`, vide quand il n'y a rien. Une faute qui demande quelqu'un est celle dont `nextActionRequired` n'est pas `LOG_ONLY` (`WAIT_TO_CLEAR` ou `USER_CONTINUE`) ; c'est son apparition dans `activeFaults` qui déclenche la notification « Panne du robot » de DySS Cockpit (`RobotFaultWatcher`), une fois par faute, et sans la `501` qui n'est que de passage.
 
 Deux échecs se distinguent :
 

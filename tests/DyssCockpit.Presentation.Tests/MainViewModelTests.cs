@@ -236,6 +236,62 @@ public class MainViewModelTests
         Assert.Equal("Le robot a terminé son nettoyage en 1 h 10.", body);
     }
 
+    private static RobotState Faulty(string state, params (string Code, string Action)[] faults) =>
+        RobotState.Parse($$$"""{"msg":"CURRENT-STATE","state":"{{{state}}}","activeFaults":[{{{string.Join(",", faults.Select(f => $$"""{"faultCode":"{{f.Code}}","nextActionRequired":"{{f.Action}}"}"""))}}}]}""")!;
+
+    [Fact]
+    public void AFaultTheRobotStartsToReportIsToldOnceInWordsTheStatusCardUses()
+    {
+        using var vm = NewDashboard(new AppSettings(), out var notifications);
+        vm.OnRobotState(Faulty("INACTIVE_CHARGING", ("2105", "LOG_ONLY")));
+        vm.OnRobotState(Faulty("FULL_CLEAN_DISCOVERING", ("2108", "LOG_ONLY")));
+        Assert.Empty(notifications);
+
+        vm.OnRobotState(Faulty("FULL_CLEAN_RUNNING", ("589", "WAIT_TO_CLEAR")));
+        vm.OnRobotState(Faulty("FULL_CLEAN_RUNNING", ("589", "WAIT_TO_CLEAR")));
+
+        var (title, body) = Assert.Single(notifications);
+        Assert.Equal("Panne du robot", title);
+        Assert.Equal("Le robot signale la faute 589 (localisation impossible).", body);
+        Assert.Equal("faute 589 (localisation impossible)", vm.Status.FaultText);
+    }
+
+    [Fact]
+    public void SeveralNewFaultsAtOnceMakeOneNotification()
+    {
+        using var vm = NewDashboard(new AppSettings(), out var notifications);
+        vm.OnRobotState(Faulty("FULL_CLEAN_RUNNING"));
+
+        vm.OnRobotState(Faulty("FULL_CLEAN_RUNNING", ("589", "WAIT_TO_CLEAR"), ("2007", "USER_CONTINUE")));
+
+        Assert.Equal("Le robot signale plusieurs fautes : faute 589 (localisation impossible), faute 2007 (pièce inaccessible).", Assert.Single(notifications).Body);
+    }
+
+    [Fact]
+    public void TheFaultNotificationCanBeTurnedOffWithoutSilencingTheRest()
+    {
+        using var vm = NewDashboard(new AppSettings { NotifyRobotFault = false }, out var notifications);
+        vm.OnRobotState(Faulty("FULL_CLEAN_RUNNING"));
+
+        vm.OnRobotState(Faulty("FULL_CLEAN_RUNNING", ("589", "WAIT_TO_CLEAR")));
+        Assert.Empty(notifications);
+        Assert.True(vm.NeedsAttention);   // the window and the icon's badge still say it
+
+        vm.OnRobotEvent("event.Unable_all_area_recharge.post", NoParameters);
+        Assert.Equal(["Zone inaccessible"], notifications.Select(n => n.Title));
+    }
+
+    [Fact]
+    public void AFaultAlreadyThereAtTheFirstStateIsNotToldAsNew()
+    {
+        // The application has just started, or the link has come back: the window and the badge show it, no notification.
+        using var vm = NewDashboard(new AppSettings(), out var notifications);
+
+        vm.OnRobotState(Faulty("INACTIVE_DISCHARGING", ("589", "WAIT_TO_CLEAR")));
+
+        Assert.Empty(notifications);
+        Assert.True(vm.NeedsAttention);
+    }
     [Fact]
     public void ACleanWithoutADurationIsToldWithoutOne()
     {

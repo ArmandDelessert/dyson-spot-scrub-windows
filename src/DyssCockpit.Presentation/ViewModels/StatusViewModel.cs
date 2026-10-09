@@ -45,6 +45,15 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
     private string? _dockState;
     private TimeSpan? _dryingRemaining;
 
+    /// <summary>A fault in a few words: its code, and what it means when that is known (589, a locate failure; 2007, a room the robot cannot reach).</summary>
+    public static string Describe(ActiveFault fault) =>
+        T($"faute {fault.FaultCode}", $"fault {fault.FaultCode}") + fault.FaultCode switch
+        {
+            "589" => T(" (localisation impossible)", " (cannot locate itself)"),
+            "2007" => T(" (pièce inaccessible)", " (room unreachable)"),
+            _ => "",
+        };
+
     public void Apply(RobotState s)
     {
         StateText = Describe(s.State);
@@ -72,7 +81,7 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
         var real = s.RealFaults.ToList();
         HasRealFault = real.Count > 0;
         FaultText = real.Count > 0
-            ? string.Join(", ", real.Select(f => T($"faute {f.FaultCode}", $"fault {f.FaultCode}") + (f.FaultCode == "589" ? T(" (localisation impossible)", " (cannot locate itself)") : "")))
+            ? string.Join(", ", real.Select(Describe))
             : "";
 
         CanPause = s.IsCleaning; // true whether running or already paused: this is the pause/resume toggle

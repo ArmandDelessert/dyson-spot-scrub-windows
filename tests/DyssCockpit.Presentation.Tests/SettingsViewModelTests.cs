@@ -49,6 +49,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         Assert.Equal(1, vm.TaskNotificationsIndex);   // the end of a clean only
         Assert.True(vm.NotifyUnreachable);
+        Assert.True(vm.NotifyRobotFault);
         Assert.True(vm.CloseToTray);
         Assert.False(vm.StartWithWindows);
         Assert.Equal(0, vm.LanguageIndex);
@@ -95,6 +96,7 @@ public sealed class SettingsViewModelTests : IDisposable
         var (vm, _, _, _) = New();
 
         vm.NotifyUnreachable = false;
+        vm.NotifyRobotFault = false;
         vm.CloseToTray = false;
         vm.ShowCleanedArea = true;
         vm.ShowFurniture = false;
@@ -102,6 +104,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         var next = AppSettings.Load(_path);
         Assert.False(next.NotifyUnreachable);
+        Assert.False(next.NotifyRobotFault);
         Assert.False(next.CloseToTray);
         Assert.True(next.ShowCleanedArea);
         Assert.False(next.ShowFurniture);
