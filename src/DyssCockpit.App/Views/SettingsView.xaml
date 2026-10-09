@@ -208,7 +208,7 @@
             <TextBlock Text='{local:Tr Fr="À propos", En="About"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel Spacing="8">
-                    <TextBlock Text="{x:Bind ViewModel.VersionText}" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock Text="{x:Bind ViewModel.VersionText}" Style="{StaticResource BodyStrongTextBlockStyle}" IsTextSelectionEnabled="True"/>
                     <TextBlock Text='{local:Tr Fr="Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson. Dyson, Spot+Scrub et MyDyson sont des marques du groupe Dyson.", En="Independent project, not affiliated with, approved or supported by Dyson. Dyson, Spot+Scrub and MyDyson are trademarks of the Dyson group."}'
                                Style="{StaticResource Caption}"/>
                     <StackPanel Orientation="Horizontal" Spacing="8">

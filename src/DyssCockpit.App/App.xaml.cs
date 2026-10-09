@@ -21,6 +21,8 @@ public partial class App : Application
     /// <summary>The log on disk, %LOCALAPPDATA%\DySS Cockpit\Logs\dyss-cockpit-2026-10-05.log: one file a day, kept as long as the settings say.</summary>
     private readonly FileLoggerProvider _logFile;
     private readonly ILoggerFactory _loggers;
+    /// <summary>The preferences of this run, shared by the window (where it was) and the dashboard (everything else): two copies would write over each other.</summary>
+    private readonly AppSettings _settings;
     private readonly ILogger _logger;
     private MainWindow? _window;
     private NotificationService? _notifications;
@@ -35,7 +37,7 @@ public partial class App : Application
     public App()
     {
         // The language comes first: the XAML resources loaded just below already carry texts.
-        var stored = AppSettings.Load();
+        var stored = _settings = AppSettings.Load();
         Translation.Current = Option(Environment.GetCommandLineArgs(), "--lang") switch
         {
             "fr" => AppLanguage.French,
@@ -156,7 +158,8 @@ public partial class App : Application
             return;
         }
 
-        _window = new MainWindow();
+        // A screenshot is always the same size, wherever the window was left.
+        _window = new MainWindow(Option(args, "--screenshot") is null ? _settings : null);
         if (theme != ElementTheme.Default) _window.ForceTheme(theme);
         var screenshot = Option(args, "--screenshot");
         // Started with Windows, with a session to resume: straight to the notification area, the
@@ -195,9 +198,9 @@ public partial class App : Application
             }
 
             // A screenshot may run beside the application: it reads the preferences, never writes them.
-            var settings = screenshot is null ? null : AppSettings.LoadReadOnly();
+            var settings = screenshot is null ? _settings : AppSettings.LoadReadOnly();
             // ... and what it was told to speak is what it shows as chosen, so no restart is asked for.
-            if (settings is not null && Option(args, "--lang") is "fr" or "en") settings.Language = AppSettings.NormalizeLanguage(Option(args, "--lang"));
+            if (screenshot is not null && Option(args, "--lang") is "fr" or "en") settings.Language = AppSettings.NormalizeLanguage(Option(args, "--lang"));
             _shell = new ShellView(_window, ctx, _notifications, shell, settings);
             _window.Show(_shell);
             _shell.Start();

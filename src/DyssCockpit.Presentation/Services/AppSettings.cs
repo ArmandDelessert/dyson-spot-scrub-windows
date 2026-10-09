@@ -5,6 +5,9 @@ using DyssCockpit.Core;
 
 namespace DyssCockpit.Presentation.Services;
 
+/// <summary>Where the window was, in screen pixels, and whether it was maximized; the position and size then are those of the window before it was maximized.</summary>
+public sealed record WindowBounds(int X, int Y, int Width, int Height, bool Maximized);
+
 /// <summary>Which moments of a cleaning task the user is told about by a Windows notification.</summary>
 public enum TaskNotificationMode
 {
@@ -158,6 +161,7 @@ public sealed partial class AppSettings : ObservableObject
                 settings.TaskNotifications = Enum.TryParse<TaskNotificationMode>(s.TaskNotifications, out var mode) && Enum.IsDefined(mode) ? mode : TaskNotificationMode.EndOnly;
                 settings.NotifyUnreachable = s.NotifyUnreachable ?? true;
                 settings.NotifyRobotFault = s.NotifyRobotFault ?? true;
+                settings.Window = s.Window is { Width: > 0, Height: > 0 } ? s.Window : null;
                 settings.LogRetentionDays = s.LogRetentionDays is { } logDays && RetentionChoices.Contains(logDays) ? logDays : 7;
                 settings.MessageRetentionDays = s.MessageRetentionDays is { } messageDays && RetentionChoices.Contains(messageDays) ? messageDays : 30;
                 settings._loading = false;
@@ -192,11 +196,30 @@ public sealed partial class AppSettings : ObservableObject
     {
         if (_loading) return;
         Changed?.Invoke();
+        Write();
+    }
+
+    /// <summary>Where the window was last, and its size, for the next start; null until it has been moved or resized.</summary>
+    public WindowBounds? Window { get; private set; }
+
+    /// <summary>
+    /// Remembers where the window is. Written like any setting, but without <see cref="Changed"/>: the maps
+    /// redraw on that, and a window being dragged is no reason to.
+    /// </summary>
+    public void RememberWindow(WindowBounds bounds)
+    {
+        if (Window == bounds) return;
+        Window = bounds;
+        if (!_loading) Write();
+    }
+
+    private void Write()
+    {
         if (_path is null) return;
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays, NotifyRobotFault), FileFormat));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays, NotifyRobotFault, Window), FileFormat));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -221,5 +244,5 @@ public sealed partial class AppSettings : ObservableObject
     partial void OnMessageRetentionDaysChanged(int value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null, int? LogRetentionDays = null, int? MessageRetentionDays = null, bool? NotifyRobotFault = null);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null, int? LogRetentionDays = null, int? MessageRetentionDays = null, bool? NotifyRobotFault = null, WindowBounds? Window = null);
 }

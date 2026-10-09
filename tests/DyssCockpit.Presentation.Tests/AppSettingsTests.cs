@@ -24,6 +24,46 @@ public sealed class AppSettingsTests : IDisposable
     }
 
     [Fact]
+    public void TheWindowsPlaceIsRememberedAcrossRunsWithoutTellingTheMapsToRedraw()
+    {
+        var first = AppSettings.Load(_path);
+        Assert.Null(first.Window);
+        var changes = 0;
+        first.Changed += () => changes++;
+
+        first.RememberWindow(new WindowBounds(510, 309, 1860, 1230, Maximized: true));
+
+        Assert.Equal(0, changes);   // a window being dragged is no reason to redraw the maps
+        Assert.Equal(new WindowBounds(510, 309, 1860, 1230, true), AppSettings.Load(_path).Window);
+        Assert.Contains("\"Window\": {", File.ReadAllText(_path), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AWindowPlaceIsKeptWhenAnotherSettingIsSavedAndAnEmptyOneIsIgnored()
+    {
+        var settings = AppSettings.Load(_path);
+        settings.RememberWindow(new WindowBounds(10, 20, 1200, 800, false));
+
+        settings.SnapToGrid = false;   // writes the whole file again
+
+        Assert.Equal(new WindowBounds(10, 20, 1200, 800, false), AppSettings.Load(_path).Window);
+
+        File.WriteAllText(_path, """{"Window":{"X":0,"Y":0,"Width":0,"Height":0,"Maximized":false}}""");
+        Assert.Null(AppSettings.Load(_path).Window);
+    }
+
+    [Fact]
+    public void TheScreenshotNeverLeavesAWindowPlaceBehind()
+    {
+        AppSettings.Load(_path).RememberWindow(new WindowBounds(1, 2, 1000, 700, false));
+        var before = File.ReadAllText(_path);
+
+        AppSettings.LoadReadOnly(_path).RememberWindow(new WindowBounds(9, 9, 2000, 1500, true));
+
+        Assert.Equal(before, File.ReadAllText(_path));
+    }
+
+    [Fact]
     public void TheFileIsWrittenOneSettingALineForAPersonToRead()
     {
         var settings = AppSettings.Load(_path);
