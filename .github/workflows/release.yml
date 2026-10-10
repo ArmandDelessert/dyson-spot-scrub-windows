@@ -51,7 +51,7 @@ jobs:
         run: |
           if ($env:REF_TYPE -eq 'tag') {
             $m = [regex]::Match($env:REF_NAME, '^v(\d+\.\d+\.\d+)(-[0-9A-Za-z.-]+)?$')
-            if (-not $m.Success) { throw "Tag « $($env:REF_NAME) » : attendu vX.Y.Z ou vX.Y.Z-suffixe." }
+            if (-not $m.Success) { throw "Tag '$($env:REF_NAME)': expected vX.Y.Z or vX.Y.Z-suffix." }
             $version = $env:REF_NAME.Substring(1)
             $prerelease = $m.Groups[2].Success
           } else {
@@ -73,7 +73,7 @@ jobs:
             # A folder carrying .NET and the Windows App SDK: WinUI does not run from a single file.
             dotnet publish src/DyssCockpit.App/DyssCockpit.App.csproj --configuration Release --runtime $rid --self-contained `
               -p:DebugType=none -p:Version=$version --output "publish/$rid"
-            if ($LASTEXITCODE -ne 0) { throw "Publication $rid impossible." }
+            if ($LASTEXITCODE -ne 0) { throw "Publishing $rid failed." }
             Copy-Item README.md, LICENSE "publish/$rid"
             Compress-Archive -Path "publish/$rid/*" -DestinationPath "dist/DyssCockpit-$version-$rid.zip"
           }
@@ -108,16 +108,16 @@ jobs:
           $short = $env:GITHUB_SHA.Substring(0, 7)
           $subject = git log -1 --format=%s
           @"
-          Construite automatiquement à partir du dernier commit de ``main`` ($short) : « $subject ».
+          Built automatically from the latest commit of ``main`` ($short): “$subject”.
 
-          Elle remplace la précédente à chaque changement et peut être instable. La version stable est la dernière version publiée avec un numéro.
+          It replaces the previous one at every change and may be unstable. The stable version is the latest numbered release.
           "@ | Set-Content notes.md -Encoding utf8
           # The previous dev build goes, with its tag: the new release makes the tag again, on this commit.
           $existing = gh release list --limit 100 --json tagName --jq '.[].tagName'
           if ($existing -contains 'dev') {
             gh release delete dev --cleanup-tag --yes
-            if ($LASTEXITCODE -ne 0) { throw "Suppression de la version de développement impossible." }
+            if ($LASTEXITCODE -ne 0) { throw "Could not delete the previous development build." }
           }
           gh release create dev (Get-ChildItem dist/*).FullName --target $env:GITHUB_SHA --prerelease `
-            --title "Version de développement ($short)" --notes-file notes.md
-          if ($LASTEXITCODE -ne 0) { throw "Création de la version de développement impossible." }
+            --title "Development build ($short)" --notes-file notes.md
+          if ($LASTEXITCODE -ne 0) { throw "Could not create the development build." }
