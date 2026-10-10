@@ -265,7 +265,7 @@ public sealed class AppSettingsTests : IDisposable
     [Fact]
     public void AnInstanceWithNoFileBehavesButWritesNothing()
     {
-        // What tests and previews use: the settings work for the run without touching %APPDATA%.
+        // What tests and previews use: the settings work for the run without touching %AppData%.
         var settings = new AppSettings();
         var changes = 0;
         settings.Changed += () => changes++;

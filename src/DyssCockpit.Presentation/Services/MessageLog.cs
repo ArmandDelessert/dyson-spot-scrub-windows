@@ -6,7 +6,7 @@ namespace DyssCockpit.Presentation.Services;
 
 /// <summary>
 /// Every message exchanged with the robot, one JSON object per line, in one file per day under
-/// %LOCALAPPDATA%\DySS Cockpit\Messages — the same line shape as the CLI's "watch --log" and the captures
+/// %LocalAppData%\DySS Cockpit\Messages — the same line shape as the CLI's "watch --log" and the captures
 /// made so far. Files older than <see cref="KeepDays"/> days are deleted when a new day starts, so
 /// leaving it on for good does not fill the disk. Written from the MQTT thread.
 /// </summary>

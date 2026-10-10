@@ -18,7 +18,7 @@ namespace DyssCockpit.App;
     Justification = "The application's lifetime is its process's: the notifications and the icon are disposed when the window closes, the log when the process exits.")]
 public partial class App : Application
 {
-    /// <summary>The log on disk, %LOCALAPPDATA%\DySS Cockpit\Logs\dyss-cockpit-2026-10-05.log: one file a day, kept as long as the settings say.</summary>
+    /// <summary>The log on disk, %LocalAppData%\DySS Cockpit\Logs\dyss-cockpit-2026-10-05.log: one file a day, kept as long as the settings say.</summary>
     private readonly FileLoggerProvider _logFile;
     private readonly ILoggerFactory _loggers;
     /// <summary>The preferences of this run, shared by the window (where it was) and the dashboard (everything else): two copies would write over each other.</summary>

@@ -1,7 +1,7 @@
 namespace DyssCockpit.Presentation.Services;
 
 /// <summary>
-/// What is where under %LOCALAPPDATA%\DySS Cockpit, laid out like HusqA Cockpit's: the session and
+/// What is where under %LocalAppData%\DySS Cockpit, laid out like HusqA Cockpit's: the session and
 /// the preferences at the top, the application's log in <c>Logs</c>, the record of the robot's
 /// messages in <c>Messages</c>. Every name is English, whatever the language of the interface.
 /// </summary>

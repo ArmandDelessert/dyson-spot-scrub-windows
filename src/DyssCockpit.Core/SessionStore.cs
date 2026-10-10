@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace DyssCockpit.Core;
 
 /// <summary>
-/// Persists the bearer token in %LOCALAPPDATA%\DySS Cockpit\session.bin, encrypted with Windows DPAPI
+/// Persists the bearer token in %LocalAppData%\DySS Cockpit\session.bin, encrypted with Windows DPAPI
 /// (current user scope), so the one-time-code login does not have to be repeated at every start.
 /// </summary>
 public static class SessionStore
@@ -15,7 +15,7 @@ public static class SessionStore
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("Dyss.SessionStore.v1");
 
     /// <summary>
-    /// The folder under %LOCALAPPDATA% that holds the session, the preferences and the logs. Local,
+    /// The folder under %LocalAppData% that holds the session, the preferences and the logs. Local,
     /// not roaming: all of it belongs to this machine, the session being encrypted for it, and the
     /// message records can grow large.
     /// </summary>
