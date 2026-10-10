@@ -229,7 +229,7 @@ public sealed record CleanSummary(
 
 public sealed record CleanList([property: JsonPropertyName("data")] List<CleanSummary> Data);
 
-/// <summary>A stain the robot detected during a clean. "liquid" confirmed; the app is said to show several stain icons, so other types likely exist but haven't been observed yet.</summary>
+/// <summary>A stain the robot detected during a clean. "liquid" and "solid" observed; the app is said to show several stain icons, so other types may exist but haven't been observed yet.</summary>
 public sealed record DirtSpot(
     [property: JsonPropertyName("x")] double X,
     [property: JsonPropertyName("y")] double Y,

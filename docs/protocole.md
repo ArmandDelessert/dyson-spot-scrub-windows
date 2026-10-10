@@ -250,7 +250,7 @@ Côté REST, `GET /v1/app/{serial}/live-maps/cleaning` et `GET /v2/{serial}/clea
 { "x": -0.53, "y": -5.25, "type": "liquid", "isUvScanOn": false }
 ```
 
-Une seule valeur de `type` observée (`liquid`) ; l'application Android affichant plusieurs icônes de tache, d'autres valeurs existent vraisemblablement. `hazardZones`, `groutLines` et `swingDoors` sont restés vides dans toutes les captures, leur forme reste inconnue.
+Deux valeurs de `type` observées : `liquid`, et `solid`, vue dans deux nettoyages (le 20 septembre et le 10 octobre 2026) à deux endroits voisins à 45 cm l'un de l'autre, dans la même pièce ; `isUvScanOn` a toujours valu `false`. L'application Android affichant plusieurs icônes de tache, d'autres valeurs existent vraisemblablement. DySS Cockpit dessine toutes les taches d'un même point vert, quel que soit leur type. `hazardZones`, `groutLines` et `swingDoors` sont restés vides dans toutes les captures, leur forme reste inconnue.
 
 ### Méthodes et événements observés
 
@@ -757,7 +757,7 @@ Tous vérifiés le 19 septembre 2026.
 | `GET /v2/app/{serial}/persistent-maps/{mapId}?isPreview=` | géométrie : dimensions de la grille, pièces avec points visités et segments, station, meubles, restrictions, orientation |
 | `GET /v1/app/{serial}/live-maps/cleaning` | la même géométrie, plus `robotLocation` et `cleanPath` de la tâche en cours, utilisable à tout moment |
 | `GET /v1/app/{serial}/live-maps/mapping` | grille d'occupation de la carte active |
-| `GET /v2/{serial}/clean-maps` | historique : durée, surface, batterie au départ et à l'arrivée, fautes, lien S3 présigné de 15 minutes vers un blob zlib |
+| `GET /v2/{serial}/clean-maps` | historique : durée, surface, batterie au départ et à l'arrivée, fautes, lien S3 présigné de 15 minutes vers un blob zlib ; le cloud n'en garde que quelques-uns (sept le 10 octobre 2026, remontant au 20 septembre, alors qu'il y en avait eu davantage) |
 | `GET /v2/{serial}/clean-maps-data/{cleanId}` | détail d'un nettoyage : tracé, taches, obstacles, résultat par pièce |
 | `GET /v1/unifiedscheduler/{serial}/events?productType=804` | horaires de la carte active |
 | `GET /v1/assets/devices/{serial}/ota` | état de mise à jour du firmware |

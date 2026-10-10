@@ -385,6 +385,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         AppSettings.Changed -= _redrawMaps;
         Journal.Dispose();
+        History.Dispose();
         Cleaning.Dispose();
         Hub.Dispose();
     }

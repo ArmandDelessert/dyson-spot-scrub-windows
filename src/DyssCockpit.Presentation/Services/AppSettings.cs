@@ -114,6 +114,18 @@ public sealed partial class AppSettings : ObservableObject
     /// <summary>How many days back the records of the robot's messages are kept, 0 for ever. See <see cref="LogRetentionDays"/>.</summary>
     [ObservableProperty] private int _messageRetentionDays = 30;
 
+    /// <summary>The numbers of days the settings page offers for keeping the cleans of the history; 0 is "for ever".</summary>
+    public static readonly System.Collections.Immutable.ImmutableArray<int> CleanArchiveChoices = [30, 90, 180, 365, 730, 0];
+
+    /// <summary>
+    /// Every clean the history shows is also kept on this computer, see <see cref="CleanArchive"/>:
+    /// the Dyson cloud only holds the last few. Off by default, since it fills a folder.
+    /// </summary>
+    [ObservableProperty] private bool _archiveCleans;
+
+    /// <summary>How many days back the kept cleans are kept, 0 for ever; one of <see cref="CleanArchiveChoices"/>, a year by default.</summary>
+    [ObservableProperty] private int _cleanArchiveRetentionDays = 365;
+
     /// <summary>The language <see cref="Language"/> stands for on this machine.</summary>
     public AppLanguage ChosenLanguage => NormalizeLanguage(Language) switch
     {
@@ -161,6 +173,8 @@ public sealed partial class AppSettings : ObservableObject
                 settings.TaskNotifications = Enum.TryParse<TaskNotificationMode>(s.TaskNotifications, out var mode) && Enum.IsDefined(mode) ? mode : TaskNotificationMode.EndOnly;
                 settings.NotifyUnreachable = s.NotifyUnreachable ?? true;
                 settings.NotifyRobotFault = s.NotifyRobotFault ?? true;
+                settings.ArchiveCleans = s.ArchiveCleans ?? false;
+                settings.CleanArchiveRetentionDays = s.CleanArchiveRetentionDays is { } archiveDays && CleanArchiveChoices.Contains(archiveDays) ? archiveDays : 365;
                 settings.Window = s.Window is { Width: > 0, Height: > 0 } ? s.Window : null;
                 settings.LogRetentionDays = s.LogRetentionDays is { } logDays && RetentionChoices.Contains(logDays) ? logDays : 7;
                 settings.MessageRetentionDays = s.MessageRetentionDays is { } messageDays && RetentionChoices.Contains(messageDays) ? messageDays : 30;
@@ -219,7 +233,7 @@ public sealed partial class AppSettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays, NotifyRobotFault, Window), FileFormat));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays, NotifyRobotFault, Window, ArchiveCleans, CleanArchiveRetentionDays), FileFormat));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -240,9 +254,11 @@ public sealed partial class AppSettings : ObservableObject
     partial void OnTaskNotificationsChanged(TaskNotificationMode value) => Save();
     partial void OnNotifyUnreachableChanged(bool value) => Save();
     partial void OnNotifyRobotFaultChanged(bool value) => Save();
+    partial void OnArchiveCleansChanged(bool value) => Save();
+    partial void OnCleanArchiveRetentionDaysChanged(int value) => Save();
     partial void OnLogRetentionDaysChanged(int value) => Save();
     partial void OnMessageRetentionDaysChanged(int value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null, int? LogRetentionDays = null, int? MessageRetentionDays = null, bool? NotifyRobotFault = null, WindowBounds? Window = null);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null, int? LogRetentionDays = null, int? MessageRetentionDays = null, bool? NotifyRobotFault = null, WindowBounds? Window = null, bool? ArchiveCleans = null, int? CleanArchiveRetentionDays = null);
 }

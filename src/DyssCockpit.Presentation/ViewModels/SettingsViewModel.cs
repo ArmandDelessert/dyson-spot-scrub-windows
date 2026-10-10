@@ -54,6 +54,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         TaskNotificationsIndex = Math.Max(0, Array.IndexOf(TaskNotificationModes, settings.TaskNotifications));
         LogRetentionIndex = Math.Max(0, AppSettings.RetentionChoices.IndexOf(settings.LogRetentionDays));
         MessageRetentionIndex = Math.Max(0, AppSettings.RetentionChoices.IndexOf(settings.MessageRetentionDays));
+        CleanArchiveRetentionIndex = Math.Max(0, AppSettings.CleanArchiveChoices.IndexOf(settings.CleanArchiveRetentionDays));
         StartWithWindows = shell.StartsWithWindows;
         // The recording may be stopped from elsewhere (a disk that fills): the switch follows.
         settings.PropertyChanged += (_, e) =>
@@ -252,6 +253,30 @@ public sealed partial class SettingsViewModel : ObservableObject
         try { putBack(); }
         finally { _reverting = false; }
     }
+
+    // ----- Cleans kept from the history -----
+
+    /// <summary>Keeps on this computer the cleans the Historique shows, which the cloud forgets after a while.</summary>
+    public bool ArchiveCleans
+    {
+        get => _settings.ArchiveCleans;
+        set => Update(_settings.ArchiveCleans, value, v => _settings.ArchiveCleans = v);
+    }
+
+    /// <summary>The position of <see cref="AppSettings.CleanArchiveRetentionDays"/> among <see cref="AppSettings.CleanArchiveChoices"/>: 30, 90, 180, 365, 730 days, then for ever.</summary>
+    [ObservableProperty] private int _cleanArchiveRetentionIndex;
+
+    partial void OnCleanArchiveRetentionIndexChanged(int value)
+    {
+        if (!_initialized || _reverting || value < 0 || value >= AppSettings.CleanArchiveChoices.Length) return;
+        _ = ChangeRetentionAsync(AppSettings.CleanArchiveChoices[value], days => AppFolders.CleansOlderThan(_dataFolder, days, Today),
+            T("Historique des nettoyages", "Cleaning history"), T("de nettoyage conservé", "kept clean"),
+            apply: days => _settings.CleanArchiveRetentionDays = days,
+            revert: () => Revert(() => CleanArchiveRetentionIndex = AppSettings.CleanArchiveChoices.IndexOf(_settings.CleanArchiveRetentionDays)));
+    }
+
+    [RelayCommand]
+    private void OpenCleansFolder() => _shell.OpenCleansFolder();
 
     // ----- Messages recorded -----
 

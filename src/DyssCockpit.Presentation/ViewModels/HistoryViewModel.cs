@@ -38,9 +38,43 @@ public sealed partial class CleanItem(CleanSummary Summary) : ObservableObject
 }
 
 /// <summary>The Historique tab: the list of past cleans and the selected one's trail on its map.</summary>
-public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, AppSettings settings) : ObservableObject
+public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 {
+    private readonly RobotHub _hub;
+    private readonly MapCatalog _maps;
+    private readonly AppSettings _settings;
+    private readonly CleanArchive _archive;
     private readonly Dictionary<string, Task<CleanDetail>> _details = new();
+
+    /// <param name="archive">Where the cleans are kept when the setting asks for it; null for the user's own folder.</param>
+    public HistoryViewModel(RobotHub hub, MapCatalog maps, AppSettings settings, CleanArchive? archive = null)
+    {
+        _hub = hub;
+        _maps = maps;
+        _settings = settings;
+        _archive = archive ?? new CleanArchive(AppFolders.Cleans(SessionStore.Directory));
+        _settings.PropertyChanged += OnSettingChanged;
+    }
+
+    /// <summary>
+    /// Switching the copy on keeps what the list shows at once, rather than at the next start; a
+    /// shorter retention clears what is now too old (the page has asked first).
+    /// </summary>
+    private void OnSettingChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(AppSettings.ArchiveCleans) when _settings.ArchiveCleans && History.Count > 0:
+                _details.Clear();   // the details downloaded so far were not kept: fetched again, and kept this time
+                _ = FillDetailsAsync();
+                break;
+            case nameof(AppSettings.CleanArchiveRetentionDays):
+                _archive.Purge(_settings.CleanArchiveRetentionDays);
+                break;
+        }
+    }
+
+    public void Dispose() => _settings.PropertyChanged -= OnSettingChanged;
 
     public ObservableCollection<CleanItem> History { get; } = new();
     [ObservableProperty] private CleanItem? _selectedClean;
@@ -62,12 +96,29 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, AppS
     {
         try
         {
+            var cloud = await _hub.Api.GetCleanHistoryAsync(_hub.Serial, _hub.Ct);
             History.Clear();
-            foreach (var c in await hub.Api.GetCleanHistoryAsync(hub.Serial, hub.Ct))
-                History.Add(new CleanItem(c));
+            foreach (var c in Merge(cloud)) History.Add(new CleanItem(c));
         }
-        catch (OperationCanceledException) when (hub.IsShuttingDown) { }
-        catch (Exception ex) { hub.AddLog(T($"historique: {ex.Message}", $"history: {ex.Message}")); }
+        catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
+        catch (Exception ex)
+        {
+            _hub.AddLog(T($"historique: {ex.Message}", $"history: {ex.Message}"));
+            // Without the cloud (offline), what was kept is still there to look at.
+            if (_settings.ArchiveCleans && History.Count == 0)
+                foreach (var c in _archive.Summaries()) History.Add(new CleanItem(c));
+        }
+    }
+
+    /// <summary>
+    /// The cloud's cleans, newest first, then the kept ones it no longer lists, in their place by date.
+    /// The cloud's line wins for a clean both have. Only when keeping is on: off, the list is the cloud's.
+    /// </summary>
+    private IEnumerable<CleanSummary> Merge(IReadOnlyList<CleanSummary> cloud)
+    {
+        if (!_settings.ArchiveCleans) return cloud;
+        var known = cloud.Select(c => c.CleanId).ToHashSet(StringComparer.Ordinal);
+        return cloud.Concat(_archive.Summaries().Where(s => !known.Contains(s.CleanId))).OrderByDescending(c => c.StartTime ?? 0);
     }
 
 
@@ -83,7 +134,7 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, AppS
         var newest = History.FirstOrDefault()?.Summary.CleanId;
         foreach (var delay in RefreshDelays)
         {
-            try { await Task.Delay(delay, hub.Ct); }
+            try { await Task.Delay(delay, _hub.Ct); }
             catch (OperationCanceledException) { return; }
             var selected = SelectedClean?.Summary.CleanId;
             await LoadAsync();
@@ -103,17 +154,17 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, AppS
     public async Task FillDetailsAsync()
     {
         foreach (var item in History)
-            item.MapName = maps.NameOf(item.Summary.PersistentMapId) ?? item.Summary.PersistentMapId ?? "";
+            item.MapName = _maps.NameOf(item.Summary.PersistentMapId) ?? item.Summary.PersistentMapId ?? "";
 
         foreach (var item in History)
         {
             try
             {
-                var detail = await GetDetailAsync(item.Summary.CleanId);
+                var detail = await GetDetailAsync(item.Summary);
                 item.Rooms = DescribeRooms(detail);
             }
-            catch (OperationCanceledException) when (hub.IsShuttingDown) { return; }
-            catch (Exception ex) { item.Rooms = ""; hub.AddLog(T($"pièces du nettoyage {item.Summary.CleanId}: {ex.Message}", $"rooms of clean {item.Summary.CleanId}: {ex.Message}")); }
+            catch (OperationCanceledException) when (_hub.IsShuttingDown) { return; }
+            catch (Exception ex) { item.Rooms = ""; _hub.AddLog(T($"pièces du nettoyage {item.Summary.CleanId}: {ex.Message}", $"rooms of clean {item.Summary.CleanId}: {ex.Message}")); }
         }
     }
 
@@ -122,10 +173,11 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, AppS
     /// is already fetching that same clean must join that download (several hundred KB), not start
     /// a second one. A failed download is forgotten so the next request retries.
     /// </summary>
-    private async Task<CleanDetail> GetDetailAsync(string cleanId)
+    private async Task<CleanDetail> GetDetailAsync(CleanSummary summary)
     {
+        var cleanId = summary.CleanId;
         if (!_details.TryGetValue(cleanId, out var pending))
-            _details[cleanId] = pending = hub.Api.GetCleanDetailAsync(hub.Serial, cleanId, hub.Ct);
+            _details[cleanId] = pending = DownloadOrReadAsync(summary);
         try
         {
             return await pending;
@@ -135,6 +187,20 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, AppS
             if (ReferenceEquals(_details.GetValueOrDefault(cleanId), pending)) _details.Remove(cleanId);
             throw;
         }
+    }
+
+    /// <summary>
+    /// With keeping on, a clean already kept is read from disk, which is quicker and works offline;
+    /// otherwise it comes from the cloud and, with keeping on, is kept on its way (what the cloud no
+    /// longer lists can only be read from disk). The disk work is off the UI thread.
+    /// </summary>
+    private async Task<CleanDetail> DownloadOrReadAsync(CleanSummary summary)
+    {
+        if (_settings.ArchiveCleans && await Task.Run(() => _archive.LoadDetail(summary.CleanId)) is { } kept) return kept;
+        var detail = await _hub.Api.GetCleanDetailAsync(_hub.Serial, summary.CleanId, _hub.Ct);
+        if (_settings.ArchiveCleans && !await Task.Run(() => _archive.Save(summary, detail)))
+            _hub.AddLog(T($"nettoyage {summary.CleanId} : copie locale impossible", $"clean {summary.CleanId}: local copy failed"));
+        return detail;
     }
 
     /// <summary>
@@ -158,7 +224,7 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, AppS
     {
         try
         {
-            var detail = await GetDetailAsync(item.Summary.CleanId);
+            var detail = await GetDetailAsync(item.Summary);
             _path = detail.CleanPath;
             _obstacles = detail.Obstacles;
             _dirt = detail.Dirt;
@@ -175,17 +241,17 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, AppS
             _map = null;
             if (mapId is not null)
             {
-                try { _map = await maps.GetMapAsync(mapId); }
-                catch (Exception ex) when (!hub.IsShuttingDown) { hub.AddLog(T($"carte {mapId} du nettoyage: {ex.Message}", $"map {mapId} of the clean: {ex.Message}")); }
+                try { _map = await _maps.GetMapAsync(mapId); }
+                catch (Exception ex) when (!_hub.IsShuttingDown) { _hub.AddLog(T($"carte {mapId} du nettoyage: {ex.Message}", $"map {mapId} of the clean: {ex.Message}")); }
             }
             // Reads inside "Trajet du nettoyage sélectionné sur la carte …". A clean can name a map
             // the account no longer has, deleted or replaced since; saying so beats printing a raw
             // id at the user, which is what the missing-map case used to do.
-            MapName = maps.NameOf(mapId) ?? (mapId is null ? T("inconnue", "unknown") : T("supprimée", "deleted"));
+            MapName = _maps.NameOf(mapId) ?? (mapId is null ? T("inconnue", "unknown") : T("supprimée", "deleted"));
             RebuildScene();
         }
-        catch (OperationCanceledException) when (hub.IsShuttingDown) { }
-        catch (Exception ex) { hub.AddLog(T($"nettoyage: {ex.Message}", $"clean: {ex.Message}")); }
+        catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
+        catch (Exception ex) { _hub.AddLog(T($"nettoyage: {ex.Message}", $"clean: {ex.Message}")); }
     }
 
     public void RebuildScene()
@@ -193,16 +259,16 @@ public sealed partial class HistoryViewModel(RobotHub hub, MapCatalog maps, AppS
         var mapId = _map?.Id;
         Scene = new MapScene
         {
-            Grid = maps.GridFor(mapId),
+            Grid = _maps.GridFor(mapId),
             Map = _map,
-            ZoneMetadata = maps.Find(mapId)?.Metadata.Zones,
+            ZoneMetadata = _maps.Find(mapId)?.Metadata.Zones,
             Dock = _map?.DockLocation,
             Path = _path,
             Obstacles = _obstacles,
             DirtSpots = _dirt,
-            ShowFurniture = settings.ShowFurniture,
-            ShowTravelPath = settings.ShowTravelPath,
-            ShowCleanedArea = settings.ShowCleanedArea,
+            ShowFurniture = _settings.ShowFurniture,
+            ShowTravelPath = _settings.ShowTravelPath,
+            ShowCleanedArea = _settings.ShowCleanedArea,
         };
     }
 

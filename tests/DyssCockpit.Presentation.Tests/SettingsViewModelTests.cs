@@ -37,6 +37,10 @@ public sealed class SettingsViewModelTests : IDisposable
         public int MessagesFolderOpened { get; private set; }
 
         public void OpenMessagesFolder() => MessagesFolderOpened++;
+
+        public int CleansFolderOpened { get; private set; }
+
+        public void OpenCleansFolder() => CleansFolderOpened++;
     }
 
     /// <summary>The data folder the page counts old files in: this test's own, never the user's.</summary>
@@ -68,6 +72,8 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.False(vm.ShowExportButton);
         Assert.False(vm.SmoothRobotMotion);
         Assert.False(vm.RecordMessages);
+        Assert.False(vm.ArchiveCleans);
+        Assert.Equal(3, vm.CleanArchiveRetentionIndex);   // a year
         Assert.Equal(2, vm.LogRetentionIndex);       // 7 days
         Assert.Equal(4, vm.MessageRetentionIndex);   // 30 days
     }
@@ -172,6 +178,35 @@ public sealed class SettingsViewModelTests : IDisposable
         settings.RecordMessages = false;   // a disk that filled up stops the recording
         Assert.False(vm.RecordMessages);
         Assert.Contains(nameof(SettingsViewModel.RecordMessages), raised);
+    }
+
+    [Fact]
+    public void KeepingTheCleansIsASwitchAndItsRetentionAListThatAsksBeforeDeleting()
+    {
+        var (vm, settings, shell, dialogs) = New(time: Clock());
+        vm.ArchiveCleans = true;
+        Assert.True(AppSettings.Load(_path).ArchiveCleans);
+
+        vm.CleanArchiveRetentionIndex = 5;   // for ever
+        Assert.Equal(0, settings.CleanArchiveRetentionDays);
+
+        Touch(AppFolders.Cleans(_dataFolder), "clean-2026-05-01-abc.json.gz");   // 5 months old
+        Touch(AppFolders.Cleans(_dataFolder), "clean-2026-10-01-def.json.gz");
+        var asked = new List<string>();
+        dialogs.Confirm = (_, message) => { asked.Add(message); return false; };
+        vm.CleanArchiveRetentionIndex = 1;   // 3 months: the first would go
+
+        Assert.Single(asked);
+        Assert.Contains("1 fichier(s)", asked[0], StringComparison.Ordinal);
+        Assert.Equal(0, settings.CleanArchiveRetentionDays);   // refused: as it was
+        Assert.Equal(5, vm.CleanArchiveRetentionIndex);
+
+        dialogs.Confirm = (_, _) => true;
+        vm.CleanArchiveRetentionIndex = 1;
+        Assert.Equal(90, settings.CleanArchiveRetentionDays);
+
+        vm.OpenCleansFolderCommand.Execute(null);
+        Assert.Equal(1, shell.CleansFolderOpened);
     }
 
     [Fact]
@@ -347,6 +382,7 @@ public sealed class SettingsViewModelTests : IDisposable
         public string? Restart() => null;
         public void OpenLogsFolder() { }
         public void OpenMessagesFolder() { }
+        public void OpenCleansFolder() { }
     }
 
     [Fact]

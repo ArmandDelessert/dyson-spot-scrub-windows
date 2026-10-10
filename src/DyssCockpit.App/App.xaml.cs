@@ -44,10 +44,9 @@ public partial class App : Application
             "en" => AppLanguage.English,
             _ => stored.ChosenLanguage,
         };
-        // What an earlier version left at the top of the data folder goes where it belongs, before
-        // the log is opened, and the records too old are cleared whether or not any is being made.
-        AppFolders.MigrateLegacyLayout(SessionStore.Directory);
+        // What is too old is cleared whether or not anything is being written to it now.
         using (var records = new MessageLog(keepDays: stored.MessageRetentionDays)) records.Purge();
+        new CleanArchive(AppFolders.Cleans(SessionStore.Directory)).Purge(stored.CleanArchiveRetentionDays);
         _logFile = new FileLoggerProvider(AppFolders.Logs(SessionStore.Directory), retentionDays: stored.LogRetentionDays);
         _loggers = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Information).AddProvider(_logFile));
         _logger = _loggers.CreateLogger<App>();

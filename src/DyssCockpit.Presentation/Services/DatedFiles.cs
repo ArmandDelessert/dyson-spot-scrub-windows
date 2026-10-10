@@ -3,8 +3,8 @@ using System.Globalization;
 namespace DyssCockpit.Presentation.Services;
 
 /// <summary>
-/// Files written one a day and named after it, <c>prefix + 2026-10-05 + extension</c>: the logs and
-/// the message records. Their age is read from their name, not from the date the file system gives,
+/// Files named after the day they belong to, <c>prefix + 2026-10-05 + extension</c> (or, for the cleans
+/// kept from the history, with the clean's id after the day): the logs, the message records, the cleans. Their age is read from their name, not from the date the file system gives,
 /// which a copy or a restore changes.
 /// </summary>
 internal static class DatedFiles
@@ -42,8 +42,10 @@ internal static class DatedFiles
         if (days <= 0 || !Directory.Exists(folder)) return [];
         return Directory.EnumerateFiles(folder, $"{prefix}*{extension}").Where(file =>
         {
-            var stamp = Path.GetFileName(file)[prefix.Length..^extension.Length];
-            return DateOnly.TryParseExact(stamp, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
+            // The day, then possibly more after a dash (the clean's id): logs and messages have nothing after it.
+            var rest = Path.GetFileName(file)[prefix.Length..^extension.Length];
+            return rest.Length >= 10 && (rest.Length == 10 || rest[10] == '-')
+                && DateOnly.TryParseExact(rest[..10], "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
                 && day < today.AddDays(-days);
         }).ToList();
     }

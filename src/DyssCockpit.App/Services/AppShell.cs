@@ -27,6 +27,8 @@ internal sealed partial class AppShell(NotificationService notifications, Func<s
 
     public void OpenMessagesFolder() => OpenFolder(AppFolders.Messages(SessionStore.Directory));
 
+    public void OpenCleansFolder() => OpenFolder(AppFolders.Cleans(SessionStore.Directory));
+
     private void OpenFolder(string folder)
     {
         try

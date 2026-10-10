@@ -191,6 +191,39 @@
                         </ComboBox>                    </Grid>
                 </StackPanel>
             </Border>
+            <!-- Cleaning history kept on this computer -->
+            <TextBlock Text='{local:Tr Fr="Historique des nettoyages", En="Cleaning history"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Conserver les nettoyages sur cet ordinateur", En="Keep the cleans on this computer"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Le cloud Dyson ne garde que les derniers nettoyages. Chaque nettoyage que l&apos;Historique affiche est copié ici, avec son tracé, ses taches et ses obstacles, et reste consultable quand le cloud l&apos;a oublié.", En="The Dyson cloud only keeps the latest cleans. Every clean the History shows is copied here, with its path, stains and obstacles, and stays available once the cloud has forgotten it."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <HyperlinkButton Content='{local:Tr Fr="Ouvrir le dossier des nettoyages", En="Open the cleans folder"}' Command="{x:Bind ViewModel.OpenCleansFolderCommand}" Padding="0" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ArchiveCleans, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Conserver les nettoyages sur cet ordinateur", En="Keep the cleans on this computer"}'/>
+                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Durée de conservation", En="Retention"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Les nettoyages plus anciens sont supprimés de cet ordinateur, que la copie soit activée ou non.", En="Older cleans are deleted from this computer, whether copying is on or not."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.CleanArchiveRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center"
+                                  AutomationProperties.Name='{local:Tr Fr="Durée de conservation", En="Retention"}'>
+                            <ComboBoxItem Content='{local:Tr Fr="1 mois", En="1 month"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="3 mois", En="3 months"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="6 mois", En="6 months"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="1 an", En="1 year"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="2 ans", En="2 years"}'/>
+                            <ComboBoxItem Content='{local:Tr Fr="Toujours conserver", En="Keep forever"}'/>
+                        </ComboBox>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!-- Account -->
             <TextBlock Text='{local:Tr Fr="Compte", En="Account"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">

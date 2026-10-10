@@ -116,6 +116,24 @@ public sealed class AppSettingsTests : IDisposable
     }
 
     [Fact]
+    public void CleansAreNotKeptByDefaultAndForAYearWhenTheyAre()
+    {
+        var first = AppSettings.Load(_path);
+        Assert.False(first.ArchiveCleans);
+        Assert.Equal(365, first.CleanArchiveRetentionDays);
+
+        first.ArchiveCleans = true;
+        first.CleanArchiveRetentionDays = 0;
+        var second = AppSettings.Load(_path);
+
+        Assert.True(second.ArchiveCleans);
+        Assert.Equal(0, second.CleanArchiveRetentionDays);
+
+        File.WriteAllText(_path, """{"CleanArchiveRetentionDays":45}""");
+        Assert.Equal(365, AppSettings.Load(_path).CleanArchiveRetentionDays);   // not one the list offers
+    }
+
+    [Fact]
     public void ARetentionIsRememberedAndForEverIsZero()
     {
         var first = AppSettings.Load(_path);

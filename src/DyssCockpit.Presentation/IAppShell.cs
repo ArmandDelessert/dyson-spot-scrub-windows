@@ -27,4 +27,7 @@ public interface IAppShell
 
     /// <summary>Opens the folder holding the records of the robot's messages.</summary>
     void OpenMessagesFolder();
+
+    /// <summary>Opens the folder holding the cleans kept from the history.</summary>
+    void OpenCleansFolder();
 }
