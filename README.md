@@ -63,7 +63,7 @@ Chaque nettoyage avec sa date, sa durée, sa carte, les pièces réellement nett
 
 ### Horaires
 
-Les nettoyages planifiés de la carte active, triés par jour de la semaine puis par heure, avec leurs jours, leurs pièces, une durée estimée d'après l'historique, et un avertissement quand un horaire risque de commencer avant la fin du précédent. Création, modification avec les mêmes réglages par pièce que le tableau de bord, activation, suppression. Les horaires créés sur le téléphone apparaissent ici, et inversement.
+Les nettoyages planifiés de la carte active, triés par jour de la semaine puis par heure, avec leurs jours (ou « une seule fois » : l'éditeur propose de ne pas répéter un horaire, ce que le téléphone ne permet pas ; le robot l'exécute alors une fois puis le désactive), leurs pièces, une durée estimée d'après l'historique, et un avertissement quand un horaire risque de commencer avant la fin du précédent. Création, modification avec les mêmes réglages par pièce que le tableau de bord, activation, suppression. Les horaires créés sur le téléphone apparaissent ici, et inversement.
 
 ### Gérer les cartes
 

@@ -39,6 +39,7 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
         Title = existing is null ? T("Nouvel horaire", "New schedule") : T("Modifier l'horaire", "Edit the schedule");
         _hour = existing?.Hour ?? 10;
         _minute = existing?.Minute ?? 0;
+        _repeats = existing?.Repeats ?? true;
 
         Days = [.. ScheduleDayLabels.All.Select(d => new DayOption(d.Day, d.Letter, d.Long) { IsChecked = existing?.Days.HasFlag(d.Day) == true })];
         foreach (var d in Days) d.PropertyChanged += (_, _) => Recompute();
@@ -85,6 +86,14 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
     /// <summary>Another schedule of this map due while this one runs, or running when this one is due.</summary>
     [ObservableProperty] private string _overlapWarning = "";
 
+    /// <summary>
+    /// Every week on its days (the default, and all the phone offers), or once: at the next of its
+    /// day, after which the robot turns it off and keeps it in the list.
+    /// </summary>
+    [ObservableProperty] private bool _repeats;
+
+    partial void OnRepeatsChanged(bool value) => Recompute();
+
     partial void OnHourChanged(int value) => Recompute();
     partial void OnMinuteChanged(int value) => Recompute();
 
@@ -129,6 +138,8 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
             (true, true) => T("Choisissez au moins un jour et une pièce.", "Choose at least one day and one room."),
             (true, false) => T("Choisissez au moins un jour.", "Choose at least one day."),
             (false, true) => T("Choisissez au moins une pièce.", "Choose at least one room."),
+            // Once is one day: which of several the robot would take, and whether it would go on to the next, has not been tried.
+            _ when !Repeats && System.Numerics.BitOperations.PopCount((uint)days) > 1 => T("Un horaire sans répétition n'a qu'un jour.", "A schedule that does not repeat has a single day."),
             _ => "",
         };
         CanSave = Missing == "";
@@ -174,5 +185,6 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
         Rooms.Where(r => r.Selected).OrderBy(r => r.Order)
             .Where(r => int.TryParse(r.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
             .Select(r => new ScheduledRoom(int.Parse(r.Id, CultureInfo.InvariantCulture), r.Settings))
-            .ToList());
+            .ToList(),
+        Repeats);
 }

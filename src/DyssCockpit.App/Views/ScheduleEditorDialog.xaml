@@ -32,6 +32,9 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <CheckBox IsChecked="{x:Bind ViewModel.Repeats, Mode=TwoWay}" Content='{local:Tr Fr="Répéter chaque semaine", En="Repeat every week"}'/>
+            <TextBlock Text='{local:Tr Fr="Sans répétition, le robot ne l&apos;exécute qu&apos;une fois, au prochain jour choisi, puis le désactive : il reste dans la liste, prêt à être réactivé.", En="Without repetition, the robot runs it once, on the next chosen day, then turns it off: it stays in the list, ready to be turned on again."}'
+                       Style="{StaticResource Caption}" TextWrapping="Wrap" Visibility="{x:Bind local:Ui.Unless(ViewModel.Repeats), Mode=OneWay}"/>
         </StackPanel>
 
         <Grid ColumnSpacing="8">

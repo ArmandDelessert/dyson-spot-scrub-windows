@@ -199,6 +199,46 @@ public class SchedulesViewModelTests
     }
 
     [Fact]
+    public async Task ANewScheduleRepeatsUnlessToldOtherwiseAndAOneOffHasOneDay()
+    {
+        var editor = await EditorAsync();
+        Assert.True(editor.Repeats);
+        editor.Days[0].IsChecked = true;
+        editor.Days[3].IsChecked = true;
+        Room(editor, "11").Selected = true;
+        Assert.True(editor.CanSave);
+
+        editor.Repeats = false;
+        Assert.False(editor.CanSave);
+        Assert.Equal("Un horaire sans répétition n'a qu'un jour.", editor.Missing);
+
+        editor.Days[3].IsChecked = false;
+        Assert.True(editor.CanSave);
+        Assert.False(editor.Build(42).Repeats);
+    }
+
+    [Fact]
+    public async Task EditingAOneOffKeepsItOneOff()
+    {
+        var once = new CleaningSchedule(7, long.Parse(ActiveId, System.Globalization.CultureInfo.InvariantCulture), false, ScheduleDays.Monday, 4, 40, [], Repeats: false);
+
+        var editor = await EditorAsync(once);
+
+        Assert.False(editor.Repeats);
+        Assert.False(editor.Build(7).Repeats);
+    }
+
+    [Fact]
+    public void AOneOffSaysSoInTheList()
+    {
+        var once = new ScheduleItem(new CleaningSchedule(7, 1, false, ScheduleDays.Monday, 4, 40, [], Repeats: false), "", 0, "");
+        var weekly = new ScheduleItem(new CleaningSchedule(8, 1, true, ScheduleDays.Monday, 4, 40, []), "", 0, "");
+
+        Assert.Equal("Le lundi, une seule fois", once.DaysText);
+        Assert.Equal("Le lundi", weekly.DaysText);
+    }
+
+    [Fact]
     public async Task SavingNeedsADayAndARoomAndSaysWhichIsMissing()
     {
         var editor = await EditorAsync();

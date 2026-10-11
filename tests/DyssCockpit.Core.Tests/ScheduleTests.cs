@@ -55,6 +55,29 @@ public class ScheduleTests
     }
 
     [Fact]
+    public void AOneOffIsSentWithRepeatZeroAndReadBackAsOne()
+    {
+        var weekly = CleaningSchedule.FromParams((JsonObject)JsonNode.Parse(ThreeRoomsThreeDays)!)!;
+        Assert.True(weekly.Repeats);
+        Assert.Equal(1, weekly.ToParams(SixRooms, 3600)["repeat"]!.GetValue<int>());
+
+        var once = weekly with { Days = ScheduleDays.Monday, Repeats = false };
+        var sent = once.ToParams(SixRooms, 3600);
+
+        Assert.Equal(0, sent["repeat"]!.GetValue<int>());
+        Assert.False(CleaningSchedule.FromParams(sent)!.Repeats);
+    }
+
+    [Fact]
+    public void TheCloudsWeeklyRepeatIsTheSchedulesRepetition()
+    {
+        var settings = new ScheduleEventSettings("1000000002", []);
+
+        Assert.True(new ScheduleEvent(1, [1], "04:40", true, true, settings).ToSchedule()!.Repeats);
+        Assert.False(new ScheduleEvent(1, [1], "04:40", false, false, settings).ToSchedule()!.Repeats);
+    }
+
+    [Fact]
     public void DaysAreOneBitEachMondayFirst()
     {
         var s = CleaningSchedule.FromParams((JsonObject)JsonNode.Parse(ThreeRoomsThreeDays)!)!;

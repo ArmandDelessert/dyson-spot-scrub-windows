@@ -15,7 +15,8 @@ public sealed class ScheduleItem(CleaningSchedule schedule, string roomsText, in
     public CleaningSchedule Schedule { get; } = schedule;
     public bool Enabled => Schedule.Enabled;
     public string TimeText => ScheduleDayLabels.Time(Schedule.Hour, Schedule.Minute);
-    public string DaysText => char.ToUpper(ScheduleDayLabels.Describe(Schedule.Days)[0], CultureInfo.CurrentCulture) + ScheduleDayLabels.Describe(Schedule.Days)[1..];
+    public string DaysText => char.ToUpper(ScheduleDayLabels.Describe(Schedule.Days)[0], CultureInfo.CurrentCulture) + ScheduleDayLabels.Describe(Schedule.Days)[1..]
+        + (Schedule.Repeats ? "" : T(", une seule fois", ", once"));
     public string RoomsText { get; } = roomsText;
     public string DurationText { get; } = minutes > 0 ? T($"environ {ScheduleEditorViewModel.FormatMinutes(minutes)}", $"about {ScheduleEditorViewModel.FormatMinutes(minutes)}") : "";
     public string OverlapText { get; } = overlap;

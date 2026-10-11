@@ -35,6 +35,11 @@ public sealed record MapRoom(int ZoneId, string Name);
 /// One scheduled clean. The robot keeps it with its map and never gives it back in detail — get_order
 /// only answers a count — so whoever creates a schedule has to remember it. <see cref="Rooms"/> are
 /// the rooms to clean, in cleaning order.
+/// <para>
+/// <see cref="Repeats"/> false makes it a one-off (add_order's <c>repeat</c> at 0, the cloud's
+/// <c>weeklyRepeat</c> false; the phone never offers it): tried on 2026-10-11, the robot runs it once,
+/// at the next of its days, then turns it off and keeps it, as a schedule switched off by hand.
+/// </para>
 /// </summary>
 public sealed record CleaningSchedule(
     long Id,
@@ -43,7 +48,8 @@ public sealed record CleaningSchedule(
     ScheduleDays Days,
     int Hour,
     int Minute,
-    IReadOnlyList<ScheduledRoom> Rooms)
+    IReadOnlyList<ScheduledRoom> Rooms,
+    bool Repeats = true)
 {
     /// <summary>
     /// The add_order parameters, shaped exactly as the phone sends them (captures of 2026-09-25 and
@@ -80,7 +86,7 @@ public sealed record CleaningSchedule(
             ["day"] = (int)Days,
             ["hour"] = Hour,
             ["minute"] = Minute,
-            ["repeat"] = 1,
+            ["repeat"] = Repeats ? 1 : 0,
             ["map_id"] = MapId,
             ["room_count"] = preference.Count,
             ["time_zone"] = timeZoneSeconds,
@@ -110,10 +116,12 @@ public sealed record CleaningSchedule(
         }
         return new CleaningSchedule(id, mapId, Long(p["enable"]) == 1, (ScheduleDays)(Long(p["day"]) ?? 0),
             (int)(Long(p["hour"]) ?? 0), (int)(Long(p["minute"]) ?? 0),
-            rooms.OrderBy(r => r.Order).Select(r => r.Room).ToList());
+            rooms.OrderBy(r => r.Order).Select(r => r.Room).ToList(),
+            Repeats: Long(p["repeat"]) != 0);
     }
 
-    private static long? Long(JsonNode? n) => n is JsonValue v && v.TryGetValue<long>(out var l) ? l : null;
+    private static long? Long(JsonNode? n) =>
+        n is not JsonValue v ? null : v.TryGetValue<long>(out var l) ? l : v.TryGetValue<int>(out var i) ? i : null;   // int when built here, long when parsed
 
     /// <summary>A fresh id: the robot takes whatever the client picks, the phone a random positive 32-bit number.</summary>
     public static long NewId() => RandomNumberGenerator.GetInt32(1, int.MaxValue);
@@ -180,7 +188,7 @@ public sealed record ScheduleEvent(
                 WaterLevels.FromRest(z.Settings?.WaterLevel),
                 z.Settings?.MopPasses is >= 2 ? 2 : 1)))
             .ToList();
-        return new CleaningSchedule(GroupId, mapId, Enabled, days, time.Hour, time.Minute, rooms);
+        return new CleaningSchedule(GroupId, mapId, Enabled, days, time.Hour, time.Minute, rooms, WeeklyRepeat);
     }
 
     /// <summary>The cloud counts from Sunday = 0, the robot's bits from Monday.</summary>
