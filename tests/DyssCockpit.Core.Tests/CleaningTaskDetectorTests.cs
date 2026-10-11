@@ -137,6 +137,23 @@ public class CleaningTaskDetectorTests
     }
 
     [Fact]
+    public void TwoZonesFinishedAfterAPauseOfTheRobotsOwnAreFinished()
+    {
+        // 2026-10-11 23:18: two zones; START is followed by a report of status 2 and a second startClean
+        // (the task taken over), a wheel off the floor pauses the robot, it goes on, and the report says 3.
+        var replay = new Replay().Idle()
+            .Event("event.startClean.post").State("FULL_CLEAN_RUNNING", "spotZoneConfigured").State("INACTIVE_CHARGING", "global")
+            .Report(status: 2, mode: 4).Event("event.startClean.post")
+            .State("FULL_CLEAN_RUNNING", "spotZoneConfigured").State("FULL_CLEAN_DISCOVERING", "spotZoneConfigured")
+            .Event("event.overhanging_wheel.post").State("FULL_CLEAN_PAUSED", "spotZoneConfigured")
+            .State("FULL_CLEAN_RUNNING", "spotZoneConfigured").State("FULL_CLEAN_FINISHED", "spotZoneConfigured")
+            .Event("event.clean_finish.post").Report(status: 3, mode: 4, minutes: 5);
+
+        Assert.Equal(CleaningTaskChange.Finished, replay.Notices[^1].Change);
+        Assert.Equal(5, replay.Notices[^1].Minutes);
+    }
+
+    [Fact]
     public void AnUnreachableRoomEndsWithAFinishButTheCleanIsAbandonedNotFinished()
     {
         // 2026-09-20 15:20: Unable_all_area_recharge, FULL_CLEAN_FINISHED, clean_finish, and a report of status 4 with no minute and no area.

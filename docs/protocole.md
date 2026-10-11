@@ -351,6 +351,10 @@ L'application permet aussi de nettoyer un rectangle tracé sur la carte plutôt 
 <- status/jdm    service.set_areas_start  { result: 1 }
 ```
 
+**Plusieurs zones** : `spotZones` et `zone_points` sont des listes, et le robot en accepte plusieurs. Essayé le 11 octobre 2026 avec deux rectangles (3 m × 0,9 m et 0,75 m × 2,85 m), aspiration seule : il les a nettoyés l'un après l'autre, dans l'ordre envoyé, en un seul nettoyage (un compte rendu, `record_clean_mode` 4), et l'historique en garde un tracé. Mêler pièces et zones dans un même départ n'est pas possible de la même façon : un `START` n'a qu'un `cleaningMode`.
+
+**Le cloud traduit le `START`.** Quand DySS Cockpit envoie le `START` puis ses propres `set_cur_map` et `set_areas_start`, une seconde paire identique suit 70 ms plus tard, sans champ `time` : le cloud traduit lui-même le `START` en commandes jdm pour le robot. Les commandes du 30 septembre attribuées au téléphone avaient la même forme, et étaient donc sans doute déjà cette traduction. Le doublon explique le compte rendu de statut 2 (0 minute) suivi d'un nouveau `event.startClean.post` au début de ces nettoyages : la seconde tâche remplace la première. Envoyer le `START` seul suffirait peut-être ; à essayer.
+
 Les coins vont dans l'ordre haut-droite, haut-gauche, bas-gauche, bas-droite (y vers le haut), les mêmes dans les deux messages. `mode`, `wind`, `water` et `clean_count` reprennent les codes des indices 3 à 6 de `room_preference` : type de nettoyage, puissance, eau, passages. Le robot démarre sur le `START` ; `set_areas_start` répond `result: 1` deux secondes plus tard, le nettoyage étant déjà lancé.
 
 ### Pause et abandon
@@ -395,7 +399,7 @@ Une fois le dernier lavage terminé, quelques minutes après la fin du nettoyage
   "clean_count": 2, "record_task_status": 1, "clean_current_map": 1000000002 }
 ```
 
-`record_task_status` vaut 1 pour une tâche menée à terme, 2 pour une tâche abandonnée par l'utilisateur, 4 pour une tâche abandonnée par le robot (échec de localisation, pièce injoignable). `record_clean_mode` vaut 0 pour un nettoyage de pièces et 4 pour une cartographie ou un nettoyage de zone. Plusieurs champs transportent des entiers négatifs encodés en non signé, par exemple `4294967276` pour -20. Le compte rendu arrive aussi pour une tâche interrompue ; le cloud range la tâche dans l'historique peu après, ce qui en fait le bon signal pour recharger celui-ci. Le téléphone efface alors le tracé de sa carte.
+`record_task_status` vaut 1 pour une tâche menée à terme, 2 pour une tâche abandonnée par l'utilisateur, 4 pour une tâche abandonnée par le robot (échec de localisation, pièce injoignable). La valeur 3 a été vue une fois, le 11 octobre 2026 : deux zones nettoyées en entier (5,34 m² pour 4,8 m² de zones), après une pause que le robot s'était imposée (roue dans le vide), suivie d'un `clean_finish` ; DySS Cockpit la compte comme une tâche menée à terme. `record_clean_mode` vaut 0 pour un nettoyage de pièces et 4 pour une cartographie ou un nettoyage de zone. Plusieurs champs transportent des entiers négatifs encodés en non signé, par exemple `4294967276` pour -20. Le compte rendu arrive aussi pour une tâche interrompue ; le cloud range la tâche dans l'historique peu après, ce qui en fait le bon signal pour recharger celui-ci. Le téléphone efface alors le tracé de sa carte.
 
 Début et fin d'une tâche, tels que les captures les montrent (pièces, zone, cartographie, arrêts et abandons) :
 
@@ -417,7 +421,7 @@ Le champ `nextActionRequired` distingue l'indicateur de statut de la vraie panne
 | Code | `nextActionRequired` | Signification observée |
 |---|---|---|
 | `0` | absent | plus aucune faute |
-| `501` | `WAIT_TO_CLEAR` | transitoire, au retour sur la base après un abandon |
+| `501` | `WAIT_TO_CLEAR` | **roue dans le vide** : précédée de `event.overhanging_wheel.post`, le robot se met en pause (`FULL_CLEAN_PAUSED`) jusqu'à ce qu'on le libère (observé le 11 octobre 2026) ; vue aussi au retour sur la base après un abandon |
 | `589` | `WAIT_TO_CLEAR` | **échec de localisation**, précédé de `event.locate_fail.post` |
 | `2007` | `USER_CONTINUE` | **pièce injoignable** : apparaît avec `event.Unable_all_area_recharge.post`, reste pendant `FULL_CLEAN_FINISHED` et la remise en charge, puis disparaît |
 | `2102` | `LOG_ONLY` | nettoyage ou cartographie terminé |
@@ -428,7 +432,7 @@ Le champ `nextActionRequired` distingue l'indicateur de statut de la vraie panne
 | `2109` | `LOG_ONLY` | pendant le nettoyage |
 | `2110`, `2112` | `LOG_ONLY` | cartographie en cours |
 
-Tous les messages d'état des captures portent `activeFaults`, vide quand il n'y a rien. Une faute qui demande quelqu'un est celle dont `nextActionRequired` n'est pas `LOG_ONLY` (`WAIT_TO_CLEAR` ou `USER_CONTINUE`) ; c'est son apparition dans `activeFaults` qui déclenche la notification « Panne du robot » de DySS Cockpit (`RobotFaultWatcher`), une fois par faute, et sans la `501` qui n'est que de passage.
+Tous les messages d'état des captures portent `activeFaults`, vide quand il n'y a rien. Une faute qui demande quelqu'un est celle dont `nextActionRequired` n'est pas `LOG_ONLY` (`WAIT_TO_CLEAR` ou `USER_CONTINUE`) ; c'est son apparition dans `activeFaults` qui déclenche la notification « Panne du robot » de DySS Cockpit (`RobotFaultWatcher`), une fois par faute.
 
 Deux échecs se distinguent :
 

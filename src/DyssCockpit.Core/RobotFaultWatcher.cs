@@ -6,22 +6,16 @@ namespace DyssCockpit.Core;
 /// <para>
 /// The faults are the <c>activeFaults</c> of the robot's state that are not status indicators (the
 /// 21xx family with <c>LOG_ONLY</c>, which says what the robot is doing, not what is wrong): in the
-/// captures, 589 (it cannot locate itself), and 2007 (a room it cannot reach, which stays until it
-/// is back on the dock). A fault is told once, however many states repeat it; if it goes and comes
+/// captures, 589 (it cannot locate itself), 2007 (a room it cannot reach, which stays until it is
+/// back on the dock), and 501 (a wheel off the floor: <c>event.overhanging_wheel.post</c>, and the
+/// robot pauses until someone frees it). A fault is told once, however many states repeat it; if it goes and comes
 /// back, it is told again. Every state of the captures carries <c>activeFaults</c>, empty when
 /// there is none, so a message that carries no state (a position alone) is left out rather than read as
 /// "no fault".
 /// </para>
-/// <para>
-/// 501 is not told: it is a passing fault, raised on the way back to the dock after the robot has
-/// given up a clean, which the fault that caused that (589) has already told.
-/// </para>
 /// </summary>
 public sealed class RobotFaultWatcher
 {
-    /// <summary>Faults that come and go with another one that is told: see the class summary.</summary>
-    private static readonly HashSet<string> Passing = ["501"];
-
     private HashSet<string>? _known;
 
     /// <summary>
@@ -35,7 +29,7 @@ public sealed class RobotFaultWatcher
     public IReadOnlyList<ActiveFault> OnState(RobotState state)
     {
         if (state.State is null) return [];
-        var faults = state.RealFaults.Where(f => !Passing.Contains(f.FaultCode)).ToList();
+        var faults = state.RealFaults.ToList();
         var before = _known;
         _known = [.. faults.Select(f => f.FaultCode)];
         return before is null ? [] : [.. faults.Where(f => !before.Contains(f.FaultCode))];

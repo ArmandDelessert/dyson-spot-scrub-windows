@@ -238,22 +238,32 @@ public static class SpotCleanSequence
         return [new(right, top), new(left, top), new(left, bottom), new(right, bottom)];
     }
 
-    public static async Task StartAsync(IRobotCommands robot, long mapId, IReadOnlyList<Point> corners, RoomSettings settings, string? zoneId = null, CancellationToken ct = default)
-    {
-        if (corners.Count != 4) throw new ArgumentException("A zone has exactly four corners.", nameof(corners));
+    public static Task StartAsync(IRobotCommands robot, long mapId, IReadOnlyList<Point> corners, RoomSettings settings, string? zoneId = null, CancellationToken ct = default) =>
+        StartAsync(robot, mapId, [(zoneId ?? Guid.NewGuid().ToString(), corners)], settings, ct);
 
-        var points = new JsonArray();
-        foreach (var p in corners) points.Add(new JsonObject { ["x"] = p.X, ["y"] = p.Y });
+    /// <summary>
+    /// Several zones in one clean, all with the same settings: the phone only ever sends one, but both
+    /// messages carry a list (<c>spotZones</c>, <c>zone_points</c>), and the app's own code calls them
+    /// "spotZones must not be null or empty".
+    /// </summary>
+    public static async Task StartAsync(IRobotCommands robot, long mapId, IReadOnlyList<(string Id, IReadOnlyList<Point> Corners)> zones, RoomSettings settings, CancellationToken ct = default)
+    {
+        if (zones.Count == 0) throw new ArgumentException("At least one zone.", nameof(zones));
+        if (zones.Any(z => z.Corners.Count != 4)) throw new ArgumentException("A zone has exactly four corners.", nameof(zones));
+
+        var spotZones = new JsonArray();
+        foreach (var (id, corners) in zones)
+        {
+            var points = new JsonArray();
+            foreach (var p in corners) points.Add(new JsonObject { ["x"] = p.X, ["y"] = p.Y });
+            spotZones.Add(new JsonObject { ["id"] = id, ["points"] = points });
+        }
         await robot.PublishCommandAsync(new JsonObject
         {
             ["cleaningProgramme"] = new JsonObject
             {
                 ["persistentMapId"] = mapId.ToString(CultureInfo.InvariantCulture),
-                ["spotZones"] = new JsonArray(new JsonObject
-                {
-                    ["id"] = zoneId ?? Guid.NewGuid().ToString(),
-                    ["points"] = points,
-                }),
+                ["spotZones"] = spotZones,
                 ["defaultSpotZoneSettings"] = new JsonObject
                 {
                     ["cleaningStrategy"] = settings.Strategy.ToRest(),
@@ -274,12 +284,17 @@ public static class SpotCleanSequence
         // The same room-setting codes as room_preference (indices 3 to 6), zeroed where they do not apply.
         var coded = new JsonArray(0, 0, 0, 0, 0, 0, 0);
         settings.WriteTo(coded);
-        var flat = new JsonArray();
-        foreach (var p in corners) { flat.Add(p.X); flat.Add(p.Y); }
+        var zonePoints = new JsonArray();
+        foreach (var (_, corners) in zones)
+        {
+            var flat = new JsonArray();
+            foreach (var p in corners) { flat.Add(p.X); flat.Add(p.Y); }
+            zonePoints.Add(flat);
+        }
         await robot.PublishJdmAsync("service.set_areas_start", new JsonObject
         {
             ["ctrl_value"] = 1,
-            ["zone_points"] = new JsonArray(flat),
+            ["zone_points"] = zonePoints,
             ["mode"] = coded[RoomSettings.IndexCleanType]!.GetValue<int>(),
             ["wind"] = coded[RoomSettings.IndexStrategy]!.GetValue<int>(),
             ["water"] = coded[RoomSettings.IndexWater]!.GetValue<int>(),

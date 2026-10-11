@@ -31,8 +31,9 @@ internal static class Program
           dyss live    --serial S                                    Position du robot et tracé en cours (REST)
           dyss history --serial S                                    Historique des nettoyages (REST)
           dyss clean   --serial S --id CLEANID                       Détail d'un nettoyage (REST)
-          dyss send    --serial S <zone|pause|abort|mapping|merge|dry-stop|tz|maps|props|state|start|resume|stop|faults>
+          dyss send    --serial S <zone|spot|pause|abort|mapping|merge|dry-stop|tz|maps|props|state|start|resume|stop|faults>
                           zone: --map ID --zones 11,12 ; mapping: [--lang fr-CH] ; merge: --map ID --rooms 15,16
+                          spot: --map ID --spot "x1,y1,x2,y2;x1,y1,x2,y2" (zones par coins opposés, aspiration seule)
                           start, resume, stop et faults restent non observés dans l'application
           dyss send    --serial S --json '{"msg":"..."}'             Envoie un JSON brut sur .../command
           dyss send    --serial S --jdm service.xxx [--params '{}']  Envoie une requête JDM sur .../command/jdm
@@ -317,6 +318,15 @@ internal static class Program
                     await robot.SetCurrentMapAsync(long.Parse(map, CultureInfo.InvariantCulture), ct);
                     await robot.StartZoneCleanAsync(map, zones, ct);
                     await robot.SetRoomCleanAsync(zones.Select(int.Parse), ct: ct);
+                    break;
+                case "spot":
+                    // --spot "x1,y1,x2,y2;x1,y1,x2,y2": opposite corners of each zone, cleaned in one go, vacuum only.
+                    var spotMap = long.Parse(o.Get("map") ?? RequireOption("--map"), CultureInfo.InvariantCulture);
+                    var spots = (o.Get("spot") ?? RequireOption("--spot")).Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Select(z => z.Split(',').Select(v => double.Parse(v, CultureInfo.InvariantCulture)).ToArray())
+                        .Select(v => (Guid.NewGuid().ToString(), (IReadOnlyList<Point>)SpotCleanSequence.Corners(new Point(v[0], v[1]), new Point(v[2], v[3]))))
+                        .ToList();
+                    await SpotCleanSequence.StartAsync(robot, spotMap, spots, new RoomSettings(CleanType.Vacuum, CleaningStrategy.Auto), ct);
                     break;
                 case "dry-stop":
                     await robot.AbortDockActionAsync("DRY_MOP", ct);

@@ -45,12 +45,13 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
     private string? _dockState;
     private TimeSpan? _dryingRemaining;
 
-    /// <summary>A fault in a few words: its code, and what it means when that is known (589, a locate failure; 2007, a room the robot cannot reach).</summary>
+    /// <summary>A fault in a few words: its code, and what it means when that is known (589, a locate failure; 2007, a room the robot cannot reach; 501, a wheel off the floor).</summary>
     public static string Describe(ActiveFault fault) =>
         T($"faute {fault.FaultCode}", $"fault {fault.FaultCode}") + fault.FaultCode switch
         {
             "589" => T(" (localisation impossible)", " (cannot locate itself)"),
             "2007" => T(" (pièce inaccessible)", " (room unreachable)"),
+            "501" => T(" (roue dans le vide)", " (wheel off the floor)"),
             _ => "",
         };
 

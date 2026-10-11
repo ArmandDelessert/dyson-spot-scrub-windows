@@ -27,14 +27,14 @@ public class RobotFaultWatcherTests
     }
 
     [Fact]
-    public void ThePassingFaultOfTheWayBackToTheDockIsNotTold()
+    public void AWheelOffTheFloorIsToldForTheRobotWaitsForSomeone()
     {
+        // 2026-10-11 23:24: event.overhanging_wheel.post, then 501 and FULL_CLEAN_PAUSED until freed.
         var watcher = new Script();
         watcher.Feed(State("FULL_CLEAN_RUNNING", ("2109", "LOG_ONLY")));
-        watcher.Feed(State("FULL_CLEAN_RUNNING", ("589", "WAIT_TO_CLEAR")));
 
-        Assert.Empty(watcher.Feed(State("INACTIVE_DISCHARGING", ("501", "WAIT_TO_CLEAR"), ("589", "WAIT_TO_CLEAR"))));
-        Assert.Empty(watcher.Feed(State("INACTIVE_DISCHARGING", ("501", "WAIT_TO_CLEAR"))));
+        Assert.Equal(["501"], watcher.Feed(State("FULL_CLEAN_PAUSED", ("501", "WAIT_TO_CLEAR"))));
+        Assert.Empty(watcher.Feed(State("FULL_CLEAN_PAUSED", ("501", "WAIT_TO_CLEAR"))));
     }
 
     [Fact]
