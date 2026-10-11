@@ -107,6 +107,39 @@ public sealed class CleanArchive(string folder, TimeProvider? time = null)
 
     private sealed record SnapshotLine(string? Snapshot);
 
+    /// <summary>
+    /// Adds the snapshot to a clean kept without one (kept before snapshots were, or while its link
+    /// failed). False when the clean is not kept, already has one, or the file cannot be rewritten.
+    /// </summary>
+    public bool AddSnapshot(string cleanId, byte[] snapshot)
+    {
+        if (FileOf(cleanId) is not { } file || LoadSnapshot(cleanId) is not null) return false;
+        try
+        {
+            string? summary, detail;
+            using (var reader = Open(file))
+            {
+                summary = reader.ReadLine();
+                detail = reader.ReadLine();
+            }
+            if (summary is null || detail is null) return false;
+            using var packed = new MemoryStream();
+            using (var gzip = new GZipStream(packed, CompressionLevel.Optimal, leaveOpen: true))
+            using (var writer = new StreamWriter(gzip, new UTF8Encoding(false)))
+            {
+                writer.Write(summary);
+                writer.Write('\n');
+                writer.Write(detail);
+                writer.Write('\n');
+                writer.Write(JsonSerializer.Serialize(new SnapshotLine(Convert.ToBase64String(snapshot)), Format));
+                writer.Write('\n');
+            }
+            AtomicFile.WriteAllBytes(file, packed.ToArray());
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { return false; }
+    }
+
     /// <summary>The list line of every kept clean, newest first. Only the first line of each file is read.</summary>
     public IReadOnlyList<CleanSummary> Summaries()
     {

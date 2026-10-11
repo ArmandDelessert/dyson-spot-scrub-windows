@@ -166,6 +166,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             {
                 var detail = await GetDetailAsync(item.Summary);
                 item.Rooms = DescribeRooms(detail);
+                if (_settings.ArchiveCleans) await CompleteKeptSnapshotAsync(item.Summary);
             }
             catch (OperationCanceledException) when (_hub.IsShuttingDown) { return; }
             catch (Exception ex) { item.Rooms = ""; _hub.AddLog(T($"pièces du nettoyage {item.Summary.CleanId}: {ex.Message}", $"rooms of clean {item.Summary.CleanId}: {ex.Message}")); }
@@ -223,8 +224,20 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     private async Task<MapGrid?> ReadOrDownloadSnapshotAsync(CleanSummary summary)
     {
         var blob = _settings.ArchiveCleans ? await Task.Run(() => _archive.LoadSnapshot(summary.CleanId)) : null;
-        blob ??= await DownloadSnapshotAsync(summary);
+        if (blob is null && (blob = await DownloadSnapshotAsync(summary)) is not null && _settings.ArchiveCleans)
+            await Task.Run(() => _archive.AddSnapshot(summary.CleanId, blob));
         return blob is null ? null : CleanSnapshot.Parse(blob)?.Grid;
+    }
+
+    /// <summary>
+    /// A clean kept without its snapshot — kept before snapshots were, or while its link failed —
+    /// gets it now, while the cloud still lists the clean: once forgotten there, its map is lost.
+    /// </summary>
+    private async Task CompleteKeptSnapshotAsync(CleanSummary summary)
+    {
+        if (summary.DownloadUrl is not { Length: > 0 }) return;
+        if (!await Task.Run(() => _archive.Has(summary.CleanId) && _archive.LoadSnapshot(summary.CleanId) is null)) return;
+        if (await DownloadSnapshotAsync(summary) is { } blob) await Task.Run(() => _archive.AddSnapshot(summary.CleanId, blob));
     }
 
     /// <summary>

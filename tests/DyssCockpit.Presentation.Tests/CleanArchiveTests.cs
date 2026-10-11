@@ -102,6 +102,23 @@ public sealed class CleanArchiveTests : IDisposable
     }
 
     [Fact]
+    public void ACleanKeptWithoutASnapshotGetsItLaterAndOnlyOnce()
+    {
+        var archive = new CleanArchive(_folder, Clock());
+        archive.Save(Summary("abc", Unix(2026, 10, 10)), Detail("abc"));
+        var first = Snapshots.Of(1782494719, 4, 3, 10);
+
+        Assert.True(archive.AddSnapshot("abc", first));
+        Assert.Equal(first, archive.LoadSnapshot("abc"));
+        Assert.Equal("solid", Assert.Single(archive.LoadDetail("abc")!.Dirt!).Type);
+        Assert.Equal("abc", Assert.Single(archive.Summaries()).CleanId);
+
+        Assert.False(archive.AddSnapshot("abc", Snapshots.Of(1782494719, 4, 3, 11)));   // it has one: left as it is
+        Assert.Equal(first, archive.LoadSnapshot("abc"));
+        Assert.False(archive.AddSnapshot("missing", first));
+    }
+
+    [Fact]
     public void ACleanAlreadyKeptIsNotWrittenAgain()
     {
         var archive = new CleanArchive(_folder, Clock());

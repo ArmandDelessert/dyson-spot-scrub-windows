@@ -177,6 +177,23 @@ public sealed class HistoryViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task ACleanKeptBeforeSnapshotsGetsItsMapWhileTheCloudStillHasIt()
+    {
+        // Kept by an earlier version: list line and detail, no snapshot.
+        new CleanArchive(_kept).Save(
+            JsonSerializer.Deserialize<CleanSummary>("""{"cleanId":"clean-1","persistentMapId":"1000000002","startTime":1789916722}""", Web)!,
+            JsonSerializer.Deserialize<CleanDetail>(Detail, Web)!);
+        var vm = New(out var handler, settings: new AppSettings { ArchiveCleans = true }, history: OneCleanWithSnapshot);
+        handler.Binary["snapshots/clean-1"] = Snapshots.Of(1000000002, 4, 3, 12);
+        await vm.LoadAsync();
+
+        await vm.FillDetailsAsync();
+
+        Assert.NotNull(new CleanArchive(_kept).LoadSnapshot("clean-1"));
+        Assert.DoesNotContain(handler.Requested, p => p.Contains("clean-maps-data", StringComparison.Ordinal));   // the detail came from the disk
+    }
+
+    [Fact]
     public async Task NothingIsKeptOnDiskUnlessTheSettingAsksForIt()
     {
         var vm = New(out _);
