@@ -209,7 +209,7 @@ public sealed partial class RobotSession : IAsyncDisposable
     public Task<JsonObject> RefreshPropertiesAsync(CancellationToken ct = default)
     {
         var names = new JsonArray();
-        foreach (var n in RobotMqttClient.AppPropertyNames) names.Add(n);
+        foreach (var n in RobotCommands.AppPropertyNames) names.Add(n);
         foreach (var n in PushOnlyPropertyNames) names.Add(n);
         return Connected.RequestJdmAsync("prop.get", new JsonObject { ["property"] = names }, ct: ct);
     }

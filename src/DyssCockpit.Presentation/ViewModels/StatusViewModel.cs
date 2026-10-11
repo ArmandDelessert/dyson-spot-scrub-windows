@@ -55,8 +55,12 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
             _ => "",
         };
 
+    /// <summary>The robot's state as last applied: pause, resume and abort tell the robot what it is doing, as the phone does.</summary>
+    private RobotState? _state;
+
     public void Apply(RobotState s)
     {
+        _state = s;
         StateText = Describe(s.State);
         ActionText = s.FullCleanAction switch
         {
@@ -127,16 +131,13 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
     }
 
     [RelayCommand]
-    private Task PauseResumeAsync() => hub.Session?.Tracker.State?.IsPaused == true
-        ? hub.RunAsync(T("reprise", "resume"), c => c.ResumeAsync(hub.Session!.Tracker.State?.CurrentCleaningMode ?? "zoneConfigured"))
+    private Task PauseResumeAsync() => _state?.IsPaused == true
+        ? hub.RunAsync(T("reprise", "resume"), c => c.ResumeAsync(_state.CurrentCleaningMode ?? "zoneConfigured"))
         : hub.RunAsync(T("pause", "pause"), c => c.PauseAsync());
 
     [RelayCommand]
-    private Task AbortAsync() => hub.RunAsync(T("retour à la station", "return to the dock"), async c =>
-    {
-        var st = hub.Session!.Tracker.State;
-        await c.AbortAsync(st?.State ?? "FULL_CLEAN_RUNNING", st?.CurrentCleaningMode ?? "zoneConfigured");
-    });
+    private Task AbortAsync() => hub.RunAsync(T("retour à la station", "return to the dock"),
+        c => c.AbortAsync(_state?.State ?? "FULL_CLEAN_RUNNING", _state?.CurrentCleaningMode ?? "zoneConfigured"));
 
     [RelayCommand]
     private Task WashDryAsync() => DockBusy

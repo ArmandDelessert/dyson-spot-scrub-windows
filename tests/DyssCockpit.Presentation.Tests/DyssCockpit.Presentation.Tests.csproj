@@ -18,6 +18,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The robot that records what it is sent, shared with the Core tests: the view models are checked against the same captures. -->
+    <Compile Include="..\DyssCockpit.Core.Tests\RecordingRobot.cs" Link="RecordingRobot.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\DyssCockpit.Presentation\DyssCockpit.Presentation.csproj" />
   </ItemGroup>
 

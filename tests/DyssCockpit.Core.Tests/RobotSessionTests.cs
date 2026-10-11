@@ -30,10 +30,10 @@ public class RobotSessionTests
         // The official app's list has neither, yet the robot answers for them (checked against the
         // real robot on 2026-09-22), which is what lets the dashboard show the drying countdown at
         // start-up instead of waiting for the next push.
-        Assert.DoesNotContain("work_time", RobotMqttClient.AppPropertyNames);
-        Assert.DoesNotContain("back_to_wash", RobotMqttClient.AppPropertyNames);
+        Assert.DoesNotContain("work_time", RobotCommands.AppPropertyNames);
+        Assert.DoesNotContain("back_to_wash", RobotCommands.AppPropertyNames);
         Assert.Equal(["work_time", "back_to_wash"], RobotSession.PushOnlyPropertyNames);
         // charge_state, by contrast, is one the app does ask for.
-        Assert.Contains("charge_state", RobotMqttClient.AppPropertyNames);
+        Assert.Contains("charge_state", RobotCommands.AppPropertyNames);
     }
 }

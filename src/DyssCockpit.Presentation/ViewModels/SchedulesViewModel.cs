@@ -269,9 +269,9 @@ public sealed partial class SchedulesViewModel : ObservableObject
     }
 
     /// <summary>True when the robot accepted, false when it refused, null when nothing could be sent.</summary>
-    private async Task<bool?> SendAsync(string label, Func<RobotMqttClient, Task<bool>> send)
+    private async Task<bool?> SendAsync(string label, Func<IRobotCommands, Task<bool>> send)
     {
-        if (_hub.Session?.Client is not { IsConnected: true } client) { Status = T("Robot non connecté.", "Robot not connected."); return null; }
+        if (_hub.Robot is not { } client) { Status = T("Robot non connecté.", "Robot not connected."); return null; }
         Busy = true;
         Status = "";
         try

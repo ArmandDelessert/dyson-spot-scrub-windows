@@ -12,7 +12,9 @@ namespace DyssCockpit.Presentation.Tests;
 /// Builds a <see cref="RobotHub"/> that talks to canned JSON instead of Dyson, so the tab view
 /// models can be exercised without a robot, a broker or a window. There is no MQTT session, so
 /// anything that sends a command is a no-op that logs "Robot non connecté" — which is exactly
-/// what these tests want: they are about what the view models compute, not about the wire.
+/// what these tests want: they are about what the view models compute, not about the wire. The
+/// wire is <see cref="SentToTheRobotTests"/>' business, which puts a recording robot in
+/// <see cref="RobotHub.Robot"/>.
 /// </summary>
 internal static class TestHub
 {

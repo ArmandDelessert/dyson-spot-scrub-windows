@@ -23,9 +23,9 @@ public interface IRobotCommands
 /// <summary>
 /// The four messages of the official app's start sequence, as observed on 2026-09-19. Written
 /// against <see cref="IRobotCommands"/> so <see cref="CleaningSequence"/> can be tested payload
-/// by payload; the other captured commands live on <see cref="RobotMqttClient"/>.
+/// by payload; the other captured commands are in RobotCommands.Control.cs.
 /// </summary>
-public static class RobotCommands
+public static partial class RobotCommands
 {
     /// <summary>
     /// Sets per-room settings. Rooms are positional arrays, not objects: index 0 is the zone id and

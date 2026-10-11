@@ -967,9 +967,9 @@ public sealed partial class MapManagerViewModel : ObservableObject
     /// Sends one map edit, waits for the cloud copy to catch up, then re-reads the maps — on the
     /// map given by <paramref name="reloadOn"/>, which defaults to the one on screen.
     /// </summary>
-    private async Task EditAsync(string label, Func<RobotMqttClient, Task<MapEditResult?>> edit, string? reloadOn = "", string? refused = null)
+    private async Task EditAsync(string label, Func<IRobotCommands, Task<MapEditResult?>> edit, string? reloadOn = "", string? refused = null)
     {
-        if (_hub.Session?.Client is not { IsConnected: true } client) { Status = T("Robot non connecté.", "Robot not connected."); return; }
+        if (_hub.Robot is not { } client) { Status = T("Robot non connecté.", "Robot not connected."); return; }
         Busy = true;
         Status = "";
         try

@@ -50,6 +50,18 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
     public string ProductType => string.IsNullOrWhiteSpace(_ctx.Robot?.Type) ? "804" : _ctx.Robot.Type;
     /// <summary>Null until <see cref="MainViewModel.StartAsync"/> has connected.</summary>
     public RobotSession? Session { get; internal set; }
+
+    private IRobotCommands? _robot;
+
+    /// <summary>
+    /// Where commands go: the session's link to the robot while it is connected, null otherwise.
+    /// A test puts a robot of its own here, one that records what it is sent.
+    /// </summary>
+    public IRobotCommands? Robot
+    {
+        get => _robot ?? (Session?.Client is { IsConnected: true } client ? client : null);
+        internal set => _robot = value;
+    }
     public CancellationToken Ct => _lifetime.Token;
     public bool IsShuttingDown => _lifetime.IsCancellationRequested;
 
@@ -83,17 +95,21 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
     private static partial void LogJournalLine(ILogger logger, string line);
 
     /// <summary>Sends a command, journals it, then asks for a fresh state a moment later so the dashboard reflects the result.</summary>
-    public async Task RunAsync(string label, Func<RobotMqttClient, Task> action)
+    public async Task RunAsync(string label, Func<IRobotCommands, Task> action)
     {
-        if (Session?.Client is not { IsConnected: true } client) { Message = T("Robot non connecté.", "Robot not connected."); return; }
+        if (Robot is not { } robot) { Message = T("Robot non connecté.", "Robot not connected."); return; }
         Busy = true;
         Message = "";
         try
         {
-            await action(client);
+            await action(robot);
             AddLog(label);
-            await Task.Delay(TimeSpan.FromMilliseconds(1500), Time, Ct);
-            await RefreshStateAsync();
+            // A moment for the robot to act, then its new state: there is none to ask for without a session.
+            if (Session is not null)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(1500), Time, Ct);
+                await RefreshStateAsync();
+            }
         }
         catch (OperationCanceledException) when (IsShuttingDown) { }
         catch (Exception ex)
