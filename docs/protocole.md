@@ -687,6 +687,25 @@ La grille encode donc directement la découpe en pièces : 320 × 420 cellules d
 
 Certaines cartes non actives renvoient en outre une station factice, observée à `(1100.0, 1100.0)` sur deux cartes par ailleurs bien réelles. Prise telle quelle pour cadrer la vue, elle gonfle la boîte englobante à plus de 1000 m de côté ; il faut l'ignorer quand elle tombe loin du reste des données.
 
+### Instantané d'un nettoyage (`downloadUrl`)
+
+Chaque entrée de `GET /v2/{serial}/clean-maps` porte un `downloadUrl` : un lien S3 présigné, valable 15 minutes, vers un blob compressé en zlib (10 à 20 Ko, 175 à 200 Ko une fois décompressé). C'est un message protobuf, dont le schéma n'est pas connu ; décodé à la main le 11 octobre 2026 sur trois nettoyages :
+
+| Champ | Contenu |
+|---|---|
+| 1 | un entier, 21 dans les trois |
+| 2 | début et fin du nettoyage (secondes Unix) ; un sous-message avec une empreinte hexadécimale de 32 caractères, différente pour chaque nettoyage, et quatre entiers ; l'entier 2021041401 ; l'entier 1 |
+| 3 | la carte : identifiant, largeur et hauteur (320 × 440), décalages (−5, −9), deux flottants (11, 13), résolution (0,05) |
+| 4 | **la grille d'occupation**, largeur × hauteur octets, avec les valeurs de `mapData` (voir [Grille d'occupation](#grille-doccupation)) |
+| 5 (répété) | les cartes du compte : identifiant et nom |
+| 6 | le tracé, de taille proportionnelle à la durée |
+| 7 | trois flottants : une pose (x, y, angle) |
+| 8 | la position du robot : numéro de point, `update`, x, y, angle |
+| 11 | la station, à la position factice (1100, 1100) déjà vue dans `persistent-maps` |
+| 12 (répété) | les pièces : identifiant, `{"type", "name"}` en JSON, et des entiers |
+
+La grille est celle **de la fin de ce nettoyage** : celle du 11 octobre est identique, case pour case, à celle de `live-maps/mapping` relevée juste après ; celle du 10 octobre en diffère de 428 cases. Le robot met la carte à jour à chaque passage (meubles déplacés, portes ouvertes ou fermées), et le cloud en garde ainsi une par nettoyage, aussi longtemps qu'il garde le nettoyage. L'application Android ne s'en sert pas : `downloadUrl` n'apparaît nulle part dans son code, et son historique affiche le tracé sur la carte persistante actuelle (`ActivityHistoryMapData(persistentMap=…)`).
+
 ## Horaires
 
 Les horaires sont exécutés par le robot, et le cloud en garde le détail. **Chacun appartient à une carte.**
@@ -702,7 +721,7 @@ Les horaires sont exécutés par le robot, et le cloud en garde le détail. **Ch
 - `id` est choisi par l'application (un entier aléatoire). Renvoyer `add_order` avec le même `id` **remplace** l'horaire : c'est ainsi que l'application le modifie, et qu'elle l'active ou le désactive (`enable` 1 ou 0, tout le reste renvoyé tel quel). Réponse `{result: 0}`.
 - `service.del_order` `{id}` supprime.
 - `day` est un masque de bits, lundi en premier : lundi 1, mardi 2, mercredi 4, jeudi 8, vendredi 16, samedi 32, dimanche 64 (73 pour lundi, jeudi et dimanche ; 127 tous les jours).
-- `repeat` vaut toujours 1 : l'application exige au moins un jour et ne propose pas d'horaire ponctuel. La valeur 0 n'a jamais été essayée.
+- `repeat` vaut 1 depuis le téléphone, qui exige au moins un jour et ne propose pas d'horaire ponctuel. Essayé le 11 octobre 2026 : un `add_order` désactivé avec `repeat: 0` est accepté (`result: 0`), et le cloud le présente avec `"weeklyRepeat": false`, champ qui valait toujours `true` jusque-là. Ce que le robot en fait à l'heure dite (une seule exécution, puis suppression ou désactivation ?) reste à observer.
 - `room_count` est le nombre de pièces de la carte, pas celui des pièces retenues. Toutes figurent dans `room_preference` (voir [Réglages par pièce](#réglages-par-pièce-room_preference)), les pièces retenues d'abord dans leur ordre de passage compté à partir de 0, les autres ensuite. Le nom est envoyé en chaîne simple, l'indice 2 à 0.
 - `is_global` reste à 0 même quand toutes les pièces sont cochées ; l'application n'a pas de bouton « toute la maison » pour les horaires. `prefer_type` vaut toujours 1 et `areas` est toujours vide.
 - `time_zone` est un décalage en secondes, calculé par l'application à partir du fuseau enregistré côté cloud (3600 pour Londres en heure d'été). **Le robot l'ignore** : voir [Fuseau horaire](#fuseau-horaire).
@@ -730,7 +749,7 @@ GET /v1/unifiedscheduler/{serial}/events?productType=804
 
 Le téléphone écrit par `PUT` sur la même adresse, avec `{serial, enabled, events, updatedEvents}` (la liste entière et les `groupId` modifiés) ; le cloud relaie ensuite `add_order` ou `del_order` au robot. Le `md5` du résumé change avec le contenu (celui d'une liste vide est `6a8ad4dbe08d69c27dbb2b53c97da3f8`) mais ne correspond à aucune sérialisation évidente.
 
-Quand deux horaires d'une même carte sont proches, l'application avertit : « Ce programme ne commencera pas si le programme précédent est toujours en cours ». C'est donc le robot qui arbitre, et l'application qui estime la durée d'un nettoyage, par `POST /v2/app/{serial}/persistent-maps/{mapId}/clean-estimation` avec `{spotZones, zones}`, qui renvoie `durationMinutes` ; la forme exacte du corps n'est pas connue.
+Quand deux horaires d'une même carte sont proches, l'application avertit : « Ce programme ne commencera pas si le programme précédent est toujours en cours ». C'est donc le robot qui arbitre, et l'application qui estime la durée d'un nettoyage, par `POST /v2/app/{serial}/persistent-maps/{mapId}/clean-estimation` avec `{spotZones, zones}`, qui renvoie `durationMinutes` ; la forme exacte du corps n'est pas connue. Essayé le 11 octobre 2026 avec une dizaine de formes, dont `{}` : toujours 400, sans message.
 
 ## Fuseau horaire
 
