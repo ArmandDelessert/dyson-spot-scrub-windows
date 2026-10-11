@@ -250,7 +250,7 @@ Côté REST, `GET /v1/app/{serial}/live-maps/cleaning` et `GET /v2/{serial}/clea
 { "x": -0.53, "y": -5.25, "type": "liquid", "isUvScanOn": false }
 ```
 
-Deux valeurs de `type` observées : `liquid`, et `solid`, vue dans deux nettoyages (le 20 septembre et le 10 octobre 2026) à deux endroits voisins à 45 cm l'un de l'autre, dans la même pièce ; `isUvScanOn` a toujours valu `false`. L'application Android affichant plusieurs icônes de tache, d'autres valeurs existent vraisemblablement. DySS Cockpit dessine toutes les taches d'un même point vert, quel que soit leur type. `hazardZones`, `groutLines` et `swingDoors` sont restés vides dans toutes les captures, leur forme reste inconnue.
+Deux valeurs de `type` observées : `liquid`, et `solid`, vue dans deux nettoyages (le 20 septembre et le 10 octobre 2026) à deux endroits voisins à 45 cm l'un de l'autre, dans la même pièce ; `isUvScanOn` a toujours valu `false`. Les ressources de l'application Android ne nomment que deux catégories de taches, « Stains (Liquid) » et « Stains (Dirt) » : `liquid` est la première, `solid` correspond vraisemblablement à la seconde. Elle distingue aussi les taches retirées et vérifiées aux UV (« Stains removed, UV-verified »), ce que `isUvScanOn` annonce sans doute. DySS Cockpit dessine toutes les taches d'un même point vert, quel que soit leur type. `hazardZones`, `groutLines` et `swingDoors` sont restés vides dans toutes les captures, leur forme reste inconnue.
 
 ### Méthodes et événements observés
 
