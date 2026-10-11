@@ -47,6 +47,8 @@ public sealed record MapOverlay
     public IReadOnlyList<Vec2>? PendingShape { get; init; }
     /// <summary>Square grips on the corners of a shape that can be resized.</summary>
     public IReadOnlyList<Vec2>? Handles { get; init; }
+    /// <summary>The pointer on screen, and the map coordinates (metres) it stands on: written just above it.</summary>
+    public (Vec2 Screen, Vec2 World)? PointerCoordinates { get; init; }
 
     public static readonly MapOverlay Empty = new();
 }
@@ -340,6 +342,28 @@ public sealed class MapInteraction(TimeProvider? time = null)
     /// <summary>Where the snapped pointer is while aiming, for its marker.</summary>
     private Vec2? _pickCursor;
 
+    /// <summary>Shows the pointer's map coordinates above it, see <see cref="MapOverlay.PointerCoordinates"/>.</summary>
+    public bool ShowPointerCoordinates
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            field = value;
+            if (!value) _hover = null;
+            Invalidate();
+        }
+    }
+
+    /// <summary>Where the pointer is over the map, in screen pixels, while <see cref="ShowPointerCoordinates"/> is on.</summary>
+    private Vec2? _hover;
+
+    /// <summary>
+    /// The coordinates written for the pointer at <paramref name="screen"/>: where a click would land, so
+    /// on the grid while aiming with it on (the marker's spot), wherever the pointer is otherwise.
+    /// </summary>
+    public Vec2? CoordinatesAt(Vec2 screen) => Picking != MapPick.None ? SnappedWorld(screen) : ToWorld(screen);
+
     private (double X0, double Y0, double Step)? SnapSpec => SnapToGrid ? Scene.GridSpec : null;
 
     private Vec2 Snap(Vec2 world) => SnapSpec is { } g
@@ -357,6 +381,8 @@ public sealed class MapInteraction(TimeProvider? time = null)
         {
             var m = WorldToScreen;
             var overlay = MapOverlay.Empty;
+            if (ShowPointerCoordinates && _hover is { } hover && CoordinatesAt(hover) is { } world)
+                overlay = overlay with { PointerCoordinates = (hover, world) };
             if (SnapSpec is { } grid && (Picking != MapPick.None || EditableShape is not null))
                 overlay = overlay with { Grid = grid, SnapMarker = _pickCursor is { } cursor ? m.Transform(cursor) : null };
             switch (Picking)
@@ -414,6 +440,11 @@ public sealed class MapInteraction(TimeProvider? time = null)
 
     public void PointerMoved(Vec2 position, bool pressed)
     {
+        if (ShowPointerCoordinates)
+        {
+            _hover = position;
+            Invalidate();
+        }
         if (_shapeGrip is not null && _dragStart is { } held && pressed)
         {
             // Same 4 px dead zone as panning, so a click on the shape stays a click.
@@ -471,8 +502,9 @@ public sealed class MapInteraction(TimeProvider? time = null)
 
     public void PointerExited()
     {
-        if (_pickCursor is null) return;
+        if (_pickCursor is null && _hover is null) return;
         _pickCursor = null;
+        _hover = null;
         Invalidate();
     }
 

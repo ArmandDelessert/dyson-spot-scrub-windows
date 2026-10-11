@@ -142,4 +142,8 @@ public static class MapGeometry
         if (aEmpty || bEmpty) return aEmpty == bEmpty;
         return a!.SetEquals(b!);
     }
+
+    /// <summary>The pointer's coordinates as written above it: "x 1,44  y −0,12 m" in French, two decimals, the decimal mark of the language.</summary>
+    public static string CoordinatesText(Vec2 world) =>
+        string.Format(DyssCockpit.Core.Translation.Current == DyssCockpit.Core.AppLanguage.French ? System.Globalization.CultureInfo.GetCultureInfo("fr-FR") : System.Globalization.CultureInfo.InvariantCulture, "x {0:0.00}  y {1:0.00} m", world.X, world.Y).Replace('-', '−');
 }

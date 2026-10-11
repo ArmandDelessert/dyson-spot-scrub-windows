@@ -57,6 +57,12 @@ public sealed partial class AppSettings : ObservableObject
     /// </summary>
     [ObservableProperty] private bool _recordMessages;
 
+    /// <summary>
+    /// The map coordinates of the pointer, in metres, shown just above it on every map: what the robot's own
+    /// messages and the protocol notes speak in, to read a spot off the map. Off by default.
+    /// </summary>
+    [ObservableProperty] private bool _showPointerCoordinates;
+
     /// <summary>Zones and furniture drawn or moved in the map manager land on the robot's 5 cm grid. On by default.</summary>
     [ObservableProperty] private bool _snapToGrid = true;
 
@@ -165,6 +171,7 @@ public sealed partial class AppSettings : ObservableObject
                 settings.ShowExportButton = s.ShowExportButton ?? false;
                 settings.RecordMessages = s.RecordMessages ?? false;
                 settings.SnapToGrid = s.SnapToGrid ?? true;
+                settings.ShowPointerCoordinates = s.ShowPointerCoordinates ?? false;
                 settings.SmoothRobotMotion = s.SmoothRobotMotion ?? false;
                 settings.ShowCleanedArea = s.ShowCleanedArea ?? true;
                 settings.Language = NormalizeLanguage(s.Language);
@@ -233,7 +240,7 @@ public sealed partial class AppSettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays, NotifyRobotFault, Window, ArchiveCleans, CleanArchiveRetentionDays), FileFormat));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays, NotifyRobotFault, Window, ArchiveCleans, CleanArchiveRetentionDays, ShowPointerCoordinates), FileFormat));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -246,6 +253,7 @@ public sealed partial class AppSettings : ObservableObject
     partial void OnShowExportButtonChanged(bool value) => Save();
     partial void OnRecordMessagesChanged(bool value) => Save();
     partial void OnSnapToGridChanged(bool value) => Save();
+    partial void OnShowPointerCoordinatesChanged(bool value) => Save();
     partial void OnSmoothRobotMotionChanged(bool value) => Save();
     partial void OnShowCleanedAreaChanged(bool value) => Save();
     partial void OnLanguageChanged(string value) => Save();
@@ -260,5 +268,5 @@ public sealed partial class AppSettings : ObservableObject
     partial void OnMessageRetentionDaysChanged(int value) => Save();
 
     /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null, int? LogRetentionDays = null, int? MessageRetentionDays = null, bool? NotifyRobotFault = null, WindowBounds? Window = null, bool? ArchiveCleans = null, int? CleanArchiveRetentionDays = null);
+    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null, int? LogRetentionDays = null, int? MessageRetentionDays = null, bool? NotifyRobotFault = null, WindowBounds? Window = null, bool? ArchiveCleans = null, int? CleanArchiveRetentionDays = null, bool? ShowPointerCoordinates = null);
 }

@@ -138,6 +138,15 @@
                         <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.SmoothRobotMotion, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
                                       AutomationProperties.Name='{local:Tr Fr="Lisser les déplacements du robot", En="Smooth the robot&apos;s movements"}'/>
                     </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Afficher les coordonnées au-dessus du pointeur", En="Show the coordinates above the pointer"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="La position du pointeur sur la carte, en mètres, dans le repère du robot (celui de ses messages).", En="The pointer&apos;s position on the map, in metres, in the robot&apos;s frame (the one of its messages)."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowPointerCoordinates, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Afficher les coordonnées au-dessus du pointeur", En="Show the coordinates above the pointer"}'/>
+                    </Grid>
                     <TextBlock Text='{local:Tr Fr="Ces réglages ne concernent que cet affichage : rien n&apos;est envoyé au robot.", En="These settings only affect this display: nothing is sent to the robot."}'
                                Style="{StaticResource Caption}" Margin="0,8,0,0"/>
                 </StackPanel>

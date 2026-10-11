@@ -122,6 +122,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
             MinimumShapeSide = MinimumZoneSide,
             // Cuts, and zones and furniture when the box says so, land on the robot's 5 cm grid.
             SnapToGrid = GridActive,
+            ShowPointerCoordinates = _settings.ShowPointerCoordinates,
         };
         // Every click comes here, which knows which tab it is for.
         Canvas.WorldClicked += MapClickedAt;

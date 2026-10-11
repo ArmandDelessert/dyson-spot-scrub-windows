@@ -169,6 +169,17 @@ internal static class MapRenderer
     /// <summary>Draws <see cref="MapInteraction.Overlay"/>: it belongs to an interaction rather than to the map, so it goes over the finished scene.</summary>
     public static void DrawOverlay(CanvasDrawingSession ds, MapOverlay overlay, MapTransform worldToScreen, Size2 size, MapPalette palette)
     {
+        // Last, over everything else: the label must stay readable whatever is under the pointer.
+        try { DrawShapes(ds, overlay, worldToScreen, size, palette); }
+        finally
+        {
+            if (overlay.PointerCoordinates is var (screen, world))
+                DrawLabel(ds, MapGeometry.CoordinatesText(world), new Vector2((float)screen.X, (float)screen.Y - 22), palette);
+        }
+    }
+
+    private static void DrawShapes(CanvasDrawingSession ds, MapOverlay overlay, MapTransform worldToScreen, Size2 size, MapPalette palette)
+    {
         if (overlay.Grid is { } grid)
         {
             var gridColour = palette.LabelText.WithAlpha(MapColors.GridLineAlpha).ToColor();

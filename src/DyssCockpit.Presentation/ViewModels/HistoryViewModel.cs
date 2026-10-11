@@ -54,6 +54,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         _settings = settings;
         _archive = archive ?? new CleanArchive(AppFolders.Cleans(SessionStore.Directory));
         _settings.PropertyChanged += OnSettingChanged;
+        Canvas.ShowPointerCoordinates = settings.ShowPointerCoordinates;
     }
 
     /// <summary>
@@ -256,6 +257,8 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 
     public void RebuildScene()
     {
+        // The preference may just have changed: the scene is rebuilt on every change of preferences.
+        Canvas.ShowPointerCoordinates = _settings.ShowPointerCoordinates;
         var mapId = _map?.Id;
         Scene = new MapScene
         {

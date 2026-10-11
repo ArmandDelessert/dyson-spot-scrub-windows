@@ -28,7 +28,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         // A click on a room ticks it; on empty space it clears the ticks, or the drawn zone. While
         // a zone is being drawn, clicks pick its corners; once drawn, it can be dragged or
         // stretched from its corners like a restriction zone.
-        Canvas = new MapInteraction { EditableShapeResizable = true, MinimumShapeSide = MinimumSpotSide };
+        Canvas = new MapInteraction { EditableShapeResizable = true, MinimumShapeSide = MinimumSpotSide, ShowPointerCoordinates = settings.ShowPointerCoordinates };
         Canvas.WorldClicked += MapClickedAt;
         Canvas.ZoneClicked += ToggleZone;
         Canvas.EmptySpaceClicked += ClearSelection;
@@ -234,6 +234,8 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
 
     public void RebuildScene()
     {
+        // The preference may just have changed: the scene is rebuilt on every change of preferences.
+        Canvas.ShowPointerCoordinates = _settings.ShowPointerCoordinates;
         var mapId = SelectedMap?.Id;
         var isCurrent = SelectedMap?.Metadata.IsCurrentMap == true;
         Scene = new MapScene
