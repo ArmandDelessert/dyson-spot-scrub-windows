@@ -11,8 +11,10 @@ namespace DyssCockpit.Presentation.Services;
 /// shrink as new cleans push the old ones out. One file a clean,
 /// <c>Cleans\clean-2026-10-10-&lt;cleanId&gt;.json.gz</c>, named after the day the clean began so that
 /// <see cref="DatedFiles"/> can age them like the logs. Inside, compressed (a trail is hundreds of
-/// kilobytes of numbers), two lines of JSON: the clean's line of the list, then its detail — what
-/// the history tab needs to show it again without the cloud. Both are the application's own records,
+/// kilobytes of numbers), lines of JSON: the clean's line of the list, then its detail — what
+/// the history tab needs to show it again without the cloud — then, when it could be had, the
+/// cloud's snapshot of the clean (see <see cref="CleanSnapshot"/>, the map as it was then), as it was
+/// downloaded, in base 64 under <c>"snapshot"</c>. A file of two lines, written before, has no snapshot. Both are the application's own records,
 /// whose unknown fields are kept, so what the cloud sent more than this version knows is not lost.
 /// Everything is best effort: a file that cannot be read or written is skipped, never an error.
 /// </summary>
@@ -45,7 +47,7 @@ public sealed class CleanArchive(string folder, TimeProvider? time = null)
     public bool Has(string cleanId) => FileOf(cleanId) is not null;
 
     /// <summary>Keeps a clean, unless it is already kept. False when it could not be written.</summary>
-    public bool Save(CleanSummary summary, CleanDetail detail)
+    public bool Save(CleanSummary summary, CleanDetail detail, byte[]? snapshot = null)
     {
         if (Has(summary.CleanId)) return true;
         try
@@ -59,6 +61,11 @@ public sealed class CleanArchive(string folder, TimeProvider? time = null)
                 writer.Write('\n');
                 writer.Write(JsonSerializer.Serialize(detail, Format));
                 writer.Write('\n');
+                if (snapshot is not null)
+                {
+                    writer.Write(JsonSerializer.Serialize(new SnapshotLine(Convert.ToBase64String(snapshot)), Format));
+                    writer.Write('\n');
+                }
             }
             AtomicFile.WriteAllBytes(Path.Combine(Folder, $"{Prefix}{DayOf(summary):yyyy-MM-dd}-{summary.CleanId}{Extension}"), packed.ToArray());
             return true;
@@ -81,6 +88,24 @@ public sealed class CleanArchive(string folder, TimeProvider? time = null)
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException) { return null; }
     }
+
+    /// <summary>The cloud's snapshot of a kept clean, as downloaded; null when it is not kept, or was kept without one.</summary>
+    public byte[]? LoadSnapshot(string cleanId)
+    {
+        if (FileOf(cleanId) is not { } file) return null;
+        try
+        {
+            using var reader = Open(file);
+            _ = reader.ReadLine();
+            _ = reader.ReadLine();
+            return reader.ReadLine() is { } line && JsonSerializer.Deserialize<SnapshotLine>(line, Format) is { Snapshot: { } data }
+                ? Convert.FromBase64String(data)
+                : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException or FormatException) { return null; }
+    }
+
+    private sealed record SnapshotLine(string? Snapshot);
 
     /// <summary>The list line of every kept clean, newest first. Only the first line of each file is read.</summary>
     public IReadOnlyList<CleanSummary> Summaries()

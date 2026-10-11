@@ -125,6 +125,57 @@ public sealed class HistoryViewModelTests : IDisposable
          "cleanPath":[{"x":0,"y":0,"update":1}],"dirt":[{"x":3.7,"y":3.9,"type":"solid","isUvScanOn":false}]}
         """;
 
+    private const string OneCleanWithSnapshot = """
+        {"data":[{"cleanId":"clean-1","persistentMapId":"1000000002","startTime":1789916722,"endTime":1789924402,
+                  "cleanDuration":128,"areaCleaned":87.1,"faults":[],"downloadUrl":"https://s3.example.invalid/snapshots/clean-1.bin"}]}
+        """;
+
+    [Fact]
+    public async Task ACleanIsShownOnTheMapAsItWasThenFromTheCloudsSnapshot()
+    {
+        var vm = New(out var handler, history: OneCleanWithSnapshot);
+        handler.Binary["snapshots/clean-1"] = Snapshots.Of(1000000002, 4, 3, 10);
+        await vm.LoadAsync();
+
+        vm.SelectedClean = vm.History[0];
+        await WaitForAsync(() => vm.Scene.Grid is not null);
+
+        Assert.Equal((4, 3, 0.5), (vm.Scene.Grid!.Width, vm.Scene.Grid.Height, vm.Scene.Grid.Resolution));
+        Assert.Equal(10, vm.Scene.Grid[2, 1]);
+    }
+
+    [Fact]
+    public async Task WithoutASnapshotTheCleanIsShownOnTheCurrentMapAsBefore()
+    {
+        var vm = New(out var handler, history: OneCleanWithSnapshot);   // the link answers "not found"
+        await vm.LoadAsync();
+
+        vm.SelectedClean = vm.History[0];
+        await WaitForAsync(() => vm.ResultText.Length > 0 && vm.MapName.Length > 0);
+
+        Assert.Null(vm.Scene.Grid);   // the tests' map service has no grid either
+        Assert.Contains(handler.Requested, p => p.Contains("snapshots/clean-1", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task KeptCleansKeepTheirSnapshotAndShowItWithoutTheCloud()
+    {
+        var vm = New(out var handler, settings: new AppSettings { ArchiveCleans = true }, history: OneCleanWithSnapshot);
+        handler.Binary["snapshots/clean-1"] = Snapshots.Of(1000000002, 4, 3, 11);
+        await vm.LoadAsync();
+        await vm.FillDetailsAsync();
+        Assert.NotNull(new CleanArchive(_kept).LoadSnapshot("clean-1"));
+
+        // Next start, offline: the list and the map come from the disk.
+        var offline = New(out var offlineHandler, settings: new AppSettings { ArchiveCleans = true }, history: null);
+        await offline.LoadAsync();
+        offline.SelectedClean = offline.History[0];
+        await WaitForAsync(() => offline.Scene.Grid is not null);
+
+        Assert.Equal(11, offline.Scene.Grid![0, 0]);
+        Assert.DoesNotContain(offlineHandler.Requested, p => p.Contains("snapshots", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task NothingIsKeptOnDiskUnlessTheSettingAsksForIt()
     {

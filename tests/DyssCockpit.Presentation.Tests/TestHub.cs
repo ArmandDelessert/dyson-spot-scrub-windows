@@ -21,10 +21,15 @@ internal static class TestHub
     {
         public List<string> Requested { get; } = new();
 
+        /// <summary>Bodies that are not JSON (a clean's snapshot), by a fragment of their URL; looked at first.</summary>
+        public Dictionary<string, byte[]> Binary { get; } = new();
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             var path = request.RequestUri!.AbsolutePath;
             Requested.Add(path);
+            if (Binary.FirstOrDefault(b => path.Contains(b.Key, StringComparison.Ordinal)) is { Value: { } bytes })
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) });
             var route = routes.FirstOrDefault(r => path.Contains(r.UrlContains, StringComparison.Ordinal));
             return Task.FromResult(route.Json is null
                 ? new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("{}") }

@@ -306,6 +306,19 @@ public sealed partial class DysonCloudClient : IDisposable
     public Task<CleanDetail> GetCleanDetailAsync(string serial, string cleanId, CancellationToken ct = default) =>
         SendAsync<CleanDetail>(Request(HttpMethod.Get, Url($"/v2/{serial}/clean-maps-data/{cleanId}", withCountry: false), auth: true), ct);
 
+    /// <summary>
+    /// The blob behind a clean's <see cref="CleanSummary.DownloadUrl"/>, as it is (see <see cref="CleanSnapshot"/>).
+    /// A presigned S3 link, so no token goes with it; it lasts 15 minutes after the list was read.
+    /// </summary>
+    public async Task<byte[]> GetCleanSnapshotAsync(string downloadUrl, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
+        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+            throw new DysonApiException($"GET clean snapshot failed: HTTP {(int)response.StatusCode} {response.ReasonPhrase}", response.StatusCode);
+        return await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+    }
+
     // ---- Device settings held in the cloud -------------------------------------
 
     public async Task<string?> GetOtaStatusAsync(string serial, CancellationToken ct = default)

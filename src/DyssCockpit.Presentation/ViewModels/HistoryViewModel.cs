@@ -45,6 +45,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     private readonly AppSettings _settings;
     private readonly CleanArchive _archive;
     private readonly Dictionary<string, Task<CleanDetail>> _details = new();
+    private readonly Dictionary<string, Task<MapGrid?>> _snapshots = new();
 
     /// <param name="archive">Where the cleans are kept when the setting asks for it; null for the user's own folder.</param>
     public HistoryViewModel(RobotHub hub, MapCatalog maps, AppSettings settings, CleanArchive? archive = null)
@@ -91,6 +92,8 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     private IReadOnlyList<DyssCockpit.Core.Point>? _path;
     private IReadOnlyList<DyssCockpit.Core.Point>? _obstacles;
     private IReadOnlyList<DirtSpot>? _dirt;
+    /// <summary>The map the selected clean ran on, from the cloud's snapshot of it; null when there is none to be had.</summary>
+    private MapGrid? _grid;
     private PersistentMap? _map;
 
     public async Task LoadAsync()
@@ -199,9 +202,61 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     {
         if (_settings.ArchiveCleans && await Task.Run(() => _archive.LoadDetail(summary.CleanId)) is { } kept) return kept;
         var detail = await _hub.Api.GetCleanDetailAsync(_hub.Serial, summary.CleanId, _hub.Ct);
-        if (_settings.ArchiveCleans && !await Task.Run(() => _archive.Save(summary, detail)))
+        var snapshot = _settings.ArchiveCleans ? await DownloadSnapshotAsync(summary) : null;
+        if (_settings.ArchiveCleans && !await Task.Run(() => _archive.Save(summary, detail, snapshot)))
             _hub.AddLog(T($"nettoyage {summary.CleanId} : copie locale impossible", $"clean {summary.CleanId}: local copy failed"));
         return detail;
+    }
+
+    /// <summary>
+    /// The grid of the map as it was at the end of a clean (see <see cref="CleanSnapshot"/>): from the
+    /// kept copy when there is one, from the cloud otherwise. Shared like the detail, and null rather
+    /// than an error when it cannot be had: the clean is then shown on the current map, as before.
+    /// </summary>
+    private Task<MapGrid?> GetSnapshotAsync(CleanSummary summary)
+    {
+        if (!_snapshots.TryGetValue(summary.CleanId, out var pending))
+            _snapshots[summary.CleanId] = pending = ReadOrDownloadSnapshotAsync(summary);
+        return pending;
+    }
+
+    private async Task<MapGrid?> ReadOrDownloadSnapshotAsync(CleanSummary summary)
+    {
+        var blob = _settings.ArchiveCleans ? await Task.Run(() => _archive.LoadSnapshot(summary.CleanId)) : null;
+        blob ??= await DownloadSnapshotAsync(summary);
+        return blob is null ? null : CleanSnapshot.Parse(blob)?.Grid;
+    }
+
+    /// <summary>
+    /// The snapshot's blob from the cloud; null when the clean has none (a kept one the cloud has
+    /// forgotten) or the download fails. Its link lasts 15 minutes after the list was read: an
+    /// expired one is replaced by the link of a fresh read of the list, once.
+    /// </summary>
+    private async Task<byte[]?> DownloadSnapshotAsync(CleanSummary summary)
+    {
+        if (summary.DownloadUrl is not { Length: > 0 } url) return null;
+        try
+        {
+            return await _hub.Api.GetCleanSnapshotAsync(url, _hub.Ct);
+        }
+        catch (DysonApiException) when (!_hub.IsShuttingDown)
+        {
+            try
+            {
+                var fresh = (await _hub.Api.GetCleanHistoryAsync(_hub.Serial, _hub.Ct)).FirstOrDefault(c => c.CleanId == summary.CleanId)?.DownloadUrl;
+                return fresh is { Length: > 0 } && fresh != url ? await _hub.Api.GetCleanSnapshotAsync(fresh, _hub.Ct) : null;
+            }
+            catch (Exception ex) when (ex is DysonApiException or HttpRequestException)
+            {
+                _hub.AddLog(T($"carte du nettoyage {summary.CleanId} : {ex.Message}", $"map of clean {summary.CleanId}: {ex.Message}"));
+                return null;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _hub.AddLog(T($"carte du nettoyage {summary.CleanId} : {ex.Message}", $"map of clean {summary.CleanId}: {ex.Message}"));
+            return null;
+        }
     }
 
     /// <summary>
@@ -226,6 +281,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         try
         {
             var detail = await GetDetailAsync(item.Summary);
+            _grid = await GetSnapshotAsync(item.Summary);
             _path = detail.CleanPath;
             _obstacles = detail.Obstacles;
             _dirt = detail.Dirt;
@@ -262,7 +318,8 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         var mapId = _map?.Id;
         Scene = new MapScene
         {
-            Grid = _maps.GridFor(mapId),
+            // The map as the clean left it; the current one when the cloud had no snapshot of it.
+            Grid = _grid ?? _maps.GridFor(mapId),
             Map = _map,
             ZoneMetadata = _maps.Find(mapId)?.Metadata.Zones,
             Dock = _map?.DockLocation,

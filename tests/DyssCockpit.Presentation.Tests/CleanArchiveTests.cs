@@ -88,6 +88,20 @@ public sealed class CleanArchiveTests : IDisposable
     }
 
     [Fact]
+    public void TheCloudsSnapshotIsKeptAsDownloadedAndAnOldFileHasNone()
+    {
+        var archive = new CleanArchive(_folder, Clock());
+        var blob = Snapshots.Of(1782494719, 4, 3, 10);
+        archive.Save(Summary("with", Unix(2026, 10, 11)), Detail("with"), blob);
+        archive.Save(Summary("without", Unix(2026, 10, 10)), Detail("without"));
+
+        Assert.Equal(blob, archive.LoadSnapshot("with"));
+        Assert.Null(archive.LoadSnapshot("without"));
+        Assert.Null(archive.LoadSnapshot("missing"));
+        Assert.Equal("solid", Assert.Single(archive.LoadDetail("with")!.Dirt!).Type);   // the detail is still where it was
+    }
+
+    [Fact]
     public void ACleanAlreadyKeptIsNotWrittenAgain()
     {
         var archive = new CleanArchive(_folder, Clock());
