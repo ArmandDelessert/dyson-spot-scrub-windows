@@ -444,6 +444,19 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
 
     public sealed record LaunchedClean(IReadOnlyList<string> Rooms, DateTimeOffset At);
 
+    /// <summary>
+    /// The name the PNG export of a map is offered under: <c>Carte-Salon-2026-10-11-14-05-09.png</c> (<c>Map-</c> in English), the
+    /// map's name then the moment of the export, so that two exports never collide and sort by date. Characters
+    /// Windows does not allow in a file name are replaced, a name that was all of them leaves the map unnamed.
+    /// </summary>
+    internal static string ExportFileName(string? mapName, DateTimeOffset now)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var name = new string([.. (mapName ?? "").Select(c => invalid.Contains(c) ? '_' : c)]).Trim().TrimEnd('.');
+        if (name.Length == 0) name = "Robot";
+        return string.Create(CultureInfo.InvariantCulture, $"{T("Carte", "Map")}-{name}-{now:yyyy-MM-dd-HH-mm-ss}.png");
+    }
+
     /// <summary>Makes the selected map the account's active map, as the phone app does from its map picker.</summary>
     [RelayCommand]
     private async Task SetActiveMapAsync()
@@ -456,7 +469,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task ExportMapAsync()
     {
-        if (await _hub.Dialogs.SaveMapImageAsync(Scene, $"{T("carte", "map")}-{SelectedMap?.Metadata.Name ?? "robot"}.png") is { } path)
+        if (await _hub.Dialogs.SaveMapImageAsync(Scene, ExportFileName(SelectedMap?.Metadata.Name, _hub.Time.GetLocalNow())) is { } path)
             _hub.AddLog(T($"carte exportée vers {path}", $"map exported to {path}"));
     }
 

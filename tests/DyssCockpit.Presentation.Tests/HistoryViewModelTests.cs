@@ -170,7 +170,7 @@ public sealed class HistoryViewModelTests : IDisposable
         // The cloud's clean first, then the one only the disk has, by date.
         Assert.Equal(["clean-1", "clean-0"], vm.History.Select(c => c.Summary.CleanId));
         vm.SelectedClean = vm.History[1];
-        await WaitForAsync(() => vm.ResultText.Length > 0);
+        await WaitForAsync(() => vm.Scene.DirtSpots is not null);   // the last thing the selection builds
         Assert.Equal("Terminé", vm.ResultText);
         Assert.Equal("solid", Assert.Single(vm.Scene.DirtSpots!).Type);
         Assert.DoesNotContain(handler.Requested, p => p.Contains("clean-maps-data", StringComparison.Ordinal));

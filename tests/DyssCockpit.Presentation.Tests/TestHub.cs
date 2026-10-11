@@ -102,5 +102,8 @@ internal sealed class FakeDialogs : IDialogService
 
     public Task<bool> EditScheduleAsync(ScheduleEditorViewModel editor) => Task.FromResult(EditSchedule(editor));
 
-    public Task<string?> SaveMapImageAsync(MapScene scene, string suggestedFileName) => Task.FromResult<string?>(null);
+    /// <summary>The file names offered for a map export; the answer is no file, as when the user cancels.</summary>
+    public Func<MapScene, string, string?> SaveMapImage { get; set; } = (_, _) => null;
+
+    public Task<string?> SaveMapImageAsync(MapScene scene, string suggestedFileName) => Task.FromResult(SaveMapImage(scene, suggestedFileName));
 }

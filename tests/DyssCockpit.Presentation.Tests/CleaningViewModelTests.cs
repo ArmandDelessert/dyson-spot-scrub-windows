@@ -367,6 +367,32 @@ public class CleaningViewModelTests
         Assert.Empty(vm.LastLaunch!.Rooms);   // a zone has no room to name
     }
 
+    [Theory]
+    [InlineData("Appartement", "Carte-Appartement-2026-10-11-14-05-09.png")]
+    [InlineData("Étage", "Carte-Étage-2026-10-11-14-05-09.png")]
+    [InlineData("Rez : salon/cuisine", "Carte-Rez _ salon_cuisine-2026-10-11-14-05-09.png")]   // characters Windows refuses in a name
+    [InlineData("Bureau.", "Carte-Bureau-2026-10-11-14-05-09.png")]                             // a trailing dot is dropped
+    [InlineData("  ", "Carte-Robot-2026-10-11-14-05-09.png")]
+    [InlineData(null, "Carte-Robot-2026-10-11-14-05-09.png")]
+    public void TheMapExportIsOfferedUnderItsNameAndTheMomentOfTheExport(string? mapName, string expected)
+    {
+        var now = new DateTimeOffset(2026, 10, 11, 14, 5, 9, TimeSpan.FromHours(2));
+
+        Assert.Equal(expected, CleaningViewModel.ExportFileName(mapName, now));
+    }
+
+    [Fact]
+    public async Task TheExportAsksForAFileNamedAfterTheSelectedMapAndTheMoment()
+    {
+        var vm = New(out var hub);
+        string? offered = null;
+        ((FakeDialogs)hub.Dialogs).SaveMapImage = (_, name) => { offered = name; return null; };
+        await vm.LoadMapsAsync();
+
+        await vm.ExportMapCommand.ExecuteAsync(null);
+
+        Assert.Matches(@"^Carte-Étage-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.png$", offered);
+    }
     [Fact]
     public async Task ASelectionRestoredByAReloadReEnablesTheStartButton()
     {
