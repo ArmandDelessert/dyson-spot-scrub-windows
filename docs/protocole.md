@@ -28,7 +28,7 @@ Ce document décrit comment l'application Android MyDyson dialogue avec le robot
 **Cleaning**
 
 - Starting a cleaning is a sequence: `set_preference`, `START`, `set_cur_map`, `set_room_clean`. A pause is `ctrl_value` 2; an abort must carry the current state.
-- The record of a cleaning (`clean_finish`, `clean_record`) arrives minutes after the cleaning ends, after the last wash. `record_task_status` tells how it ended: 1 done, 2 stopped by the user, 4 aborted by the robot.
+- The record of a cleaning (`clean_finish`, `clean_record`) arrives minutes after the cleaning ends, after the last wash. `record_task_status` tells how it ended: 1 done, 2 stopped by the user, 3 done after an interruption (seen once), 4 aborted by the robot.
 - The path of the robot is streamed in batches of a flat array (`cur_path`) with an `update` flag.
 
 **Maps**
@@ -399,7 +399,7 @@ Une fois le dernier lavage terminé, quelques minutes après la fin du nettoyage
   "clean_count": 2, "record_task_status": 1, "clean_current_map": 1000000002 }
 ```
 
-`record_task_status` vaut 1 pour une tâche menée à terme, 2 pour une tâche abandonnée par l'utilisateur, 4 pour une tâche abandonnée par le robot (échec de localisation, pièce injoignable). La valeur 3 a été vue une fois, le 11 octobre 2026 : deux zones nettoyées en entier (5,34 m² pour 4,8 m² de zones), après une pause que le robot s'était imposée (roue dans le vide), suivie d'un `clean_finish` ; DySS Cockpit la compte comme une tâche menée à terme. `record_clean_mode` vaut 0 pour un nettoyage de pièces et 4 pour une cartographie ou un nettoyage de zone. Plusieurs champs transportent des entiers négatifs encodés en non signé, par exemple `4294967276` pour -20. Le compte rendu arrive aussi pour une tâche interrompue ; le cloud range la tâche dans l'historique peu après, ce qui en fait le bon signal pour recharger celui-ci. Le téléphone efface alors le tracé de sa carte.
+`record_task_status` vaut 1 pour une tâche menée à terme, 2 pour une tâche abandonnée par l'utilisateur, 4 pour une tâche abandonnée par le robot (échec de localisation, pièce injoignable). La valeur 3 a été vue une fois, le 11 octobre 2026 : deux zones nettoyées en entier (5,34 m² pour 4,8 m² de zones), mais avec une interruption. Pendant la seconde zone, il a fallu soulever le robot pour lui retirer un petit objet qu'il avait avalé : faute `501` et pause, puis le robot, reposé, est reparti sans commande de reprise venue d'une application, a fini, et a émis un `clean_finish`. DySS Cockpit compte cette valeur comme une tâche menée à terme. `record_clean_mode` vaut 0 pour un nettoyage de pièces et 4 pour une cartographie ou un nettoyage de zone. Plusieurs champs transportent des entiers négatifs encodés en non signé, par exemple `4294967276` pour -20. Le compte rendu arrive aussi pour une tâche interrompue ; le cloud range la tâche dans l'historique peu après, ce qui en fait le bon signal pour recharger celui-ci. Le téléphone efface alors le tracé de sa carte.
 
 Début et fin d'une tâche, tels que les captures les montrent (pièces, zone, cartographie, arrêts et abandons) :
 
@@ -421,7 +421,7 @@ Le champ `nextActionRequired` distingue l'indicateur de statut de la vraie panne
 | Code | `nextActionRequired` | Signification observée |
 |---|---|---|
 | `0` | absent | plus aucune faute |
-| `501` | `WAIT_TO_CLEAR` | **roue dans le vide** : précédée de `event.overhanging_wheel.post`, le robot se met en pause (`FULL_CLEAN_PAUSED`) jusqu'à ce qu'on le libère (observé le 11 octobre 2026) ; vue aussi au retour sur la base après un abandon |
+| `501` | `WAIT_TO_CLEAR` | **roue dans le vide** : précédée de `event.overhanging_wheel.post`, le robot se met en pause (`FULL_CLEAN_PAUSED`) jusqu'à ce qu'il soit reposé. Observée le 11 octobre 2026 en soulevant le robot en plein nettoyage ; vue aussi au retour sur la base après un abandon |
 | `589` | `WAIT_TO_CLEAR` | **échec de localisation**, précédé de `event.locate_fail.post` |
 | `2007` | `USER_CONTINUE` | **pièce injoignable** : apparaît avec `event.Unable_all_area_recharge.post`, reste pendant `FULL_CLEAN_FINISHED` et la remise en charge, puis disparaît |
 | `2102` | `LOG_ONLY` | nettoyage ou cartographie terminé |

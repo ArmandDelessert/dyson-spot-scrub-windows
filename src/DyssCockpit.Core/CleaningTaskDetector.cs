@@ -45,7 +45,7 @@ public sealed record CleaningTaskNotice(CleaningTaskChange Change, string? Clean
 /// washed its roller, minutes after <c>FULL_CLEAN_FINISHED</c>, which is when the phone's
 /// notification comes too. It is followed within the second by <c>event.clean_record.post</c>, the
 /// task's report, whose <c>record_task_status</c> tells how it went: 1 done, 2 stopped by the user,
-/// 3 done after the robot paused itself (seen once), 4 given up by the robot. The captures have the report in every case, but the finish only for a
+/// 3 done after an interruption (seen once: the robot lifted mid-clean), 4 given up by the robot. The captures have the report in every case, but the finish only for a
 /// clean that went to its end or was given up for an unreachable room: a robot that cannot locate
 /// itself gives up without any <c>clean_finish</c>, and the finish of an unreachable room is
 /// followed by status 4, so <c>clean_finish</c> alone does not mean the clean was done. So the
@@ -117,8 +117,8 @@ public sealed class CleaningTaskDetector
         if (mapping) return null;
         return IntegerOf(report?["record_task_status"]) switch
         {
-            // 3 was seen once, for two zones cleaned in full after a pause the robot made itself (a wheel off
-            // the floor), then a finish: done, after an interruption.
+            // 3 was seen once, for two zones cleaned in full although the robot was lifted on the way (a
+            // wheel off the floor, a pause, then it went on), then a finish: done, after an interruption.
             1 or 3 when finishSeen || IntegerOf(report?["record_clean_mode"]) == 0 =>
                 new CleaningTaskNotice(CleaningTaskChange.Finished, Minutes: (int?)IntegerOf(report?["record_use_time"])),
             4 => new CleaningTaskNotice(CleaningTaskChange.Abandoned),

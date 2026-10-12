@@ -8,7 +8,7 @@ namespace DyssCockpit.Core;
 /// 21xx family with <c>LOG_ONLY</c>, which says what the robot is doing, not what is wrong): in the
 /// captures, 589 (it cannot locate itself), 2007 (a room it cannot reach, which stays until it is
 /// back on the dock), and 501 (a wheel off the floor: <c>event.overhanging_wheel.post</c>, and the
-/// robot pauses until someone frees it). A fault is told once, however many states repeat it; if it goes and comes
+/// robot pauses until it is put down, which is also what lifting it gives). A fault is told once, however many states repeat it; if it goes and comes
 /// back, it is told again. Every state of the captures carries <c>activeFaults</c>, empty when
 /// there is none, so a message that carries no state (a position alone) is left out rather than read as
 /// "no fault".

@@ -137,10 +137,11 @@ public class CleaningTaskDetectorTests
     }
 
     [Fact]
-    public void TwoZonesFinishedAfterAPauseOfTheRobotsOwnAreFinished()
+    public void TwoZonesFinishedAfterAnInterruptionAreFinished()
     {
         // 2026-10-11 23:18: two zones; START is followed by a report of status 2 and a second startClean
-        // (the task taken over), a wheel off the floor pauses the robot, it goes on, and the report says 3.
+        // (the task taken over); the robot, lifted to take out something it had swallowed, reports a
+        // wheel off the floor and pauses, goes on once put down, and the report says 3.
         var replay = new Replay().Idle()
             .Event("event.startClean.post").State("FULL_CLEAN_RUNNING", "spotZoneConfigured").State("INACTIVE_CHARGING", "global")
             .Report(status: 2, mode: 4).Event("event.startClean.post")
