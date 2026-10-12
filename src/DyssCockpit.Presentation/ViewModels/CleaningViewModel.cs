@@ -121,9 +121,9 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedMapChanged(MapItem? value)
     {
-        // A zone drawn on one map means nothing on another.
+        // Zones drawn on one map mean nothing on another.
         DrawingSpot = false;
-        SpotCorners = null;
+        ClearSpots();
         if (value is null) return;
         _ = LoadZonesAsync(value);
     }
@@ -191,26 +191,33 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Called by the map when the user clicks/taps empty map space. With a zone drawn, it
-    /// erases the zone instead — unless the click landed on the zone itself, which may well stick
-    /// out past the walls into empty space.
+    /// Called by the map when the user clicks/taps empty map space. With zones drawn, it erases
+    /// them instead, as it unticks every room — unless the click landed on a zone, which may well
+    /// stick out past the walls into empty space.
     /// </summary>
     public void ClearSelection()
     {
         if (HasSpot)
         {
-            if (!_lastClickInSpot) SpotCorners = null;
+            if (!_lastClickInSpot) ClearSpots();
             return;
         }
         foreach (var z in Zones) z.Selected = false;
     }
 
-    /// <summary>Whether the last click on the map fell inside the drawn zone; see <see cref="MapClickedAt"/>.</summary>
+    /// <summary>Whether the last click on the map fell inside a drawn zone; see <see cref="MapClickedAt"/>.</summary>
     private bool _lastClickInSpot;
 
-    /// <summary>Called by the map for every click, before <see cref="ToggleZone"/> or <see cref="ClearSelection"/>.</summary>
-    public void MapClickedAt(DyssCockpit.Core.Point at) =>
-        _lastClickInSpot = SpotCorners is { } corners && MapShapes.Contains(corners, at.X, at.Y);
+    /// <summary>
+    /// Called by the map for every click, before <see cref="ToggleZone"/> or <see cref="ClearSelection"/>.
+    /// A click on a zone other than the one being edited makes it the one being edited.
+    /// </summary>
+    public void MapClickedAt(DyssCockpit.Core.Point at)
+    {
+        var hit = SpotZones.LastOrDefault(z => MapShapes.Contains(z, at.X, at.Y));
+        _lastClickInSpot = hit is not null;
+        if (hit is not null && !ReferenceEquals(hit, SpotCorners)) SpotCorners = hit;
+    }
 
     private async Task LoadMapGeometryAsync(string mapId)
     {
@@ -256,7 +263,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             ShowFurniture = _settings.ShowFurniture,
             ShowTravelPath = _settings.ShowTravelPath,
             ShowCleanedArea = _settings.ShowCleanedArea,
-            SpotZone = SpotCorners,
+            SpotZones = SpotZones.Count > 0 ? SpotZones : null,
             RobotActivity = isCurrent ? _activity.Robot : RobotActivity.Idle,
             DockActivity = isCurrent ? _activity.Dock : DockActivity.Idle,
             RobotDocked = isCurrent && _activity.Docked,
@@ -310,19 +317,40 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     /// <summary>A zone narrower than this is a slip of the mouse rather than something to clean.</summary>
     public const double MinimumSpotSide = 0.3;
 
-    /// <summary>True while the user is drawing the zone's rectangle on the map; the view turns clicks into corners.</summary>
+    /// <summary>True while the user is drawing a zone's rectangle on the map; the view turns clicks into corners.</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(DrawSpotLabel))] private bool _drawingSpot;
-    /// <summary>The drawn zone, in the order the phone sends it; null until one is drawn.</summary>
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasSpot)), NotifyPropertyChangedFor(nameof(SpotSizeText))]
+
+    /// <summary>
+    /// Every zone drawn, in the order drawn, each in the order the phone sends a zone's corners:
+    /// they are cleaned one after the other in one clean. Empty until one is drawn.
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<DyssCockpit.Core.Point>> SpotZones { get; private set; } = [];
+
+    /// <summary>The zone the map lets move and stretch, one of <see cref="SpotZones"/>: the last drawn, or the last clicked; null when there is none.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasSpot)), NotifyPropertyChangedFor(nameof(SpotSizeText)), NotifyPropertyChangedFor(nameof(ClearSpotLabel))]
     private IReadOnlyList<DyssCockpit.Core.Point>? _spotCorners;
     [ObservableProperty] private bool _canStartSpot;
 
     public bool HasSpot => SpotCorners is not null;
     public string DrawSpotLabel => DrawingSpot ? T("Annuler le tracé", "Cancel drawing") : HasSpot ? T("Tracer une autre zone…", "Draw another zone…") : T("Tracer une zone…", "Draw a zone…");
-    public string SpotSizeText => SpotCorners is { } c
-        ? T(string.Create(CultureInfo.CurrentCulture, $"Zone de {MapShapes.Sides(c).First:0.0} × {MapShapes.Sides(c).Second:0.0} m"),
-            string.Create(CultureInfo.CurrentCulture, $"Zone of {MapShapes.Sides(c).First:0.0} × {MapShapes.Sides(c).Second:0.0} m"))
-        : "";
+    public string ClearSpotLabel => SpotZones.Count > 1 ? T("Effacer les zones", "Erase the zones") : T("Effacer la zone", "Erase the zone");
+    public string SpotSizeText => HasSpot ? MapGeometry.ZonesText(SpotZones) : "";
+
+    /// <summary>The zones become <paramref name="zones"/>, and the one being edited <paramref name="active"/>.</summary>
+    private void SetSpots(IReadOnlyList<IReadOnlyList<DyssCockpit.Core.Point>> zones, IReadOnlyList<DyssCockpit.Core.Point>? active)
+    {
+        SpotZones = zones;
+        if (ReferenceEquals(SpotCorners, active)) RebuildScene();
+        else SpotCorners = active;
+        OnPropertyChanged(nameof(SpotSizeText));
+        OnPropertyChanged(nameof(ClearSpotLabel));
+    }
+
+    /// <summary>The zone being edited, replaced by <paramref name="zone"/>, which takes its place in the order.</summary>
+    private void ReplaceActiveSpot(IReadOnlyList<DyssCockpit.Core.Point> zone) =>
+        SetSpots([.. SpotZones.Select(z => ReferenceEquals(z, SpotCorners) ? zone : z)], zone);
+
+    private void ClearSpots() => SetSpots([], null);
 
     // The same four choices as a room, from the same lists.
     public IReadOnlyList<CleanTypeOption> SpotCleanTypes { get; } = ZoneItem.CleanTypeOptions;
@@ -358,21 +386,27 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void DrawSpot() => DrawingSpot = !DrawingSpot && SelectedMap is not null;
 
+    /// <summary>Erases every zone drawn.</summary>
     [RelayCommand]
     private void ClearSpot()
     {
         DrawingSpot = false;
-        SpotCorners = null;
+        ClearSpots();
     }
 
     /// <summary>
-    /// Escape: gives up the drawing under way, or else erases the drawn zone. False when there was
-    /// neither, so the key is left to whatever else it may mean.
+    /// Escape: gives up the drawing under way, or else erases the zone being edited, the one drawn
+    /// before it becoming the one edited. False when there was neither, so the key is left to
+    /// whatever else it may mean.
     /// </summary>
     public bool CancelSpot()
     {
         if (DrawingSpot) DrawingSpot = false;
-        else if (HasSpot) SpotCorners = null;
+        else if (SpotCorners is { } active)
+        {
+            var rest = SpotZones.Where(z => !ReferenceEquals(z, active)).ToList();
+            SetSpots(rest, rest.LastOrDefault());
+        }
         else return false;
         return true;
     }
@@ -387,7 +421,8 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             return;
         }
         _hub.Message = "";
-        SpotCorners = SpotCleanSequence.Corners(a, b);
+        IReadOnlyList<DyssCockpit.Core.Point> zone = SpotCleanSequence.Corners(a, b);
+        SetSpots([.. SpotZones, zone], zone);
     }
 
     /// <summary>
@@ -401,17 +436,17 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         if (Math.Abs(a.X - b.X) < MinimumSpotSide - MapShapes.Tolerance || Math.Abs(a.Y - b.Y) < MinimumSpotSide - MapShapes.Tolerance)
         {
             _hub.Message = T("Zone trop étroite : il faut au moins 30 cm de côté.", "Zone too narrow: each side needs at least 30 cm.");
-            SpotCorners = [.. SpotCorners];   // a new list, so the map drops its preview and shows the zone as it was
+            ReplaceActiveSpot([.. SpotCorners]);   // a new list, so the map drops its preview and shows the zone as it was
             return;
         }
         _hub.Message = "";
-        SpotCorners = SpotCleanSequence.Corners(a, b);
+        ReplaceActiveSpot(SpotCleanSequence.Corners(a, b));
     }
 
     [RelayCommand]
     private Task StartSpotCleanAsync()
     {
-        if (SpotCorners is not { } corners || SelectedMap is null) return Task.CompletedTask;
+        if (SpotZones is not { Count: > 0 } zones || SelectedMap is null) return Task.CompletedTask;
         if (!long.TryParse(SelectedMap.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapId))
         {
             _hub.Message = T($"Identifiant de carte inattendu : {SelectedMap.Id}", $"Unexpected map id: {SelectedMap.Id}");
@@ -419,8 +454,9 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         }
         var settings = new RoomSettings(SpotCleanType.Value, SpotStrategy.Value, SpotWaterLevel.Value, SpotMopPass.Value);
         LastLaunch = new LaunchedClean([], _hub.Time.GetUtcNow());
-        return _hub.RunAsync(T($"nettoyage de la zone ({SpotSizeText.ToLower(CultureInfo.CurrentCulture)})", $"cleaning the zone ({SpotSizeText.ToLower(CultureInfo.CurrentCulture)})"),
-            c => SpotCleanSequence.StartAsync(c, mapId, corners, settings, ct: _hub.Ct));
+        var spots = zones.Select(z => (Guid.NewGuid().ToString(), z)).ToList();
+        return _hub.RunAsync(T($"nettoyage : {SpotSizeText}", $"cleaning: {SpotSizeText}"),
+            c => SpotCleanSequence.StartAsync(c, mapId, spots, settings, _hub.Ct));
     }
 
     // ---- Commands ------------------------------------------------------------

@@ -206,6 +206,22 @@ public class SentToTheRobotTests
         Assert.Empty(vm.LastLaunch!.Rooms);
     }
 
+    [Fact]
+    public async Task SeveralZonesGoInOneStartInTheOrderDrawn()
+    {
+        var (vm, hub, robot) = await CleaningAsync();
+        vm.SpotDrawn(new(0, 0), new(1.5, 1));
+        vm.SpotDrawn(new(2, 0), new(3, 2));
+
+        await vm.StartSpotCleanCommand.ExecuteAsync(null);
+
+        var zones = Assert.Single(robot.Sent).Payload["cleaningProgramme"]!["spotZones"]!.AsArray();
+        Assert.Equal(2, zones.Count);
+        JsonAssert.Equal("""[{"x":3,"y":2},{"x":2,"y":2},{"x":2,"y":0},{"x":3,"y":0}]""", zones[1]!["points"]);
+        Assert.NotEqual(zones[0]!["id"]!.GetValue<string>(), zones[1]!["id"]!.GetValue<string>());
+        Assert.EndsWith("nettoyage : 2 zones : 1,50 × 1,00 m, 1,00 × 2,00 m", hub.Log[0], StringComparison.Ordinal);
+    }
+
     // ---- Horaires ----------------------------------------------------------------------------
 
     private const string ActiveId = "1000000002";

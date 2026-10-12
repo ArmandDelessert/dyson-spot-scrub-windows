@@ -292,19 +292,8 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
                 .Select(z => RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)));
 
     /// <summary>"Zone 2,50 × 1,50 m", or "2 zones : 3,00 × 0,90 m, 0,75 × 2,85 m": width along x, then height along y.</summary>
-    internal static string DescribeSpotZones(IReadOnlyList<SpotZone>? zones)
-    {
-        var sizes = (zones ?? [])
-            .Where(z => z.Points is { Count: > 0 })
-            .Select(z => MapGeometry.SizeText(z.Points!.Max(p => p.X) - z.Points!.Min(p => p.X), z.Points!.Max(p => p.Y) - z.Points!.Min(p => p.Y)))
-            .ToList();
-        return sizes.Count switch
-        {
-            0 => T("Zone", "Zone"),
-            1 => T($"Zone {sizes[0]}", $"Zone {sizes[0]}"),
-            _ => T($"{sizes.Count} zones : {string.Join(", ", sizes)}", $"{sizes.Count} zones: {string.Join(", ", sizes)}"),
-        };
-    }
+    internal static string DescribeSpotZones(IReadOnlyList<SpotZone>? zones) =>
+        MapGeometry.ZonesText((zones ?? []).Select(z => (IReadOnlyList<DyssCockpit.Core.Point>?)z.Points ?? []));
 
     partial void OnSelectedCleanChanged(CleanItem? value)
     {

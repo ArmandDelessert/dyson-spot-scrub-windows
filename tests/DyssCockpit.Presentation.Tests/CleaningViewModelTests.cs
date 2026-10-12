@@ -50,7 +50,7 @@ public class CleaningViewModelTests
         Assert.True(vm.HasSpot);
         // The phone's corner order: top-right, top-left, bottom-left, bottom-right.
         Assert.Equal([new(2, 1), new(0, 1), new(0, 0), new(2, 0)], vm.SpotCorners!);
-        Assert.Same(vm.SpotCorners, vm.Scene.SpotZone);
+        Assert.Same(vm.SpotCorners, Assert.Single(vm.Scene.SpotZones!));
         Assert.Equal("Tracer une autre zone…", vm.DrawSpotLabel);
     }
 
@@ -101,7 +101,7 @@ public class CleaningViewModelTests
 
         vm.ClearSpotCommand.Execute(null);
         Assert.False(vm.HasSpot);
-        Assert.Null(vm.Scene.SpotZone);
+        Assert.Null(vm.Scene.SpotZones);
     }
 
     [Fact]
@@ -176,13 +176,91 @@ public class CleaningViewModelTests
         // Stretched from a corner, the map hands the corners back in its own order.
         vm.SpotEdited([new(0, 0), new(0, 2), new(3, 2), new(3, 0)]);
         Assert.Equal([new(3, 2), new(0, 2), new(0, 0), new(3, 0)], vm.SpotCorners!);
-        Assert.Same(vm.SpotCorners, vm.Scene.SpotZone);
+        Assert.Same(vm.SpotCorners, Assert.Single(vm.Scene.SpotZones!));
 
         var before = vm.SpotCorners;
         vm.SpotEdited([new(0, 0), new(0, 2), new(0.1, 2), new(0.1, 0)]);
         Assert.StartsWith("Zone trop étroite", hub.Message, StringComparison.Ordinal);
         Assert.Equal(before, vm.SpotCorners!);
         Assert.NotSame(before, vm.SpotCorners);   // a fresh list, so the map redraws the zone where it was
+    }
+
+    // ---- Several zones ----------------------------------------------------------------------------
+
+    [Fact]
+    public async Task DrawingAnotherZoneKeepsTheFirstAndEditsTheNewOne()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+        var first = vm.SpotCorners;
+
+        vm.DrawSpotCommand.Execute(null);
+        vm.SpotDrawn(new(2, 0), new(4.5, 1.5));
+
+        Assert.Equal(2, vm.SpotZones.Count);
+        Assert.Same(first, vm.SpotZones[0]);
+        Assert.Same(vm.SpotZones[1], vm.SpotCorners);
+        Assert.Same(vm.SpotCorners, vm.Canvas.EditableShape);   // the new one moves and stretches
+        Assert.Equal(2, vm.Scene.SpotZones!.Count);
+        Assert.Equal("2 zones : 1,00 × 1,00 m, 2,50 × 1,50 m", vm.SpotSizeText);
+        Assert.Equal("Effacer les zones", vm.ClearSpotLabel);
+        Assert.Equal("Tracer une autre zone…", vm.DrawSpotLabel);
+    }
+
+    [Fact]
+    public async Task AClickOnAnotherZoneMakesItTheOneEditedAndAStretchKeepsItsPlace()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+        vm.SpotDrawn(new(2, 0), new(3, 1));
+
+        vm.MapClickedAt(new(0.5, 0.5));
+        vm.ClearSelection();   // on a zone: nothing erased
+        Assert.Same(vm.SpotZones[0], vm.SpotCorners);
+
+        vm.SpotEdited([new(0, 0), new(0, 2), new(1, 2), new(1, 0)]);
+
+        Assert.Equal(2, vm.SpotZones.Count);
+        Assert.Equal([new(1, 2), new(0, 2), new(0, 0), new(1, 0)], vm.SpotZones[0]);
+        Assert.Same(vm.SpotZones[0], vm.SpotCorners);
+        Assert.Equal([new(3, 1), new(2, 1), new(2, 0), new(3, 0)], vm.SpotZones[1]);
+    }
+
+    [Fact]
+    public async Task EscapeErasesTheZoneEditedAndAnEmptyClickErasesThemAll()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+        vm.SpotDrawn(new(2, 0), new(3, 1));
+        vm.SpotDrawn(new(4, 0), new(5, 1));
+
+        Assert.True(vm.CancelSpot());
+        Assert.Equal(2, vm.SpotZones.Count);
+        Assert.Same(vm.SpotZones[1], vm.SpotCorners);   // the one before becomes the one edited
+
+        vm.MapClickedAt(new(9, 9));
+        vm.ClearSelection();
+        Assert.Empty(vm.SpotZones);
+        Assert.False(vm.HasSpot);
+        Assert.Null(vm.Scene.SpotZones);
+        Assert.True(vm.RoomsEnabled);
+    }
+
+    [Fact]
+    public async Task AnotherMapForgetsTheZones()
+    {
+        var vm = New(out _, TestHub.Map("1000000002", "Étage", isCurrent: true, Rooms), TestHub.Map("1000000003", "Rez", isCurrent: false, Rooms));
+        await vm.LoadMapsAsync();
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+        vm.SpotDrawn(new(2, 0), new(3, 1));
+
+        vm.SelectedMap = vm.Maps.Single(m => m.Id == "1000000003");
+
+        Assert.Empty(vm.SpotZones);
+        Assert.False(vm.HasSpot);
     }
 
     [Fact]

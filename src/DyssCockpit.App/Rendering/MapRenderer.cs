@@ -71,9 +71,9 @@ internal static class MapRenderer
             DrawPolygon(ds, r.Points, m, chosen ? Selection : colour.ToColor(), chosen ? 3 : 2, colour.WithAlpha(MapColors.RestrictionFillAlpha).ToColor());
         }
 
-        // The zone about to be cleaned: the selection yellow over a light wash, so it reads as a
+        // The zones about to be cleaned: the selection yellow over a light wash, so they read as a
         // choice rather than as map data.
-        if (scene.SpotZone is { Count: > 2 } spot)
+        foreach (var spot in scene.SpotZones ?? [])
             DrawPolygon(ds, [.. spot], m, Selection, 3, MapColors.SpotFill.ToColor());
 
         if (scene.Path is { Count: > 1 } path)

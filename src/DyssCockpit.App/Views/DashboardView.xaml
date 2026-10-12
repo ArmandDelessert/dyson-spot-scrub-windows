@@ -103,7 +103,7 @@
                                    Text='{local:Tr Fr="Tracez un rectangle sur la carte en cliquant deux coins opposés, choisissez comment le nettoyer, puis lancez : le robot ne nettoie que cette zone. Faites-la glisser pour la déplacer, tirez ses coins pour la redimensionner ; un clic dans le vide de la carte ou la touche Échap l&apos;efface (Échap abandonne aussi un tracé ou un déplacement en cours). Tant qu&apos;une zone est tracée, les pièces ne peuvent pas être cochées.", En="Draw a rectangle on the map by clicking two opposite corners, choose how to clean it, then start: the robot cleans only that zone. Drag it to move it, pull its corners to resize it; a click on an empty part of the map or the Esc key erases it (Esc also cancels a drawing or a move in progress). While a zone is drawn, rooms cannot be ticked."}'/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Content="{x:Bind ViewModel.Cleaning.DrawSpotLabel, Mode=OneWay}" Command="{x:Bind ViewModel.Cleaning.DrawSpotCommand}"/>
-                            <Button Content='{local:Tr Fr="Effacer la zone", En="Erase the zone"}' Command="{x:Bind ViewModel.Cleaning.ClearSpotCommand}"
+                            <Button Content="{x:Bind ViewModel.Cleaning.ClearSpotLabel, Mode=OneWay}" Command="{x:Bind ViewModel.Cleaning.ClearSpotCommand}"
                                     Visibility="{x:Bind ViewModel.Cleaning.HasSpot, Mode=OneWay}"/>
                         </StackPanel>
                         <StackPanel Spacing="6" Visibility="{x:Bind ViewModel.Cleaning.HasSpot, Mode=OneWay}">

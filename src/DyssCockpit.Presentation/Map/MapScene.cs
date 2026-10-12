@@ -63,8 +63,8 @@ public sealed class MapScene
     /// <summary>The piece of furniture (REST id) the map manager is acting on, outlined.</summary>
     public string? SelectedFurnitureId { get; init; }
 
-    /// <summary>The zone drawn for a zone clean, not yet started: outlined over the map.</summary>
-    public IReadOnlyList<CorePoint>? SpotZone { get; init; }
+    /// <summary>The zones drawn for a zone clean, not yet started: outlined over the map.</summary>
+    public IReadOnlyList<IReadOnlyList<CorePoint>>? SpotZones { get; init; }
 
     /// <summary>What the robot is doing, for its animation; see <see cref="RobotMarkerLayout"/>.</summary>
     public RobotActivity RobotActivity { get; init; }

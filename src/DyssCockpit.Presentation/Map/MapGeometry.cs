@@ -157,6 +157,20 @@ public static class MapGeometry
     /// <summary>A rectangle's size, width then height: "2,50 × 1,50 m".</summary>
     public static string SizeText(double width, double height) => string.Format(NumberCulture, "{0:0.00} × {1:0.00} m", width, height);
 
+    /// <summary>Rectangles to clean by their size, width along x then height along y: "Zone 2,50 × 1,50 m", or "2 zones : 3,00 × 0,90 m, 0,75 × 2,85 m".</summary>
+    public static string ZonesText(IEnumerable<IReadOnlyList<Point>> zones)
+    {
+        var sizes = zones.Where(z => z.Count > 0)
+            .Select(z => SizeText(z.Max(p => p.X) - z.Min(p => p.X), z.Max(p => p.Y) - z.Min(p => p.Y)))
+            .ToList();
+        return sizes.Count switch
+        {
+            0 => Translation.T("Zone", "Zone"),
+            1 => Translation.T($"Zone {sizes[0]}", $"Zone {sizes[0]}"),
+            _ => Translation.T($"{sizes.Count} zones : {string.Join(", ", sizes)}", $"{sizes.Count} zones: {string.Join(", ", sizes)}"),
+        };
+    }
+
     /// <summary>
     /// What is written around a rectangle being drawn or edited, when the setting asks for it: the
     /// coordinates of each corner, off that corner, and the length of the side that is on top on
