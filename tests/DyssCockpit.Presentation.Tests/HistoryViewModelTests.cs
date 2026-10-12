@@ -284,6 +284,29 @@ public sealed class HistoryViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task AScreenshotShowsTheKeptCleansButKeepsAndClearsNothing()
+    {
+        // A screenshot may be taken while the application runs: both would write the same files.
+        var archive = new CleanArchive(_kept);
+        archive.Save(JsonSerializer.Deserialize<CleanSummary>(OlderClean, Web)!,
+            JsonSerializer.Deserialize<CleanDetail>(KeptDetail, Web)!);   // June 2025
+        var settings = new AppSettings { ArchiveCleans = true, LeavesFilesAlone = true };
+        using var vm = New(out var handler, settings: settings, history: OneCleanWithSnapshot);
+        handler.Binary["snapshots/clean-1"] = Snapshots.Of(1000000002, 4, 3, 11);
+
+        await vm.LoadAsync();
+        await vm.FillDetailsAsync();
+        vm.SelectedClean = vm.History[0];
+        await WaitForAsync(() => vm.Scene.Grid is not null);
+        settings.CleanArchiveRetentionDays = 30;
+
+        Assert.Equal(["clean-1", "clean-0"], vm.History.Select(c => c.Summary.CleanId));
+        Assert.Equal(11, vm.Scene.Grid![0, 0]);   // the cloud's snapshot, shown
+        Assert.False(archive.Has("clean-1"));     // but not kept
+        Assert.True(archive.Has("clean-0"));      // and the old one not cleared
+    }
+
+    [Fact]
     public async Task ShorteningTheRetentionClearsTheCleansNowTooOld()
     {
         var archive = new CleanArchive(_kept);

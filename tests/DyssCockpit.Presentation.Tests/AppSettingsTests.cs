@@ -185,6 +185,8 @@ public sealed class AppSettingsTests : IDisposable
         var shot = AppSettings.LoadReadOnly(_path);
         Assert.False(shot.ShowFurniture);
         Assert.False(shot.RecordMessages);
+        Assert.True(shot.LeavesFilesAlone);
+        Assert.False(AppSettings.Load(_path).LeavesFilesAlone);
         shot.ShowFurniture = true;
         shot.Language = "en-US";
 
