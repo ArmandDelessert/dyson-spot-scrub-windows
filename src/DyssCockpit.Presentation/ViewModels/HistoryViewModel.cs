@@ -286,8 +286,11 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     partial void OnSelectedCleanChanged(CleanItem? value)
     {
         if (value is null) { Scene = new MapScene(); MapName = ""; ResultText = ""; return; }
-        _ = ShowCleanAsync(value);
+        Showing = ShowCleanAsync(value);
     }
+
+    /// <summary>The showing of the clean last selected, done or under way: what a test waits for, rather than looking again and again.</summary>
+    internal Task Showing { get; private set; } = Task.CompletedTask;
 
     private async Task ShowCleanAsync(CleanItem item)
     {

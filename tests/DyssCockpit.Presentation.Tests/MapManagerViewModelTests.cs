@@ -39,7 +39,7 @@ public class MapManagerViewModelTests
     {
         var vm = New(firstIsActive);
         await vm.LoadAsync("1000000002");
-        await WaitForAsync(() => vm.Rooms.Count > 0);
+        await vm.MapLoading;
         return vm;
     }
 
@@ -365,11 +365,5 @@ public class MapManagerViewModelTests
         Assert.Equal(31, vm.RoomTypes.Count);
         Assert.Null(vm.RoomTypes[0].Type); // the free-name option comes first
         Assert.Contains(vm.RoomTypes, t => t.Type == "bedroom" && t.Label == "Chambre");
-    }
-
-    private static async Task WaitForAsync(Func<bool> done)
-    {
-        for (var i = 0; i < 100 && !done(); i++) await Task.Delay(10);
-        Assert.True(done(), "the map never finished loading");
     }
 }

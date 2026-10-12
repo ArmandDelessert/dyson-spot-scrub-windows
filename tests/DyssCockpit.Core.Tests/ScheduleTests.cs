@@ -51,7 +51,7 @@ public class ScheduleTests
 
         var schedule = CleaningSchedule.FromParams(p)!;
 
-        AssertJson(captured, schedule.ToParams(map == "six" ? SixRooms : TwoRooms, 3600));
+        JsonAssert.Equal(captured, schedule.ToParams(map == "six" ? SixRooms : TwoRooms, 3600));
     }
 
     [Fact]
@@ -109,8 +109,8 @@ public class ScheduleTests
 
         var rooms = (JsonArray)s.ToParams(TwoRooms, 3600)["room_preference"]!;
 
-        AssertJson("""[10,"Null",0,2,0,2,1,0,1,0,0,0]""", rooms[0]!);
-        AssertJson("""[11,"Bureau",0,0,3,0,0,0,1,0,1,0]""", rooms[1]!);
+        JsonAssert.Equal("""[10,"Null",0,2,0,2,1,0,1,0,0,0]""", rooms[0]!);
+        JsonAssert.Equal("""[11,"Bureau",0,0,3,0,0,0,1,0,1,0]""", rooms[1]!);
     }
 
     [Fact]
@@ -125,27 +125,28 @@ public class ScheduleTests
         Assert.Equal(0, p["enable"]!.GetValue<int>());
         Assert.Equal(96, p["day"]!.GetValue<int>());
         Assert.Equal(7200, p["time_zone"]!.GetValue<int>());
-        AssertJson("""[[11,"Bureau",0,0,0,0,0,0,1,0,0,0],[10,"Null",0,0,0,0,0,0,0,0,1,0]]""", p["room_preference"]!);
+        JsonAssert.Equal("""[[11,"Bureau",0,0,0,0,0,0,1,0,0,0],[10,"Null",0,0,0,0,0,0,0,0,1,0]]""", p["room_preference"]!);
     }
 
     [Fact]
     public async Task SavingSendsAddOrderAndDeletingDelOrder()
     {
-        var robot = new Recorder("""{"msgId":"1","code":0,"method":"service.add_order","data":{"result":0}}""");
+        var robot = new RecordingRobot("""{"msgId":"1","code":0,"method":"service.add_order","data":{"result":0}}""");
         var s = CleaningSchedule.FromParams((JsonObject)JsonNode.Parse(EveryDay)!)!;
 
         Assert.True(await robot.SaveScheduleAsync(s, TwoRooms, 3600, TestContext.Current.CancellationToken));
         Assert.True(await robot.DeleteScheduleAsync(s.Id, TestContext.Current.CancellationToken));
 
         Assert.Equal(["service.add_order", "service.del_order"], robot.Sent.Select(m => m.Method));
-        AssertJson(EveryDay, robot.Sent[0].Payload);
-        AssertJson("""{"id":595016193}""", robot.Sent[1].Payload);
+        JsonAssert.Equal(EveryDay, robot.Sent[0].Payload);
+        JsonAssert.Equal("""{"id":595016193}""", robot.Sent[1].Payload);
+        robot.AssertAllRequests();
     }
 
     [Fact]
     public async Task ARefusalIsReportedAsFalse()
     {
-        var robot = new Recorder("""{"msgId":"1","code":1,"data":{"result":1}}""");
+        var robot = new RecordingRobot("""{"msgId":"1","code":1,"data":{"result":1}}""");
 
         Assert.False(await robot.DeleteScheduleAsync(42, TestContext.Current.CancellationToken));
     }
@@ -154,7 +155,7 @@ public class ScheduleTests
     public async Task TheSummaryIsAllGetOrderGives()
     {
         // Captured on 2026-09-25 with three schedules on the active map, two of them on.
-        var robot = new Recorder("""
+        var robot = new RecordingRobot("""
             {"msgId":"1","code":0,"method":"service.get_order","data":{"order_data_lite":
              {"total":3,"enable":2,"timestamp":1790372729,"md5":"0added44d13eee9d0a2a1332a8332fcf"}}}
             """);
@@ -162,7 +163,7 @@ public class ScheduleTests
         var summary = await robot.GetScheduleSummaryAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScheduleSummary(3, 2, "0added44d13eee9d0a2a1332a8332fcf"), summary);
-        AssertJson("{}", robot.Sent.Single().Payload);
+        JsonAssert.Equal("{}", robot.Sent.Single().Payload);
     }
 
     [Fact]
@@ -291,25 +292,4 @@ public class ScheduleTests
 
     private static CleaningSchedule Schedule(ScheduleDays days, int hour, int minute) =>
         new(1, 1000000002, true, days, hour, minute, [new(10, new RoomSettings(CleanType.Vacuum))]);
-
-    private static void AssertJson(string expected, JsonNode actual)
-    {
-        var expectedNode = JsonNode.Parse(expected);
-        Assert.True(JsonNode.DeepEquals(expectedNode, actual), $"expected {expectedNode!.ToJsonString()}\n but got {actual.ToJsonString()}");
-    }
-
-    /// <summary>Answers every request with the same reply and keeps what was sent.</summary>
-    private sealed class Recorder(string reply) : IRobotCommands
-    {
-        public List<(string Method, JsonNode Payload)> Sent { get; } = [];
-
-        public Task<JsonObject> RequestJdmAsync(string method, JsonObject? parameters = null, TimeSpan? timeout = null, CancellationToken ct = default)
-        {
-            Sent.Add((method, parameters?.DeepClone() ?? new JsonObject()));
-            return Task.FromResult((JsonObject)JsonNode.Parse(reply)!);
-        }
-
-        public Task PublishJdmAsync(string method, JsonObject? parameters = null, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task PublishCommandAsync(JsonObject payload, CancellationToken ct = default) => throw new NotSupportedException();
-    }
 }

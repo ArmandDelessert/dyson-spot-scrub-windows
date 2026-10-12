@@ -17,6 +17,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- What both test projects share (tests\TestSupport): the robot that records what it is sent,
+         the clocks, the protobuf writer, the wait for what comes a moment later. -->
+    <Compile Include="..\TestSupport\*.cs" LinkBase="TestSupport" />
+    <Using Include="DyssCockpit.TestSupport" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\DyssCockpit.Core\DyssCockpit.Core.csproj" />
   </ItemGroup>
 

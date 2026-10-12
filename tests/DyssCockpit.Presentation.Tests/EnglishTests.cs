@@ -39,9 +39,7 @@ public sealed class EnglishTests : IDisposable
     public void TheCleaningNotificationsSpeakEnglish()
     {
         Translation.Current = AppLanguage.English;
-        var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(new TestHub.RouteHandler())) { BearerToken = "test-token" };
-        var stored = new StoredSession("test@example.invalid", "CH", "fr-CH", null, "test-token", DateTimeOffset.UnixEpoch);
-        using var vm = new MainViewModel(RobotContext.FromLogin(api, stored), new TestHub.InlineDispatcher(), new FakeDialogs(),
+        using var vm = new MainViewModel(TestHub.Context(), new TestHub.InlineDispatcher(), new FakeDialogs(),
             settings: new AppSettings { TaskNotifications = TaskNotificationMode.StartAndEnd });
         var sent = new List<(string Title, string Body)>();
         vm.NotifyRequested += (title, body) => sent.Add((title, body));

@@ -16,7 +16,7 @@ public class MapObjectsTests
     {
         // The second set_virtual_wall of the 23 September capture: an "Éviter la zone" drawn first,
         // then a "Franchir le seuil".
-        var robot = new Recorder("""{"msgId":"1","code":0,"data":{"map_id":1000000002,"map_type":0,"timestamp":0,"map_id":1000000002,"map_type":13,"timestamp":0}}""");
+        var robot = new RecordingRobot("""{"msgId":"1","code":0,"data":{"map_id":1000000002,"map_type":0,"timestamp":0,"map_id":1000000002,"map_type":13,"timestamp":0}}""");
         RestrictionZone[] zones =
         [
             new(RestrictionKind.FromJdm(2)!, [new(1.3867855072021484, 1.3499996662139893), new(1.3867855072021484, 0.05999958515167236),
@@ -29,7 +29,8 @@ public class MapObjectsTests
 
         Assert.NotNull(result);   // despite the duplicated keys in the reply
         Assert.Equal("service.set_virtual_wall", robot.Sent.Single().Method);
-        AssertJson("""
+        robot.AssertAllRequests();
+        JsonAssert.Equal("""
             {"virwall":[2,
               [1000000002,2,1.3867855072021484,1.3499996662139893,1.3867855072021484,0.05999958515167236,2.5704925060272217,0.05999958515167236,2.5704925060272217,1.3499996662139893],
               [1000000002,13,-0.023610234260559082,0.20370972156524658,-0.023610234260559082,-0.891735315322876,1.0718350410461426,-0.891735315322876,1.0718350410461426,0.20370972156524658]]}
@@ -39,18 +40,18 @@ public class MapObjectsTests
     [Fact]
     public async Task NoZoneLeftIsAZeroCount()
     {
-        var robot = new Recorder("""{"msgId":"1","code":0,"data":{"map_id":1000000002,"map_type":0,"timestamp":0}}""");
+        var robot = new RecordingRobot("""{"msgId":"1","code":0,"data":{"map_id":1000000002,"map_type":0,"timestamp":0}}""");
 
         await robot.SetRestrictionsAsync(MapId, [], TestContext.Current.CancellationToken);
 
-        AssertJson("""{"virwall":[0]}""", robot.Sent[0].Payload);
+        JsonAssert.Equal("""{"virwall":[0]}""", robot.Sent[0].Payload);
     }
 
     [Fact]
     public async Task FurnitureGoesOutAsAJsonStringWithItsIndexCodeAndCorners()
     {
         // The adjust_furniture of the 23 September capture: stove, washing machine, fridge.
-        var robot = new Recorder("""{"msgId":"1","code":0,"method":"service.adjust_furniture","data":{"map_id":0,"map_type":0,"timestamp":1790194581,"package":[1,1]}}""");
+        var robot = new RecordingRobot("""{"msgId":"1","code":0,"method":"service.adjust_furniture","data":{"map_id":0,"map_type":0,"timestamp":1790194581,"package":[1,1]}}""");
         FurniturePiece[] pieces =
         [
             new(1, FurnitureKind.FromCode(1608)!, [new(-2.646453857421875, -0.1718042492866516), new(-2.646453857421875, -0.7718043923377991),
@@ -66,10 +67,10 @@ public class MapObjectsTests
         Assert.NotNull(result);   // map_id 0 is the robot's normal answer here
         var sent = (JsonObject)robot.Sent.Single().Payload;
         Assert.Equal(1790194580, sent["timestamp"]!.GetValue<long>());
-        AssertJson("[1,1]", sent["package"]!);
+        JsonAssert.Equal("[1,1]", sent["package"]!);
         // A string holding JSON, not an array.
         var list = sent["furniture_list"]!.GetValue<string>();
-        AssertJson("""
+        JsonAssert.Equal("""
             [[1,1608,1,-2.646453857421875,-0.1718042492866516,-2.646453857421875,-0.7718043923377991,-2.0464539527893066,-0.7718043923377991,-2.0464539527893066,-0.1718042492866516],
              [2,1524,1,-1.9663420915603638,0.0014677643775939941,-1.9663420915603638,-0.9985321164131165,-1.0663419961929321,-0.9985321164131165,-1.0663419961929321,0.0014677643775939941],
              [3,1516,1,-1.0301086902618408,-0.10653859376907349,-1.0301086902618408,-0.9065385460853577,-0.23010873794555664,-0.9065385460853577,-0.23010873794555664,-0.10653859376907349]]
@@ -79,7 +80,7 @@ public class MapObjectsTests
     [Fact]
     public async Task NoFurnitureLeftIsAnEmptyListString()
     {
-        var robot = new Recorder("""{"msgId":"1","code":0,"data":{"map_id":0,"map_type":0,"timestamp":1,"package":[1,1]}}""");
+        var robot = new RecordingRobot("""{"msgId":"1","code":0,"data":{"map_id":0,"map_type":0,"timestamp":1,"package":[1,1]}}""");
 
         await robot.AdjustFurnitureAsync([], ct: TestContext.Current.CancellationToken);
 
@@ -89,7 +90,7 @@ public class MapObjectsTests
     [Fact]
     public async Task AShapeWithoutFourCornersIsRefusedBeforeAnythingIsSent()
     {
-        var robot = new Recorder("{}");
+        var robot = new RecordingRobot("{}");
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             robot.SetRestrictionsAsync(MapId, [new(RestrictionKind.All[0], [new(0, 0), new(1, 1)])], TestContext.Current.CancellationToken));
@@ -193,26 +194,6 @@ public class MapObjectsTests
         var (first, second) = MapShapes.Sides(turned);
         Assert.Equal(2.1, first, 9);
         Assert.Equal(1.8, second, 9);
-    }
-
-    private static void AssertJson(string expected, JsonNode actual)
-    {
-        var expectedNode = JsonNode.Parse(expected);
-        Assert.True(JsonNode.DeepEquals(expectedNode, actual), $"expected {expectedNode!.ToJsonString()}\n but got {actual.ToJsonString()}");
-    }
-
-    private sealed class Recorder(string reply) : IRobotCommands
-    {
-        public List<(string Method, JsonNode Payload)> Sent { get; } = [];
-
-        public Task<JsonObject> RequestJdmAsync(string method, JsonObject? parameters = null, TimeSpan? timeout = null, CancellationToken ct = default)
-        {
-            Sent.Add((method, parameters?.DeepClone() ?? new JsonObject()));
-            return Task.FromResult((JsonObject)JsonNode.Parse(reply)!);
-        }
-
-        public Task PublishJdmAsync(string method, JsonObject? parameters = null, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task PublishCommandAsync(JsonObject payload, CancellationToken ct = default) => throw new NotSupportedException();
     }
 }
 

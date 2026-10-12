@@ -1,5 +1,5 @@
-using System.IO.Compression;
 using DyssCockpit.Core;
+using static DyssCockpit.TestSupport.ProtoWriter;
 
 namespace DyssCockpit.Core.Tests;
 
@@ -9,49 +9,6 @@ namespace DyssCockpit.Core.Tests;
 /// </summary>
 public class CleanSnapshotTests
 {
-    // ---- A tiny protobuf writer, enough to lay out a message like the cloud's -------------------
-
-    private static void Varint(List<byte> to, ulong value)
-    {
-        do
-        {
-            var b = (byte)(value & 0x7f);
-            value >>= 7;
-            to.Add(value == 0 ? b : (byte)(b | 0x80));
-        } while (value != 0);
-    }
-
-    private static void Key(List<byte> to, int field, int wire) => Varint(to, (ulong)((field << 3) | wire));
-
-    private static List<byte> VarintField(List<byte> to, int field, ulong value)
-    {
-        Key(to, field, 0);
-        Varint(to, value);
-        return to;
-    }
-
-    private static List<byte> FloatField(List<byte> to, int field, float value)
-    {
-        Key(to, field, 5);
-        to.AddRange(BitConverter.GetBytes(value));
-        return to;
-    }
-
-    private static List<byte> BytesField(List<byte> to, int field, IReadOnlyCollection<byte> value)
-    {
-        Key(to, field, 2);
-        Varint(to, (ulong)value.Count);
-        to.AddRange(value);
-        return to;
-    }
-
-    private static byte[] Zlib(List<byte> message)
-    {
-        using var packed = new MemoryStream();
-        using (var z = new ZLibStream(packed, CompressionLevel.Optimal, leaveOpen: true)) z.Write(message.ToArray());
-        return packed.ToArray();
-    }
-
     /// <summary>A snapshot of a 4 × 3 map at 5 cm, offset (−5, −9), with fields this decoder does not know around the ones it does.</summary>
     private static List<byte> Message(byte[] cells, int width = 4, int height = 3)
     {
@@ -71,7 +28,7 @@ public class CleanSnapshotTests
         BytesField(message, 3, map);
         BytesField(message, 4, BytesField([], 1, cells));
         BytesField(message, 5, BytesField(VarintField([], 1, 1782494719), 2, "Appartement"u8.ToArray()));
-        Key(message, 9, 1);
+        Key(message, 9, WireFixed64);
         message.AddRange(BitConverter.GetBytes(1.5));   // a fixed64, stepped over
         return message;
     }

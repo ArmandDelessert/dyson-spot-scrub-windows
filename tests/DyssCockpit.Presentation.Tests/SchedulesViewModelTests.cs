@@ -106,12 +106,13 @@ public class SchedulesViewModelTests
     {
         var (vm, _, _) = await NewAsync(out var handler);
         vm.ApplyJdm(Jdm("""{"order_total":{"total":0,"enable":0}}"""));   // the first report is only noted
-        var before = handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal));
+        int Reads() => handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal));
+        var before = Reads();
 
         vm.ApplyJdm(Jdm("""{"order_total":{"total":1,"enable":1}}"""));
-        for (var i = 0; i < 100 && handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal)) == before; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+        await Eventually.TrueAsync(() => Reads() > before, "the schedules were not read again");
 
-        Assert.Equal(before + 1, handler.Requested.Count(p => p.Contains("unifiedscheduler", StringComparison.Ordinal)));
+        Assert.Equal(before + 1, Reads());
     }
 
     [Fact]

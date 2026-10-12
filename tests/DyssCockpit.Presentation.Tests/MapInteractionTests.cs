@@ -26,11 +26,6 @@ public class MapInteractionTests
         map.PointerReleased(at, clickCount: 1);
     }
 
-    private static async Task WaitForAsync(Func<bool> done)
-    {
-        for (var i = 0; i < 100 && !done(); i++) await Task.Delay(10);
-        Assert.True(done());
-    }
 
     // ---- Clicks -------------------------------------------------------------------------
 
@@ -99,7 +94,7 @@ public class MapInteractionTests
         Assert.Equal(0, cleared);
 
         time.Advance(TimeSpan.FromMilliseconds(1));
-        await WaitForAsync(() => cleared == 1);
+        await Eventually.TrueAsync(() => cleared == 1);
     }
 
     [Fact]
@@ -134,7 +129,7 @@ public class MapInteractionTests
 
         Click(map, At(map, 0.5, 1));                 // on a room
         time.Advance(TimeSpan.FromSeconds(1));
-        await WaitForAsync(() => confirmed.Count == 1);
+        await Eventually.TrueAsync(() => confirmed.Count == 1);
         Assert.Equal(0.5, confirmed[0].X, 6);
 
         Click(map, Empty);                           // a double click on empty space

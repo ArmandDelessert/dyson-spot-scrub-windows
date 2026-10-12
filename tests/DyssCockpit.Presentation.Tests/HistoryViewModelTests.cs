@@ -76,7 +76,7 @@ public sealed class HistoryViewModelTests : IDisposable
         await vm.LoadAsync();
 
         vm.SelectedClean = vm.History[0];
-        await WaitForAsync(() => vm.ResultText.Length > 0);
+        await vm.Showing;
 
         // Completed rooms are left out: an ordinary clean should just read "Terminé".
         Assert.Equal("Couloir : Injoignable, Chambre : Non commencée", vm.ResultText);
@@ -95,7 +95,7 @@ public sealed class HistoryViewModelTests : IDisposable
         await vm.LoadAsync();
 
         vm.SelectedClean = vm.History[0];
-        await WaitForAsync(() => vm.ResultText.Length > 0);
+        await vm.Showing;
 
         Assert.Equal("Terminé", vm.ResultText);
     }
@@ -111,7 +111,7 @@ public sealed class HistoryViewModelTests : IDisposable
         var fill = vm.FillDetailsAsync();
         vm.SelectedClean = vm.History[0];
         await fill;
-        await WaitForAsync(() => vm.ResultText.Length > 0);
+        await vm.Showing;
 
         Assert.Equal(1, handler.Requested.Count(p => p.Contains("clean-maps-data", StringComparison.Ordinal)));
     }
@@ -138,7 +138,7 @@ public sealed class HistoryViewModelTests : IDisposable
         await vm.LoadAsync();
 
         vm.SelectedClean = vm.History[0];
-        await WaitForAsync(() => vm.Scene.Grid is not null);
+        await vm.Showing;
 
         Assert.Equal((4, 3, 0.5), (vm.Scene.Grid!.Width, vm.Scene.Grid.Height, vm.Scene.Grid.Resolution));
         Assert.Equal(10, vm.Scene.Grid[2, 1]);
@@ -151,7 +151,7 @@ public sealed class HistoryViewModelTests : IDisposable
         await vm.LoadAsync();
 
         vm.SelectedClean = vm.History[0];
-        await WaitForAsync(() => vm.ResultText.Length > 0 && vm.MapName.Length > 0);
+        await vm.Showing;
 
         Assert.Null(vm.Scene.Grid);   // the tests' map service has no grid either
         Assert.Contains(handler.Requested, p => p.Contains("snapshots/clean-1", StringComparison.Ordinal));
@@ -170,7 +170,7 @@ public sealed class HistoryViewModelTests : IDisposable
         var offline = New(out var offlineHandler, settings: new AppSettings { ArchiveCleans = true }, history: null);
         await offline.LoadAsync();
         offline.SelectedClean = offline.History[0];
-        await WaitForAsync(() => offline.Scene.Grid is not null);
+        await offline.Showing;
 
         Assert.Equal(11, offline.Scene.Grid![0, 0]);
         Assert.DoesNotContain(offlineHandler.Requested, p => p.Contains("snapshots", StringComparison.Ordinal));
@@ -238,7 +238,7 @@ public sealed class HistoryViewModelTests : IDisposable
         // The cloud's clean first, then the one only the disk has, by date.
         Assert.Equal(["clean-1", "clean-0"], vm.History.Select(c => c.Summary.CleanId));
         vm.SelectedClean = vm.History[1];
-        await WaitForAsync(() => vm.Scene.DirtSpots is not null);   // the last thing the selection builds
+        await vm.Showing;
         Assert.Equal("Terminé", vm.ResultText);
         Assert.Equal("solid", Assert.Single(vm.Scene.DirtSpots!).Type);
         Assert.DoesNotContain(handler.Requested, p => p.Contains("clean-maps-data", StringComparison.Ordinal));
@@ -278,7 +278,7 @@ public sealed class HistoryViewModelTests : IDisposable
         Assert.False(new CleanArchive(_kept).Has("clean-1"));
 
         settings.ArchiveCleans = true;
-        await WaitForAsync(() => new CleanArchive(_kept).Has("clean-1"));
+        await Eventually.TrueAsync(() => new CleanArchive(_kept).Has("clean-1"));
 
         Assert.True(new CleanArchive(_kept).Has("clean-1"));
     }
@@ -305,7 +305,7 @@ public sealed class HistoryViewModelTests : IDisposable
         var vm = New(out _);
         await vm.LoadAsync();
         vm.SelectedClean = vm.History[0];
-        await WaitForAsync(() => vm.ResultText.Length > 0);
+        await vm.Showing;
 
         vm.SelectedClean = null;
 
@@ -321,7 +321,7 @@ public sealed class HistoryViewModelTests : IDisposable
         await vm.LoadAsync();
 
         vm.SelectedClean = vm.History[0];
-        await WaitForAsync(() => vm.MapName.Length > 0);
+        await vm.Showing;
 
         Assert.Equal("supprimée", vm.MapName);
     }
@@ -342,9 +342,4 @@ public sealed class HistoryViewModelTests : IDisposable
     }
 
     /// <summary>Waits for a selection's fire-and-forget load to land, without pinning a duration.</summary>
-    private static async Task WaitForAsync(Func<bool> done)
-    {
-        for (var i = 0; i < 100 && !done(); i++) await Task.Delay(10);
-        Assert.True(done(), "the selected clean never finished loading");
-    }
 }

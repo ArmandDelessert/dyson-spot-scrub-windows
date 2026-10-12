@@ -1,4 +1,3 @@
-using System.Threading.Channels;
 using DyssCockpit.Core;
 using DyssCockpit.Presentation.Services;
 using DyssCockpit.Presentation.ViewModels;
@@ -15,9 +14,7 @@ public class MainViewModelTests
     {
         // No route for the broker's credentials: every first connection fails as it would offline.
         var handler = new TestHub.RouteHandler(("/v3/manifest", Manifest));
-        var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(handler)) { BearerToken = "test-token" };
-        var stored = new StoredSession("test@example.invalid", "CH", "fr-CH", null, "test-token", DateTimeOffset.UnixEpoch);
-        var ctx = RobotContext.FromLogin(api, stored);
+        var ctx = TestHub.Context(handler);
         await ctx.LoadDevicesAsync(ct: TestContext.Current.CancellationToken);
         var clock = new ObservedClock();
         using var vm = new MainViewModel(ctx, new TestHub.InlineDispatcher(), new FakeDialogs(), clock, new AppSettings());
@@ -43,9 +40,7 @@ public class MainViewModelTests
     [Fact]
     public void TheNotificationAreaSummarySaysWhatTheRobotIsDoingAndFlagsAFault()
     {
-        var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(new TestHub.RouteHandler())) { BearerToken = "test-token" };
-        var stored = new StoredSession("test@example.invalid", "CH", "fr-CH", null, "test-token", DateTimeOffset.UnixEpoch);
-        using var vm = new MainViewModel(RobotContext.FromLogin(api, stored), new TestHub.InlineDispatcher(), new FakeDialogs(), settings: new AppSettings());
+        using var vm = new MainViewModel(TestHub.Context(), new TestHub.InlineDispatcher(), new FakeDialogs(), settings: new AppSettings());
         var changes = 0;
         vm.SummaryChanged += () => changes++;
 
@@ -64,9 +59,7 @@ public class MainViewModelTests
 
     private static MainViewModel NewDashboard(AppSettings settings, out List<(string Title, string Body)> notifications, TimeProvider? time = null)
     {
-        var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(new TestHub.RouteHandler())) { BearerToken = "test-token" };
-        var stored = new StoredSession("test@example.invalid", "CH", "fr-CH", null, "test-token", DateTimeOffset.UnixEpoch);
-        var vm = new MainViewModel(RobotContext.FromLogin(api, stored), new TestHub.InlineDispatcher(), new FakeDialogs(), time, settings);
+        var vm = new MainViewModel(TestHub.Context(), new TestHub.InlineDispatcher(), new FakeDialogs(), time, settings);
         var sent = new List<(string, string)>();
         vm.NotifyRequested += (title, body) => sent.Add((title, body));
         notifications = sent;
@@ -302,20 +295,4 @@ public class MainViewModelTests
         Assert.Equal("Le robot a terminé son nettoyage.", Assert.Single(notifications).Body);
     }
 
-    /// <summary>A clock that only moves when told to, and reports each wait set on it.</summary>
-    private sealed class ObservedClock : FakeTimeProvider
-    {
-        private readonly Channel<TimeSpan> _delays = Channel.CreateUnbounded<TimeSpan>();
-
-        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
-        {
-            var timer = base.CreateTimer(callback, state, dueTime, period);
-            _delays.Writer.TryWrite(dueTime);
-            return timer;
-        }
-
-        public async Task<TimeSpan> NextDelayAsync() =>
-            await _delays.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-    }
 }

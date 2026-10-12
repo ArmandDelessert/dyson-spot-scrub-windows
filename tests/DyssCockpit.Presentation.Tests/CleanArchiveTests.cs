@@ -19,12 +19,7 @@ public sealed class CleanArchiveTests : IDisposable
     }
 
     /// <summary>A clock at noon on 10 October 2026, UTC.</summary>
-    private static FakeTimeProvider Clock()
-    {
-        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 10, 12, 0, 0, TimeSpan.Zero));
-        clock.SetLocalTimeZone(TimeZoneInfo.Utc);
-        return clock;
-    }
+    private static FakeTimeProvider Clock() => TestClock.NoonUtc(2026, 10, 10);
 
     private static long Unix(int year, int month, int day) => new DateTimeOffset(year, month, day, 9, 37, 0, TimeSpan.Zero).ToUnixTimeSeconds();
 

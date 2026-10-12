@@ -18,8 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The robot that records what it is sent, shared with the Core tests: the view models are checked against the same captures. -->
-    <Compile Include="..\DyssCockpit.Core.Tests\RecordingRobot.cs" Link="RecordingRobot.cs" />
+    <!-- What both test projects share (tests\TestSupport): the robot that records what it is sent,
+         the clocks, the protobuf writer, the wait for what comes a moment later. -->
+    <Compile Include="..\TestSupport\*.cs" LinkBase="TestSupport" />
+    <Using Include="DyssCockpit.TestSupport" />
   </ItemGroup>
 
   <ItemGroup>

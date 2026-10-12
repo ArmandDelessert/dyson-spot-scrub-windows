@@ -397,8 +397,11 @@ public sealed partial class MapManagerViewModel : ObservableObject
         OnPropertyChanged(nameof(IsActiveMap));
         OnPropertyChanged(nameof(EditBlockedReason));
         RefreshCommandStates();
-        if (value is not null) _ = LoadMapAsync(value);
+        if (value is not null) MapLoading = LoadMapAsync(value);
     }
+
+    /// <summary>The loading of the map last chosen, done or under way: what a test waits for, rather than looking again and again.</summary>
+    internal Task MapLoading { get; private set; } = Task.CompletedTask;
 
     private async Task LoadMapAsync(MapItem item)
     {

@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using Microsoft.Extensions.Time.Testing;
 
-namespace DyssCockpit.Core.Tests;
+namespace DyssCockpit.TestSupport;
 
 /// <summary>
 /// A clock that only moves when told to, and reports each wait set on it: once a test has seen

@@ -53,9 +53,15 @@ internal static class TestHub
     internal static RobotHub Create(out RouteHandler handler, FakeDialogs dialogs, params (string UrlContains, string Json)[] routes)
     {
         handler = new RouteHandler(routes);
-        var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(handler)) { BearerToken = "test-token" };
+        return new RobotHub(Context(handler), new InlineDispatcher(), dialogs);
+    }
+
+    /// <summary>A logged-in account whose cloud answers from <paramref name="handler"/> (nothing at all when null), as the dashboard is given one.</summary>
+    internal static RobotContext Context(HttpMessageHandler? handler = null, Microsoft.Extensions.Logging.ILoggerFactory? loggers = null)
+    {
+        var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(handler ?? new RouteHandler())) { BearerToken = "test-token" };
         var stored = new StoredSession("test@example.invalid", "CH", "fr-CH", null, "test-token", DateTimeOffset.UnixEpoch);
-        return new RobotHub(RobotContext.FromLogin(api, stored), new InlineDispatcher(), dialogs);
+        return RobotContext.FromLogin(api, stored, loggers);
     }
 
     /// <summary>The test thread as the UI thread: nothing here posts across threads, so Post runs inline and assertions see the result straight away.</summary>

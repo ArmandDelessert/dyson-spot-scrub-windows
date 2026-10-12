@@ -106,12 +106,7 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     /// <summary>A clock at noon on 9 October 2026, UTC.</summary>
-    private static FakeTimeProvider Clock()
-    {
-        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 9, 12, 0, 0, TimeSpan.Zero));
-        clock.SetLocalTimeZone(TimeZoneInfo.Utc);
-        return clock;
-    }
+    private static FakeTimeProvider Clock() => TestClock.NoonUtc(2026, 10, 9);
 
     [Fact]
     public void ShorteningTheRetentionAsksFirstWhenFilesWouldGoAndSaysHowMany()

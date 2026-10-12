@@ -5,8 +5,8 @@ namespace DyssCockpit.TestSupport;
 
 /// <summary>
 /// A robot that only records what it is sent, in order, and answers every request with the same
-/// reply. Shared by the Core and the Presentation tests (the latter link this file), so that what the
-/// view models send can be checked against the captures exactly as the commands themselves are.
+/// reply. Shared by the Core and the Presentation tests, so that what the view models send can be
+/// checked against the captures exactly as the commands themselves are.
 /// </summary>
 internal sealed class RecordingRobot(string reply = """{"code":0,"data":{"result":0}}""") : IRobotCommands
 {
@@ -44,8 +44,10 @@ internal sealed class RecordingRobot(string reply = """{"code":0,"data":{"result
         for (var i = 0; i < expected.Length; i++)
         {
             Assert.Equal(expected[i].Method, Sent[i].Method);
-            var want = JsonNode.Parse(expected[i].Payload);
-            Assert.True(JsonNode.DeepEquals(want, Sent[i].Payload), $"message {i} ({Sent[i].Method}): expected {want!.ToJsonString()}\n but got {Sent[i].Payload.ToJsonString()}");
+            JsonAssert.Equal(expected[i].Payload, Sent[i].Payload, $"message {i} ({Sent[i].Method})");
         }
     }
+
+    /// <summary>Asserts every message waited for the robot's word, as a map edit or a schedule must: none was fired and forgotten.</summary>
+    public void AssertAllRequests() => Assert.All(Sent, m => Assert.Equal(Channel.Request, m.Via));
 }

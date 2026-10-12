@@ -2,7 +2,6 @@ using System.Text.Json.Nodes;
 using DyssCockpit.Core;
 using DyssCockpit.Presentation.Services;
 using DyssCockpit.Presentation.ViewModels;
-using DyssCockpit.TestSupport;
 using static DyssCockpit.TestSupport.RecordingRobot;
 
 namespace DyssCockpit.Presentation.Tests;

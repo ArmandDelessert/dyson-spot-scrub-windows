@@ -36,7 +36,7 @@ public class MapManagerObjectsTests
             ("live-maps/mapping", """{"dimensions":{"width":2,"height":2,"resolution":0.5,"offsetX":0,"offsetY":0},"mapData":[10,10,10,10]}"""));
         var vm = new MapManagerViewModel(hub, display ?? new AppSettings());
         await vm.LoadAsync("1000000002");
-        for (var i = 0; i < 100 && vm.Rooms.Count == 0; i++) await Task.Delay(10);
+        await vm.MapLoading;
         return vm;
     }
 
@@ -311,7 +311,7 @@ public class MapManagerObjectsTests
 
         vm.Status = "";
         vm.FurnitureOrientation = vm.Orientations[2];
-        for (var i = 0; i < 50 && vm.Status == ""; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+        await Eventually.TrueAsync(() => vm.Status != "");
         Assert.Equal(NotConnected, vm.Status);
         // Not sent, so the list shows the piece as it really stands again.
         Assert.Equal(0, vm.FurnitureOrientation!.QuarterTurns);
@@ -366,7 +366,7 @@ public class MapManagerObjectsTests
         vm.Changed += () => changed = true;
 
         vm.MapOrientation = vm.MapOrientations[2];
-        for (var i = 0; i < 100 && vm.Status == ""; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+        await Eventually.TrueAsync(() => vm.Status != "");
 
         Assert.Equal("Carte tournée à 180°.", vm.Status);
         Assert.True(changed);

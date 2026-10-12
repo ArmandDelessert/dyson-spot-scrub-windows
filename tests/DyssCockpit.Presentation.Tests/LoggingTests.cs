@@ -45,12 +45,7 @@ public sealed class FileLoggerProviderTests : IDisposable
     }
 
     /// <summary>A clock at noon on 9 October 2026, in UTC, the day the logs below are counted from.</summary>
-    private static FakeTimeProvider Clock()
-    {
-        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 9, 12, 0, 0, TimeSpan.Zero));
-        clock.SetLocalTimeZone(TimeZoneInfo.Utc);
-        return clock;
-    }
+    private static FakeTimeProvider Clock() => TestClock.NoonUtc(2026, 10, 9);
 
     private string Touch(string name)
     {
@@ -182,9 +177,7 @@ public class JournalLoggerTests
     public void TheDashboardsJournalLinesAreKeptInTheLogToo()
     {
         var loggers = new RecordingLoggerFactory();
-        var api = new DysonCloudClient("CH", "fr-CH", http: new HttpClient(new TestHub.RouteHandler())) { BearerToken = "t" };
-        var stored = new StoredSession("test@example.invalid", "CH", "fr-CH", null, "t", DateTimeOffset.UnixEpoch);
-        using var hub = new RobotHub(RobotContext.FromLogin(api, stored, loggers), new TestHub.InlineDispatcher(), new FakeDialogs());
+        using var hub = new RobotHub(TestHub.Context(loggers: loggers), new TestHub.InlineDispatcher(), new FakeDialogs());
 
         hub.AddLog("réglages des pièces enregistrés");
 
