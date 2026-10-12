@@ -25,11 +25,49 @@ jobs:
         run: dotnet build DyssCockpit.slnx --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test --solution DyssCockpit.slnx --configuration Release --no-build --report-xunit-trx --results-directory TestResults
+        run: dotnet test --solution DyssCockpit.slnx --configuration Release --no-build --report-xunit-trx --coverage --coverage-output-format cobertura --results-directory TestResults
+
+      # How much of the code the tests run, on the run's summary page: for information, nothing fails
+      # on it. Each test project measures on its own and both run Core, so a line counts as covered
+      # when either reached it.
+      - name: Coverage
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $lines = @{}; $branches = @{}; $assembly = @{}
+          foreach ($f in Get-ChildItem TestResults -Recurse -Filter *.cobertura.xml) {
+            [xml]$x = Get-Content $f.FullName -Raw
+            foreach ($p in $x.coverage.packages.package) {
+              foreach ($c in $p.classes.class) {
+                # Generated code (XAML, source generators) is nobody's to test.
+                if (-not $c.filename -or $c.filename -match '[\\/]obj[\\/]|\.g\.(i\.)?cs$') { continue }
+                foreach ($l in $c.lines.line) {
+                  $k = "$($c.filename)|$($l.number)"
+                  $assembly[$k] = $p.name
+                  $lines[$k] = [Math]::Max([int]$lines[$k], [int]$l.hits)
+                  if ($l.'condition-coverage' -match '\((\d+)/(\d+)\)') {
+                    $before = if ($branches.ContainsKey($k)) { $branches[$k][0] } else { 0 }
+                    $branches[$k] = @([Math]::Max($before, [int]$Matches[1]), [int]$Matches[2])
+                  }
+                }
+              }
+            }
+          }
+          $rows = $lines.Keys | Group-Object { $assembly[$_] } | Sort-Object Name | ForEach-Object {
+            $covered = @($_.Group | Where-Object { $lines[$_] -gt 0 }).Count
+            $bCovered = 0; $bTotal = 0
+            foreach ($k in $_.Group) { if ($branches.ContainsKey($k)) { $bCovered += $branches[$k][0]; $bTotal += $branches[$k][1] } }
+            '| {0} | {1} / {2} ({3:0} %) | {4} / {5} ({6:0} %) |' -f $_.Name, $covered, $_.Count, (100 * $covered / $_.Count), $bCovered, $bTotal, (100 * $bCovered / [Math]::Max(1, $bTotal))
+          }
+          @('### Test coverage', '', '| Assembly | Lines | Branches |', '|---|---:|---:|') + $rows | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: TestResults/**/*.trx
+          # The coverage files too, to see which lines were missed (any Cobertura viewer reads them).
+          path: |
+            TestResults/**/*.trx
+            TestResults/**/*.cobertura.xml
