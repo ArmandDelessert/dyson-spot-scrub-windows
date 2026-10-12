@@ -95,6 +95,8 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     private IReadOnlyList<DyssCockpit.Core.Point>? _path;
     private IReadOnlyList<DyssCockpit.Core.Point>? _obstacles;
     private IReadOnlyList<DirtSpot>? _dirt;
+    /// <summary>The rectangles of the selected clean when it was a zone clean, drawn as they were when it started.</summary>
+    private IReadOnlyList<IReadOnlyList<DyssCockpit.Core.Point>>? _spots;
     /// <summary>The map the selected clean ran on, from the cloud's snapshot of it; null when there is none to be had.</summary>
     private MapGrid? _grid;
     private PersistentMap? _map;
@@ -313,6 +315,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             _path = detail.CleanPath;
             _obstacles = detail.Obstacles;
             _dirt = detail.Dirt;
+            _spots = item.Summary.IsSpotClean == true ? SpotZone.Rectangles(item.Summary.SpotZones) : null;
             // The REST clean list has no overall success/failure field (see docs/protocole.md); the
             // closest thing is each zone's own status from this per-clean detail call. Only surface
             // zones that didn't simply complete, so an ordinary clean just reads T("Terminé", "Done").
@@ -354,6 +357,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             Path = _path,
             Obstacles = _obstacles,
             DirtSpots = _dirt,
+            SpotZones = _spots is { Count: > 0 } ? _spots : null,
             ShowFurniture = _settings.ShowFurniture,
             ShowTravelPath = _settings.ShowTravelPath,
             ShowCleanedArea = _settings.ShowCleanedArea,

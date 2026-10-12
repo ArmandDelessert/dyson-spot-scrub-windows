@@ -364,5 +364,37 @@ public sealed class HistoryViewModelTests : IDisposable
         Assert.Equal("…", row.Rooms); // until the detail arrives
     }
 
-    /// <summary>Waits for a selection's fire-and-forget load to land, without pinning a duration.</summary>
+    // ---- Zone cleans ---------------------------------------------------------------------------
+
+    private const string OneZoneClean = """
+        {"data":[{"cleanId":"clean-1","persistentMapId":"1000000002","startTime":1789916722,"isSpotClean":true,
+                  "spotZones":[{"id":"0","points":[{"x":3.6,"y":5.1},{"x":1.1,"y":5.1},{"x":1.1,"y":3.6},{"x":3.6,"y":3.6}]}]}]}
+        """;
+
+    [Fact]
+    public async Task AZoneCleanShowsItsRectangleOnItsMapAndItsSizeInTheList()
+    {
+        var vm = New(out _, history: OneZoneClean);
+        await vm.LoadAsync();
+        await vm.FillDetailsAsync();
+
+        vm.SelectedClean = vm.History[0];
+        await vm.Showing;
+
+        var zone = Assert.Single(vm.Scene.SpotZones!);
+        Assert.Equal([new(3.6, 5.1), new(1.1, 5.1), new(1.1, 3.6), new(3.6, 3.6)], zone);
+        Assert.Equal("Zone 2,50 × 1,50 m", vm.History[0].Rooms);
+    }
+
+    [Fact]
+    public async Task ARoomsCleanHasNoRectangle()
+    {
+        var vm = New(out _);
+        await vm.LoadAsync();
+
+        vm.SelectedClean = vm.History[0];
+        await vm.Showing;
+
+        Assert.Null(vm.Scene.SpotZones);
+    }
 }

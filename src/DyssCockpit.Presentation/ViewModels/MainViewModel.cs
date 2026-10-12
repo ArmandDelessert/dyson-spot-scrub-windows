@@ -201,6 +201,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             case "event.clean_record.post":
                 _ = History.RefreshAfterCleanAsync();
                 break;
+            case "event.startClean.post":
+                _ = Cleaning.RefreshLiveZonesAsync();
+                break;
             case "event.Unable_all_area_recharge.post":
                 if (AppSettings.NotifyUnreachable)
                     NotifyRequested?.Invoke(T("Zone inaccessible", "Unreachable area"), T("Le robot n'a pas pu atteindre une ou plusieurs pièces sélectionnées.", "The robot could not reach one or more of the selected rooms."));

@@ -181,6 +181,8 @@ public sealed record LiveMap(
     [property: JsonPropertyName("restrictions")] List<Restriction>? Restrictions,
     [property: JsonPropertyName("obstacles")] List<Point>? Obstacles = null,
     [property: JsonPropertyName("dirt")] List<DirtSpot>? Dirt = null,
+    // The rectangles of the current or last task when it is a zone clean; empty after a rooms clean.
+    [property: JsonPropertyName("spotZones")] List<SpotZone>? SpotZones = null,
     // hazardZones/groutLines/swingDoors: always empty in every response observed so far, shape unconfirmed.
     [property: JsonPropertyName("hazardZones")] List<JsonElement>? HazardZones = null,
     [property: JsonPropertyName("groutLines")] List<JsonElement>? GroutLines = null,
@@ -232,7 +234,12 @@ public sealed record CleanSummary(
 /// <summary>One rectangle of a zone clean: its four corners, top-right first (see SpotCleanSequence.Corners).</summary>
 public sealed record SpotZone(
     [property: JsonPropertyName("id")] string? Id,
-    [property: JsonPropertyName("points")] List<Point>? Points);
+    [property: JsonPropertyName("points")] List<Point>? Points)
+{
+    /// <summary>The corners of each zone that has them, as a map draws them; empty for none.</summary>
+    public static IReadOnlyList<IReadOnlyList<Point>> Rectangles(IEnumerable<SpotZone>? zones) =>
+        [.. (zones ?? []).Where(z => z.Points is { Count: > 2 }).Select(z => (IReadOnlyList<Point>)z.Points!)];
+}
 
 public sealed record CleanList([property: JsonPropertyName("data")] List<CleanSummary> Data);
 

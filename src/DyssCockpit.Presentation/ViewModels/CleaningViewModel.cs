@@ -58,6 +58,29 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     private IReadOnlyList<DyssCockpit.Core.Point>? _liveTrail;
     private IReadOnlyList<DyssCockpit.Core.Point>? _liveObstacles;
     private IReadOnlyList<DirtSpot>? _liveDirt;
+    /// <summary>The rectangles of the current or last task, from the cloud's live map: a zone clean started from the phone, a schedule, or before this window opened.</summary>
+    private IReadOnlyList<IReadOnlyList<DyssCockpit.Core.Point>>? _liveSpots;
+
+    /// <summary>How long after a start the cloud's live map is read again for the zones of the new task.</summary>
+    public TimeSpan LiveZonesDelay { get; init; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// A clean has just started: the cloud's live map is read again, a moment later, for its zones —
+    /// the robot's own messages never say which rectangles it was sent. Only the active map has one.
+    /// </summary>
+    public async Task RefreshLiveZonesAsync()
+    {
+        try
+        {
+            await Task.Delay(LiveZonesDelay, _hub.Time, _hub.Ct);
+            if (SelectedMap is not { } map || !_maps.IsCurrent(map.Id)) return;
+            var live = await _hub.Api.GetLiveCleaningMapAsync(_hub.Serial, _hub.Ct);
+            _liveSpots = SpotZone.Rectangles(live.SpotZones);
+            RebuildScene();
+        }
+        catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
+        catch (Exception ex) { _hub.AddLog(T($"zones du nettoyage: {ex.Message}", $"zones of the clean: {ex.Message}")); }
+    }
 
     // ---- Robot state ----------------------------------------------------------
 
@@ -232,6 +255,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
                 _lastPath = live.CleanPath;
                 _liveObstacles = live.Obstacles;
                 _liveDirt = live.Dirt;
+                _liveSpots = SpotZone.Rectangles(live.SpotZones);
             }
             RebuildScene();
         }
@@ -263,7 +287,10 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             ShowFurniture = _settings.ShowFurniture,
             ShowTravelPath = _settings.ShowTravelPath,
             ShowCleanedArea = _settings.ShowCleanedArea,
-            SpotZones = SpotZones.Count > 0 ? SpotZones : null,
+            // The zones drawn here; with none, those of the zone clean under way, there as long as its trail.
+            SpotZones = SpotZones.Count > 0 ? SpotZones
+                : isCurrent && !_activity.TaskOver && _liveSpots is { Count: > 0 } ? _liveSpots
+                : null,
             RobotActivity = isCurrent ? _activity.Robot : RobotActivity.Idle,
             DockActivity = isCurrent ? _activity.Dock : DockActivity.Idle,
             RobotDocked = isCurrent && _activity.Docked,

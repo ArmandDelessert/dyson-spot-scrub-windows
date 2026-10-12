@@ -550,4 +550,60 @@ public class CleaningViewModelTests
         vm.Apply(Docked);
         Assert.Null(vm.Scene.Path);
     }
+
+    // ---- The zones of the clean under way ------------------------------------------------------
+
+    private const string LiveWithZone = """
+        {"cleanPath":[],"obstacles":[],"dirt":[],
+         "spotZones":[{"id":"0","points":[{"x":3.6,"y":5.1},{"x":1.1,"y":5.1},{"x":1.1,"y":3.6},{"x":3.6,"y":3.6}]}]}
+        """;
+
+    private static CleaningViewModel WithLive(string live, out TestHub.RouteHandler handler)
+    {
+        var hub = TestHub.Create(out handler,
+            ("persistent-map-metadata", "[" + TestHub.Map("1000000002", "Étage", isCurrent: true, Rooms) + "]"),
+            ("persistent-maps", TestHub.EmptyPersistentMap),
+            ("live-maps/mapping", """{"dimensions":{"width":2,"height":2,"resolution":0.5,"offsetX":0,"offsetY":0},"mapData":[10,10,12,12]}"""),
+            ("live-maps/cleaning", live));
+        return new CleaningViewModel(hub, new MapCatalog(hub), new AppSettings()) { LiveZonesDelay = TimeSpan.Zero };
+    }
+
+    [Fact]
+    public async Task TheZonesOfACleanUnderWayAreShownUntilTheTaskIsOver()
+    {
+        // Started from the phone, or before this window opened: only the cloud's live map knows them.
+        var vm = WithLive(LiveWithZone, out _);
+        await vm.LoadMapsAsync();
+        vm.Apply(RobotState.Parse("""{"msg":"CURRENT-STATE","state":"FULL_CLEAN_RUNNING"}""")!);
+
+        Assert.Equal(new(1.1, 3.6), Assert.Single(vm.Scene.SpotZones!)[2]);
+        Assert.False(vm.HasSpot);   // shown, not drawn: nothing to move or erase
+
+        vm.Apply(Docked);
+        Assert.Null(vm.Scene.SpotZones);
+    }
+
+    [Fact]
+    public async Task ZonesDrawnHereAreShownRatherThanTheLastCleans()
+    {
+        var vm = WithLive(LiveWithZone, out _);
+        await vm.LoadMapsAsync();
+
+        vm.SpotDrawn(new(0, 0), new(1, 1));
+
+        Assert.Same(vm.SpotCorners, Assert.Single(vm.Scene.SpotZones!));
+    }
+
+    [Fact]
+    public async Task AStartReadsTheLiveMapAgainForTheNewZones()
+    {
+        var vm = WithLive("""{"cleanPath":[],"obstacles":[],"dirt":[],"spotZones":[]}""", out var handler);
+        await vm.LoadMapsAsync();
+        Assert.Null(vm.Scene.SpotZones);
+
+        handler.Binary["live-maps/cleaning"] = System.Text.Encoding.UTF8.GetBytes(LiveWithZone);
+        await vm.RefreshLiveZonesAsync();
+
+        Assert.Single(vm.Scene.SpotZones!);
+    }
 }
