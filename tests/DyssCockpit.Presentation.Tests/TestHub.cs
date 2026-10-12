@@ -21,22 +21,31 @@ internal static class TestHub
     {
         public List<string> Requested { get; } = new();
 
+        /// <summary>What was sent with each request that had a body, by its path, in order.</summary>
+        public List<(string Path, string Body)> Bodies { get; } = new();
+
         /// <summary>Bodies that are not JSON (a clean's snapshot), by a fragment of their URL; looked at first.</summary>
         public Dictionary<string, byte[]> Binary { get; } = new();
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        /// <summary>Requests the cloud refuses, by a fragment of their URL, with the status it answers; looked at before the routes.</summary>
+        public Dictionary<string, HttpStatusCode> Refusals { get; } = new();
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             var path = request.RequestUri!.AbsolutePath;
             Requested.Add(path);
+            if (request.Content is { } content) Bodies.Add((path, await content.ReadAsStringAsync(ct)));
             if (Binary.FirstOrDefault(b => path.Contains(b.Key, StringComparison.Ordinal)) is { Value: { } bytes })
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) });
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) };
+            if (Refusals.FirstOrDefault(r => path.Contains(r.Key, StringComparison.Ordinal)) is { Key: not null } refusal)
+                return new HttpResponseMessage(refusal.Value) { Content = new StringContent("{}") };
             var route = routes.FirstOrDefault(r => path.Contains(r.UrlContains, StringComparison.Ordinal));
-            return Task.FromResult(route.Json is null
+            return route.Json is null
                 ? new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("{}") }
                 : new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent(route.Json, Encoding.UTF8, "application/json"),
-                });
+                };
         }
     }
 
