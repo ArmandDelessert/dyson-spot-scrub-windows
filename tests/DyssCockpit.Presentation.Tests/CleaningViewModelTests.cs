@@ -540,7 +540,10 @@ public class CleaningViewModelTests
         vm.SetLiveTrail([new RobotPosition(1, 0.5, 0.5, 0, 1)]);
         Assert.Null(vm.Scene.Path);
 
+        // A new task: the trail is its own, from its first points on.
         vm.Apply(RobotState.Parse("""{"msg":"CURRENT-STATE","state":"FULL_CLEAN_RUNNING","dockState":"IDLE","fullCleanAction":"VACUUMING"}""")!);
+        Assert.Null(vm.Scene.Path);
+        vm.SetLiveTrail([new RobotPosition(1, 0.5, 0.5, 0, 1)]);
         Assert.NotNull(vm.Scene.Path);
 
         // Back on the dock, emptying the bin: still part of the task.
@@ -558,14 +561,16 @@ public class CleaningViewModelTests
          "spotZones":[{"id":"0","points":[{"x":3.6,"y":5.1},{"x":1.1,"y":5.1},{"x":1.1,"y":3.6},{"x":3.6,"y":3.6}]}]}
         """;
 
-    private static CleaningViewModel WithLive(string live, out TestHub.RouteHandler handler)
+    private static CleaningViewModel WithLive(string live, out TestHub.RouteHandler handler) => WithLive(live, TimeSpan.Zero, out handler);
+
+    private static CleaningViewModel WithLive(string live, TimeSpan liveZonesDelay, out TestHub.RouteHandler handler)
     {
         var hub = TestHub.Create(out handler,
             ("persistent-map-metadata", "[" + TestHub.Map("1000000002", "Étage", isCurrent: true, Rooms) + "]"),
             ("persistent-maps", TestHub.EmptyPersistentMap),
             ("live-maps/mapping", """{"dimensions":{"width":2,"height":2,"resolution":0.5,"offsetX":0,"offsetY":0},"mapData":[10,10,12,12]}"""),
             ("live-maps/cleaning", live));
-        return new CleaningViewModel(hub, new MapCatalog(hub), new AppSettings()) { LiveZonesDelay = TimeSpan.Zero };
+        return new CleaningViewModel(hub, new MapCatalog(hub), new AppSettings()) { LiveZonesDelay = liveZonesDelay };
     }
 
     [Fact]
@@ -592,6 +597,44 @@ public class CleaningViewModelTests
         vm.SpotDrawn(new(0, 0), new(1, 1));
 
         Assert.Same(vm.SpotCorners, Assert.Single(vm.Scene.SpotZones!));
+    }
+
+    private const string LiveWithTrail = """
+        {"cleanPath":[{"x":0,"y":0,"update":1},{"x":1,"y":0,"update":1}],"obstacles":[],"dirt":[],
+         "spotZones":[{"id":"0","points":[{"x":3.6,"y":5.1},{"x":1.1,"y":5.1},{"x":1.1,"y":3.6},{"x":3.6,"y":3.6}]}]}
+        """;
+
+    private static RobotState Running => RobotState.Parse("""{"msg":"CURRENT-STATE","state":"FULL_CLEAN_RUNNING"}""")!;
+
+    [Fact]
+    public async Task ANewTaskDoesNotShowTheLastOnesTrailWhileItsOwnIsOnItsWay()
+    {
+        // 2026-10-12: for a second or two after the robot left its dock, the last clean's trail was back.
+        // The live map is read again for the new zones only later: not within this test.
+        var vm = WithLive(LiveWithTrail, TimeSpan.FromMinutes(5), out _);
+        await vm.LoadMapsAsync();
+        vm.Apply(Docked);
+        Assert.Null(vm.Scene.Path);   // the last task is over
+
+        vm.Apply(Running);
+        vm.SetLiveTrail([]);   // event.startClean.post empties the live trail
+
+        Assert.Null(vm.Scene.Path);
+        Assert.Null(vm.Scene.SpotZones);
+        vm.SetLiveTrail([new(1, 2, 2, 0, 1), new(2, 2.5, 2, 0, 1)]);
+        Assert.Equal(2, vm.Scene.Path!.Count);
+    }
+
+    [Fact]
+    public async Task OpenedDuringACleanItsTrailAndZonesAreKept()
+    {
+        var vm = WithLive(LiveWithTrail, out _);
+        await vm.LoadMapsAsync();
+
+        vm.Apply(Running);
+
+        Assert.Equal(2, vm.Scene.Path!.Count);
+        Assert.Single(vm.Scene.SpotZones!);
     }
 
     [Fact]

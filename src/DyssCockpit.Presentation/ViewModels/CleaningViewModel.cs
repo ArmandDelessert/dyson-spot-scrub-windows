@@ -65,7 +65,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     public TimeSpan LiveZonesDelay { get; init; } = TimeSpan.FromSeconds(5);
 
     /// <summary>
-    /// A clean has just started: the cloud's live map is read again, a moment later, for its zones —
+    /// A task has just started: the cloud's live map is read again, a moment later, for its zones —
     /// the robot's own messages never say which rectangles it was sent. Only the active map has one.
     /// </summary>
     public async Task RefreshLiveZonesAsync()
@@ -90,7 +90,34 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         UpdateCanStart();
         _robotPosition = s.LatestPosition ?? _robotPosition;
         _activity.Apply(s);
+        if (s.State is not null)
+        {
+            var atWork = s.IsCleaning || s.IsMapping;
+            if (atWork && _idleSeen) ForgetLastTask();
+            _idleSeen = !atWork;
+        }
         RebuildScene();
+    }
+
+    /// <summary>
+    /// Whether the robot was last seen idle (or done), so that its next clean or mapping is a new task.
+    /// False until a state says so: opened in the middle of a clean, the trail loaded is that clean's.
+    /// </summary>
+    private bool _idleSeen;
+
+    /// <summary>
+    /// A new task has begun: the last one's trail, obstacles, stains and zones are in the history now,
+    /// and are not shown in the moments before the new task's own arrive. Its zones are read again
+    /// from the cloud: a zone clean started from the phone or a schedule says nothing of them.
+    /// </summary>
+    private void ForgetLastTask()
+    {
+        _lastPath = null;
+        _liveTrail = null;
+        _liveObstacles = null;
+        _liveDirt = null;
+        _liveSpots = null;
+        _ = RefreshLiveZonesAsync();
     }
 
     /// <summary>What the robot and its dock are doing, for their icons on the map.</summary>
@@ -117,6 +144,8 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     public void SetLiveTrail(IReadOnlyList<RobotPosition> path)
     {
         _liveTrail = path.Select(p => new DyssCockpit.Core.Point(p.X, p.Y, p.Update)).ToList();
+        // Emptied at the start of a task: the trail read from the cloud is the last task's, not a stand-in.
+        if (path.Count == 0) _lastPath = null;
         _activity.ApplyTrail(path);
         RebuildScene();
     }
