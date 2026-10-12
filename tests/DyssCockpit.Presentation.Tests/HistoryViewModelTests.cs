@@ -297,7 +297,7 @@ public sealed class HistoryViewModelTests : IDisposable
         await vm.LoadAsync();
         await vm.FillDetailsAsync();
         vm.SelectedClean = vm.History[0];
-        await WaitForAsync(() => vm.Scene.Grid is not null);
+        await vm.Showing;
         settings.CleanArchiveRetentionDays = 30;
 
         Assert.Equal(["clean-1", "clean-0"], vm.History.Select(c => c.Summary.CleanId));
