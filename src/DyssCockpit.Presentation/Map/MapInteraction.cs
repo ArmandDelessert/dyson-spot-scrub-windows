@@ -49,6 +49,8 @@ public sealed record MapOverlay
     public IReadOnlyList<Vec2>? Handles { get; init; }
     /// <summary>The pointer on screen, and the map coordinates (metres) it stands on: written just above it.</summary>
     public (Vec2 Screen, Vec2 World)? PointerCoordinates { get; init; }
+    /// <summary>The corners' coordinates and the sides' lengths of the rectangle being drawn or edited, see <see cref="MapGeometry.DimensionLabels"/>.</summary>
+    public IReadOnlyList<MapLabel>? Dimensions { get; init; }
 
     public static readonly MapOverlay Empty = new();
 }
@@ -355,6 +357,22 @@ public sealed class MapInteraction(TimeProvider? time = null)
         }
     }
 
+    /// <summary>Writes the corners and the sides of a rectangle being drawn or edited, see <see cref="MapOverlay.Dimensions"/>.</summary>
+    public bool ShowShapeDimensions
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            field = value;
+            Invalidate();
+        }
+    }
+
+    /// <summary>The labels of <see cref="ShowShapeDimensions"/> for a rectangle with these corners (metres), or none while it is off.</summary>
+    private IReadOnlyList<MapLabel>? DimensionsOf(IEnumerable<Vec2> world) =>
+        ShowShapeDimensions ? MapGeometry.DimensionLabels([.. world], WorldToScreen) : null;
+
     /// <summary>Where the pointer is over the map, in screen pixels, while <see cref="ShowPointerCoordinates"/> is on.</summary>
     private Vec2? _hover;
 
@@ -390,7 +408,12 @@ public sealed class MapInteraction(TimeProvider? time = null)
                 case MapPick.Line when _lineStart is { } start:
                     return overlay with { CutFrom = m.Transform(start), CutTo = _linePreview is { } end ? m.Transform(end) : null };
                 case MapPick.Rectangle when _lineStart is { } corner:
-                    return overlay with { RectangleFrom = m.Transform(corner), RectangleTo = _linePreview is { } other ? m.Transform(other) : null };
+                    return overlay with
+                    {
+                        RectangleFrom = m.Transform(corner),
+                        RectangleTo = _linePreview is { } other ? m.Transform(other) : null,
+                        Dimensions = _linePreview is { } to ? DimensionsOf(SpotCleanSequence.Corners(corner.ToPoint(), to.ToPoint()).Select(Vec2.Of)) : null,
+                    };
                 case MapPick.Point when _linePreview is { } at && PlacementShape is { Count: > 2 } shape:
                     return overlay with { PendingShape = [.. shape.Select(p => m.Transform(at.X + p.X, at.Y + p.Y))] };
                 case MapPick.None when EditableShape is { Count: 4 } editable:
@@ -399,6 +422,7 @@ public sealed class MapInteraction(TimeProvider? time = null)
                     {
                         PendingShape = _shapePreview is not null ? shown : null,
                         Handles = EditableShapeResizable ? shown : null,
+                        Dimensions = EditableShapeResizable ? DimensionsOf((_shapePreview ?? editable).Select(Vec2.Of)) : null,
                     };
                 default:
                     return overlay;

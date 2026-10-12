@@ -143,7 +143,47 @@ public static class MapGeometry
         return a!.SetEquals(b!);
     }
 
+    /// <summary>Numbers as the language writes them: a decimal comma in French.</summary>
+    private static CultureInfo NumberCulture =>
+        Translation.Current == AppLanguage.French ? CultureInfo.GetCultureInfo("fr-FR") : CultureInfo.InvariantCulture;
+
     /// <summary>The pointer's coordinates as written above it: "x 1,44  y −0,12 m" in French, two decimals, the decimal mark of the language.</summary>
     public static string CoordinatesText(Vec2 world) =>
-        string.Format(DyssCockpit.Core.Translation.Current == DyssCockpit.Core.AppLanguage.French ? System.Globalization.CultureInfo.GetCultureInfo("fr-FR") : System.Globalization.CultureInfo.InvariantCulture, "x {0:0.00}  y {1:0.00} m", world.X, world.Y).Replace('-', '−');
+        string.Format(NumberCulture, "x {0:0.00}  y {1:0.00} m", world.X, world.Y).Replace('-', '−');
+
+    /// <summary>A length on the floor: "2,50 m".</summary>
+    public static string LengthText(double metres) => string.Format(NumberCulture, "{0:0.00} m", metres);
+
+    /// <summary>A rectangle's size, width then height: "2,50 × 1,50 m".</summary>
+    public static string SizeText(double width, double height) => string.Format(NumberCulture, "{0:0.00} × {1:0.00} m", width, height);
+
+    /// <summary>
+    /// What is written around a rectangle being drawn or edited, when the setting asks for it: the
+    /// coordinates of each corner, off that corner, and the length of the side that is on top on
+    /// screen, above it, and of the side on the left, to its left. On top and on the left as the map
+    /// stands, so a turned map still reads that way. None unless there are four corners.
+    /// </summary>
+    public static IReadOnlyList<MapLabel> DimensionLabels(IReadOnlyList<Vec2> world, MapTransform worldToScreen)
+    {
+        if (world.Count != 4) return [];
+        var screen = world.Select(worldToScreen.Transform).ToList();
+        var centre = new Vec2(screen.Average(p => p.X), screen.Average(p => p.Y));
+        var labels = new List<MapLabel>(6);
+        for (var i = 0; i < 4; i++)
+            labels.Add(new MapLabel(CoordinatesText(world[i]), screen[i], new Vec2(Math.Sign(screen[i].X - centre.X), Math.Sign(screen[i].Y - centre.Y))));
+        var sides = Enumerable.Range(0, 4)
+            .Select(i => (Middle: (screen[i] + screen[(i + 1) % 4]) * 0.5, Length: (world[(i + 1) % 4] - world[i]).Length))
+            .ToList();
+        var top = sides.MinBy(s => s.Middle.Y);
+        var left = sides.MinBy(s => s.Middle.X);
+        labels.Add(new MapLabel(LengthText(top.Length), top.Middle, new Vec2(0, -1)));
+        labels.Add(new MapLabel(LengthText(left.Length), left.Middle, new Vec2(-1, 0)));
+        return labels;
+    }
 }
+
+/// <summary>
+/// A label written over the map: its text, the screen point it is about, and which way it stands
+/// off that point so as not to cover it — (0, −1) above, (−1, 0) to the left, (±1, ±1) off a corner.
+/// </summary>
+public readonly record struct MapLabel(string Text, Vec2 At, Vec2 Away);

@@ -219,13 +219,20 @@ public sealed record CleanSummary(
     [property: JsonPropertyName("firmwareVersion")] string? FirmwareVersion,
     [property: JsonPropertyName("zones")] List<MapZone>? Zones,
     [property: JsonPropertyName("faults")] List<JsonElement>? Faults,
-    [property: JsonPropertyName("downloadUrl")] string? DownloadUrl)
+    [property: JsonPropertyName("downloadUrl")] string? DownloadUrl,
+    // The rectangles of a zone clean (isSpotClean), as the START sent them: four corners each.
+    [property: JsonPropertyName("spotZones")] List<SpotZone>? SpotZones = null)
 {
     public DateTimeOffset? Start => StartTime is { } s ? DateTimeOffset.FromUnixTimeSeconds(s) : null;
     public DateTimeOffset? End => EndTime is { } e ? DateTimeOffset.FromUnixTimeSeconds(e) : null;
 
     [JsonExtensionData] public Dictionary<string, JsonElement>? Extra { get; init; }
 }
+
+/// <summary>One rectangle of a zone clean: its four corners, top-right first (see SpotCleanSequence.Corners).</summary>
+public sealed record SpotZone(
+    [property: JsonPropertyName("id")] string? Id,
+    [property: JsonPropertyName("points")] List<Point>? Points);
 
 public sealed record CleanList([property: JsonPropertyName("data")] List<CleanSummary> Data);
 

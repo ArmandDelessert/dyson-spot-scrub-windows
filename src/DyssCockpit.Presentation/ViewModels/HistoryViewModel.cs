@@ -168,7 +168,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             try
             {
                 var detail = await GetDetailAsync(item.Summary);
-                item.Rooms = DescribeRooms(detail);
+                item.Rooms = DescribeRooms(item.Summary, detail);
                 if (Keeping) await CompleteKeptSnapshotAsync(item.Summary);
             }
             catch (OperationCanceledException) when (_hub.IsShuttingDown) { return; }
@@ -280,11 +280,31 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     /// preference rather than what was picked for this specific task (confirmed against a capture:
     /// a room excluded at launch still showed isSelected true once its selection later changed), so
     /// cleanStatus is used instead — CLEAN_NOT_REQUESTED is the one value confirmed to reflect this
-    /// particular run rather than the map's present state.
+    /// particular run rather than the map's present state. A zone clean has no room of its own: its
+    /// detail still marks the rooms of the robot's last room task (a room CLEAN_PENDING), so it is
+    /// told by its rectangles instead.
     /// </summary>
-    private static string DescribeRooms(CleanDetail detail) => string.Join(", ", (detail.Zones ?? [])
-        .Where(z => z.CleanStatus is not (null or "CLEAN_NOT_REQUESTED"))
-        .Select(z => RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)));
+    internal static string DescribeRooms(CleanSummary summary, CleanDetail detail) =>
+        summary.IsSpotClean == true
+            ? DescribeSpotZones(summary.SpotZones)
+            : string.Join(", ", (detail.Zones ?? [])
+                .Where(z => z.CleanStatus is not (null or "CLEAN_NOT_REQUESTED"))
+                .Select(z => RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)));
+
+    /// <summary>"Zone 2,50 × 1,50 m", or "2 zones : 3,00 × 0,90 m, 0,75 × 2,85 m": width along x, then height along y.</summary>
+    internal static string DescribeSpotZones(IReadOnlyList<SpotZone>? zones)
+    {
+        var sizes = (zones ?? [])
+            .Where(z => z.Points is { Count: > 0 })
+            .Select(z => MapGeometry.SizeText(z.Points!.Max(p => p.X) - z.Points!.Min(p => p.X), z.Points!.Max(p => p.Y) - z.Points!.Min(p => p.Y)))
+            .ToList();
+        return sizes.Count switch
+        {
+            0 => T("Zone", "Zone"),
+            1 => T($"Zone {sizes[0]}", $"Zone {sizes[0]}"),
+            _ => T($"{sizes.Count} zones : {string.Join(", ", sizes)}", $"{sizes.Count} zones: {string.Join(", ", sizes)}"),
+        };
+    }
 
     partial void OnSelectedCleanChanged(CleanItem? value)
     {
@@ -312,7 +332,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
                 .Select(z => $"{RoomTypeLabels.Resolve(z.Type, z.Name, z.Id)} : {CleanStatusLabels.Resolve(z.CleanStatus)}")
                 .ToList() ?? [];
             ResultText = problems.Count > 0 ? string.Join(", ", problems) : T("Terminé", "Done");
-            item.Rooms = DescribeRooms(detail);
+            item.Rooms = DescribeRooms(item.Summary, detail);
             var mapId = detail.PersistentMapId ?? item.Summary.PersistentMapId;
             _map = null;
             if (mapId is not null)

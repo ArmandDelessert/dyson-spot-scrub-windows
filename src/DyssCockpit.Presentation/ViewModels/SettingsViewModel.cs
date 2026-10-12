@@ -201,6 +201,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         set => Update(_settings.ShowPointerCoordinates, value, v => _settings.ShowPointerCoordinates = v);
     }
 
+    public bool ShowShapeDimensions
+    {
+        get => _settings.ShowShapeDimensions;
+        set => Update(_settings.ShowShapeDimensions, value, v => _settings.ShowShapeDimensions = v);
+    }
+
     public bool SmoothRobotMotion
     {
         get => _settings.SmoothRobotMotion;

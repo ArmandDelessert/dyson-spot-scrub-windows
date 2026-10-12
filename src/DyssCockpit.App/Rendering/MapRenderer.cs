@@ -173,6 +173,8 @@ internal static class MapRenderer
         try { DrawShapes(ds, overlay, worldToScreen, size, palette); }
         finally
         {
+            foreach (var label in overlay.Dimensions ?? [])
+                DrawLabelAway(ds, label, palette);
             if (overlay.PointerCoordinates is var (screen, world))
                 DrawLabel(ds, MapGeometry.CoordinatesText(world), new Vector2((float)screen.X, (float)screen.Y - 22), palette);
         }
@@ -301,6 +303,15 @@ internal static class MapRenderer
         ds.FillRoundedRectangle(rect, 3, 3, palette.LabelBackground.ToColor());
         ds.DrawTextLayout(layout, (float)rect.X + 4, (float)rect.Y + 2, palette.LabelText.ToColor());
         return rect;
+    }
+
+    /// <summary>A label beside the point it is about rather than on it: moved off it the way <see cref="MapLabel.Away"/> says, by half its own size and a gap.</summary>
+    private static void DrawLabelAway(CanvasDrawingSession ds, MapLabel label, MapPalette palette)
+    {
+        using var layout = new CanvasTextLayout(ds, label.Text, LabelFont, Unbounded, Unbounded);
+        var (w, h) = ((float)layout.LayoutBounds.Width + 8, (float)layout.LayoutBounds.Height + 4);
+        var at = label.At.ToVector2() + new Vector2((float)label.Away.X * (w / 2 + 6), (float)label.Away.Y * (h / 2 + 4));
+        DrawLabel(ds, label.Text, at, palette);
     }
 
     private static void DrawBadge(CanvasDrawingSession ds, string text, Vector2 at)

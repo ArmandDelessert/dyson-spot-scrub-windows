@@ -147,6 +147,15 @@
                         <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowPointerCoordinates, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
                                       AutomationProperties.Name='{local:Tr Fr="Afficher les coordonnées au-dessus du pointeur", En="Show the coordinates above the pointer"}'/>
                     </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text='{local:Tr Fr="Afficher les dimensions des zones tracées", En="Show the size of drawn zones"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text='{local:Tr Fr="Les coordonnées de chaque coin et la longueur des côtés d&apos;un rectangle tracé sur la carte, en mètres.", En="The coordinates of each corner and the length of the sides of a rectangle drawn on the map, in metres."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowShapeDimensions, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
+                                      AutomationProperties.Name='{local:Tr Fr="Afficher les dimensions des zones tracées", En="Show the size of drawn zones"}'/>
+                    </Grid>
                     <TextBlock Text='{local:Tr Fr="Ces réglages ne concernent que cet affichage : rien n&apos;est envoyé au robot.", En="These settings only affect this display: nothing is sent to the robot."}'
                                Style="{StaticResource Caption}" Margin="0,8,0,0"/>
                 </StackPanel>
