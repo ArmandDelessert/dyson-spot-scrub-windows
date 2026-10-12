@@ -123,15 +123,16 @@ public class CleaningSequenceTests
     }
 
     [Fact]
-    public async Task AZoneCleanSendsTheThreeMessagesOfThePhone()
+    public async Task AZoneCleanIsTheStartAlone()
     {
-        // Captured on 2026-09-30: a rectangle drawn on the phone, vacuum in quiet mode.
+        // Captured on 2026-09-30: a rectangle drawn on the phone, vacuum in quiet mode. The cloud
+        // turns it into set_cur_map and set_areas_start; sending them too made the robot start twice.
         var robot = new RecordingRobot("{}");
         var corners = SpotCleanSequence.Corners(new(0.440765380859375, 0.28673648834228516), new(1.8325986862182617, 2.6739816665649414));
 
         await SpotCleanSequence.StartAsync(robot, MapId, corners, new RoomSettings(CleanType.Vacuum, CleaningStrategy.Quiet), "40328115-26bc-4e66-bf76-5fee0bf2a49c", TestContext.Current.CancellationToken);
 
-        Assert.Equal(["START", "service.set_cur_map", "service.set_areas_start"], robot.Sent.Select(m => m.Method));
+        Assert.Equal(["START"], robot.Sent.Select(m => m.Method));
         JsonAssert.Equal("""
             {"cleaningProgramme":{"persistentMapId":"1000000002","spotZones":[{"id":"40328115-26bc-4e66-bf76-5fee0bf2a49c","points":[
                {"x":1.8325986862182617,"y":2.6739816665649414},{"x":0.440765380859375,"y":2.6739816665649414},
@@ -139,11 +140,6 @@ public class CleaningSequenceTests
              "defaultSpotZoneSettings":{"cleaningStrategy":"quiet","cleanType":"vacuum","waterLevel":"low","mopPasses":1,"dryPasses":1}},
              "cleaningMode":"spotZoneConfigured","fullCleanType":"immediate","mode-reason":"RAPP","msg":"START"}
             """, robot.Sent[0].Payload);
-        JsonAssert.Equal("""{"map_id":1000000002}""", robot.Sent[1].Payload);
-        JsonAssert.Equal("""
-            {"ctrl_value":1,"zone_points":[[1.8325986862182617,2.6739816665649414,0.440765380859375,2.6739816665649414,0.440765380859375,0.28673648834228516,1.8325986862182617,0.28673648834228516]],
-             "mode":0,"wind":2,"water":0,"clean_count":0,"dry_clean_count":0,"action":0,"uv_switch":0}
-            """, robot.Sent[2].Payload);
     }
 
     [Fact]
@@ -154,9 +150,8 @@ public class CleaningSequenceTests
         await SpotCleanSequence.StartAsync(robot, MapId, SpotCleanSequence.Corners(new(0, 0), new(1, 1)),
             new RoomSettings(CleanType.VacuumThenMop, CleaningStrategy.Boost, WaterLevel.High, 2), ct: TestContext.Current.CancellationToken);
 
-        var jdm = robot.Sent[2].Payload;
-        Assert.Equal((3, 1, 2, 1), (jdm["mode"]!.GetValue<int>(), jdm["wind"]!.GetValue<int>(), jdm["water"]!.GetValue<int>(), jdm["clean_count"]!.GetValue<int>()));
-        Assert.Equal("vacuumThenMop", robot.Sent[0].Payload["cleaningProgramme"]!["defaultSpotZoneSettings"]!["cleanType"]!.GetValue<string>());
+        JsonAssert.Equal("""{"cleaningStrategy":"boost","cleanType":"vacuumThenMop","waterLevel":"high","mopPasses":2,"dryPasses":1}""",
+            robot.Sent.Single().Payload["cleaningProgramme"]!["defaultSpotZoneSettings"]);
     }
 }
 

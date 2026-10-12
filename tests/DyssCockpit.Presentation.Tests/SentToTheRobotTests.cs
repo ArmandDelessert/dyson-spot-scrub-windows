@@ -199,11 +199,11 @@ public class SentToTheRobotTests
 
         await vm.StartSpotCleanCommand.ExecuteAsync(null);
 
-        Assert.Equal(["START", "service.set_cur_map", "service.set_areas_start"], Methods(robot));
+        Assert.Equal(["START"], Methods(robot));   // the cloud sends the robot the rest
         var programme = robot.Sent[0].Payload["cleaningProgramme"]!;
         Assert.Equal("1000000002", programme["persistentMapId"]!.GetValue<string>());
         Assert.Equal("vacuum", programme["defaultSpotZoneSettings"]!["cleanType"]!.GetValue<string>());
-        Assert.Equal("[[1.5,1,0,1,0,0,1.5,0]]", robot.Sent[2].Payload["zone_points"]!.ToJsonString());
+        JsonAssert.Equal("""[{"x":1.5,"y":1},{"x":0,"y":1},{"x":0,"y":0},{"x":1.5,"y":0}]""", programme["spotZones"]![0]!["points"]);
         Assert.Empty(vm.LastLaunch!.Rooms);
     }
 

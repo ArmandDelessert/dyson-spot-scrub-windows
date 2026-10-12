@@ -220,11 +220,12 @@ public static class CleaningSequence
 }
 
 /// <summary>
-/// Cleaning a rectangle drawn on the map rather than whole rooms, the phone's "zone" clean. Three
-/// messages, as captured on 2026-09-30: the classic START in spotZoneConfigured mode with the
-/// rectangle and its settings, set_cur_map, then service.set_areas_start with the same corners and
-/// the settings coded like a room's. The robot starts on the START; set_areas_start answered
-/// result 1 two seconds later in the capture, the clean being under way already.
+/// Cleaning a rectangle drawn on the map rather than whole rooms, the phone's "zone" clean: the
+/// classic START in spotZoneConfigured mode with the rectangle and its settings, and nothing else.
+/// The cloud turns that START into set_cur_map and service.set_areas_start for the robot itself
+/// (the pair captured on 2026-09-30 was that translation). Sending the pair as well made the robot
+/// start twice: two start announcements, and a first task of 0 minutes in the history. Tried on
+/// 2026-10-12 with the START alone: one start, one clean.
 /// </summary>
 public static class SpotCleanSequence
 {
@@ -242,11 +243,11 @@ public static class SpotCleanSequence
         StartAsync(robot, mapId, [(zoneId ?? Guid.NewGuid().ToString(), corners)], settings, ct);
 
     /// <summary>
-    /// Several zones in one clean, all with the same settings: the phone only ever sends one, but both
-    /// messages carry a list (<c>spotZones</c>, <c>zone_points</c>), and the app's own code calls them
+    /// Several zones in one clean, all with the same settings: the phone only ever sends one, but the
+    /// START carries a list (<c>spotZones</c>, and <c>zone_points</c> in the cloud's translation), and the app's own code calls them
     /// "spotZones must not be null or empty".
     /// </summary>
-    public static async Task StartAsync(IRobotCommands robot, long mapId, IReadOnlyList<(string Id, IReadOnlyList<Point> Corners)> zones, RoomSettings settings, CancellationToken ct = default)
+    public static Task StartAsync(IRobotCommands robot, long mapId, IReadOnlyList<(string Id, IReadOnlyList<Point> Corners)> zones, RoomSettings settings, CancellationToken ct = default)
     {
         if (zones.Count == 0) throw new ArgumentException("At least one zone.", nameof(zones));
         if (zones.Any(z => z.Corners.Count != 4)) throw new ArgumentException("A zone has exactly four corners.", nameof(zones));
@@ -258,7 +259,7 @@ public static class SpotCleanSequence
             foreach (var p in corners) points.Add(new JsonObject { ["x"] = p.X, ["y"] = p.Y });
             spotZones.Add(new JsonObject { ["id"] = id, ["points"] = points });
         }
-        await robot.PublishCommandAsync(new JsonObject
+        return robot.PublishCommandAsync(new JsonObject
         {
             ["cleaningProgramme"] = new JsonObject
             {
@@ -277,31 +278,7 @@ public static class SpotCleanSequence
             ["fullCleanType"] = "immediate",
             ["mode-reason"] = "RAPP",
             ["msg"] = "START",
-        }, ct).ConfigureAwait(false);
+        }, ct);
 
-        await robot.SetCurrentMapAsync(mapId, ct).ConfigureAwait(false);
-
-        // The same room-setting codes as room_preference (indices 3 to 6), zeroed where they do not apply.
-        var coded = new JsonArray(0, 0, 0, 0, 0, 0, 0);
-        settings.WriteTo(coded);
-        var zonePoints = new JsonArray();
-        foreach (var (_, corners) in zones)
-        {
-            var flat = new JsonArray();
-            foreach (var p in corners) { flat.Add(p.X); flat.Add(p.Y); }
-            zonePoints.Add(flat);
-        }
-        await robot.PublishJdmAsync("service.set_areas_start", new JsonObject
-        {
-            ["ctrl_value"] = 1,
-            ["zone_points"] = zonePoints,
-            ["mode"] = coded[RoomSettings.IndexCleanType]!.GetValue<int>(),
-            ["wind"] = coded[RoomSettings.IndexStrategy]!.GetValue<int>(),
-            ["water"] = coded[RoomSettings.IndexWater]!.GetValue<int>(),
-            ["clean_count"] = coded[RoomSettings.IndexMopPasses]!.GetValue<int>(),
-            ["dry_clean_count"] = 0,
-            ["action"] = 0,
-            ["uv_switch"] = 0,
-        }, ct).ConfigureAwait(false);
     }
 }
