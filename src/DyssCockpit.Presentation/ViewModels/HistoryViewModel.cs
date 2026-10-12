@@ -70,13 +70,16 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
                 _details.Clear();   // the details downloaded so far were not kept: fetched again, and kept this time
                 _ = FillDetailsAsync();
                 break;
-            case nameof(AppSettings.CleanArchiveRetentionDays):
+            case nameof(AppSettings.CleanArchiveRetentionDays) when !_settings.LeavesFilesAlone:
                 _archive.Purge(_settings.CleanArchiveRetentionDays);
                 break;
         }
     }
 
     public void Dispose() => _settings.PropertyChanged -= OnSettingChanged;
+
+    /// <summary>Whether what comes from the cloud is kept: what the setting asks, unless this run leaves the user's files alone (a screenshot). Reading what is kept only needs the setting.</summary>
+    private bool Keeping => _settings.ArchiveCleans && !_settings.LeavesFilesAlone;
 
     public ObservableCollection<CleanItem> History { get; } = new();
     [ObservableProperty] private CleanItem? _selectedClean;
@@ -166,7 +169,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             {
                 var detail = await GetDetailAsync(item.Summary);
                 item.Rooms = DescribeRooms(detail);
-                if (_settings.ArchiveCleans) await CompleteKeptSnapshotAsync(item.Summary);
+                if (Keeping) await CompleteKeptSnapshotAsync(item.Summary);
             }
             catch (OperationCanceledException) when (_hub.IsShuttingDown) { return; }
             catch (Exception ex) { item.Rooms = ""; _hub.AddLog(T($"pièces du nettoyage {item.Summary.CleanId}: {ex.Message}", $"rooms of clean {item.Summary.CleanId}: {ex.Message}")); }
@@ -203,8 +206,8 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     {
         if (_settings.ArchiveCleans && await Task.Run(() => _archive.LoadDetail(summary.CleanId)) is { } kept) return kept;
         var detail = await _hub.Api.GetCleanDetailAsync(_hub.Serial, summary.CleanId, _hub.Ct);
-        var snapshot = _settings.ArchiveCleans ? await DownloadSnapshotAsync(summary) : null;
-        if (_settings.ArchiveCleans && !await Task.Run(() => _archive.Save(summary, detail, snapshot)))
+        var snapshot = Keeping ? await DownloadSnapshotAsync(summary) : null;
+        if (Keeping && !await Task.Run(() => _archive.Save(summary, detail, snapshot)))
             _hub.AddLog(T($"nettoyage {summary.CleanId} : copie locale impossible", $"clean {summary.CleanId}: local copy failed"));
         return detail;
     }
@@ -224,7 +227,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     private async Task<MapGrid?> ReadOrDownloadSnapshotAsync(CleanSummary summary)
     {
         var blob = _settings.ArchiveCleans ? await Task.Run(() => _archive.LoadSnapshot(summary.CleanId)) : null;
-        if (blob is null && (blob = await DownloadSnapshotAsync(summary)) is not null && _settings.ArchiveCleans)
+        if (blob is null && (blob = await DownloadSnapshotAsync(summary)) is not null && Keeping)
             await Task.Run(() => _archive.AddSnapshot(summary.CleanId, blob));
         return blob is null ? null : CleanSnapshot.Parse(blob)?.Grid;
     }

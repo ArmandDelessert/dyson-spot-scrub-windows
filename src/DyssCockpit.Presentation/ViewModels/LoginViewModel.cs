@@ -45,6 +45,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
         _loggers = loggers ?? NullLoggerFactory.Instance;
         _logger = _loggers.CreateLogger<LoginViewModel>();
         _language = language;
+        NewApi = (country, culture) => new DysonCloudClient(country, culture, logger: _loggers.CreateLogger<DysonCloudClient>());
         _selectedCountry = Countries.FirstOrDefault(c => c.Code == region) ?? Countries.FirstOrDefault(c => c.Code == "CH") ?? Countries[0];
         ListCultures(_selectedCountry);
     }
@@ -145,6 +146,12 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
     private DysonCloudClient? _api;
     private string? _challengeId;
 
+    /// <summary>The REST client for an account's country and language: Dyson's, or in a test, one that answers from canned replies.</summary>
+    internal Func<string, string, DysonCloudClient> NewApi { get; init; }
+
+    /// <summary>Where the session goes once logged in: the user's encrypted file, or in a test, anywhere but there.</summary>
+    internal Action<StoredSession> SaveSession { get; init; } = SessionStore.Save;
+
     /// <summary>Set by the window on success; the window then closes.</summary>
     public RobotContext? Result { get; private set; }
 
@@ -181,7 +188,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
         try
         {
             _api?.Dispose();
-            _api = new DysonCloudClient(SelectedCountry.Code, SelectedCulture.Code, logger: _loggers.CreateLogger<DysonCloudClient>());
+            _api = NewApi(SelectedCountry.Code, SelectedCulture.Code);
             await _api.ProvisionAsync();
             var status = await _api.GetUserStatusAsync(Email.Trim());
             if (!string.Equals(status.AccountStatus, "ACTIVE", StringComparison.OrdinalIgnoreCase))
@@ -219,7 +226,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
         {
             var login = await _api.CompleteLoginAsync(Email.Trim(), password, _challengeId, OtpCode.Trim());
             var stored = new StoredSession(Email.Trim(), _api.Country, _api.Culture, login.Account, login.Token, DateTimeOffset.UtcNow);
-            SessionStore.Save(stored);
+            SaveSession(stored);
             Result = RobotContext.FromLogin(_api, stored, _loggers);
             _api = null; // ownership moved to the context
         }

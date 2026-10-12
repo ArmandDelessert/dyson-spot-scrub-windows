@@ -198,18 +198,26 @@ public sealed partial class AppSettings : ObservableObject
     /// <summary>
     /// The stored preferences for a run that must leave the user's files alone, a screenshot taken
     /// while the application may be running beside it: whatever changes applies to this run only,
-    /// and messages are not recorded, since both processes would write the same daily file and the
-    /// one that fails would turn recording off for good.
+    /// the kept cleans are only read (see <see cref="LeavesFilesAlone"/>), and messages are not
+    /// recorded, since both processes would write the same daily file and the one that fails would
+    /// turn recording off for good.
     /// </summary>
     public static AppSettings LoadReadOnly(string? path = null)
     {
         var settings = Load(path);
         settings._path = null;
+        settings.LeavesFilesAlone = true;
         settings._loading = true;
         settings.RecordMessages = false;
         settings._loading = false;
         return settings;
     }
+
+    /// <summary>
+    /// True for a run that must leave the user's files alone (see <see cref="LoadReadOnly"/>): besides the
+    /// settings, the kept cleans are read but neither added to nor cleared.
+    /// </summary>
+    public bool LeavesFilesAlone { get; internal set; }
 
     private bool _loading;
 
