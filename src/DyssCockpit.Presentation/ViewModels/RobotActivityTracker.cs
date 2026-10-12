@@ -22,8 +22,10 @@ public sealed class RobotActivityTracker
     public RobotActivity Robot { get; private set; }
     public DockActivity Dock { get; private set; }
     /// <summary>
-    /// The task is over: back on the dock, charging, with nothing left to empty or wash (the hours
-    /// of drying do not count). The phone then takes the trail off the map; it is in the history.
+    /// The task is over: the robot is idle (INACTIVE_*), with nothing left for the dock to empty or
+    /// wash (the hours of drying do not count). The phone then takes the trail off the map; it is in
+    /// the history. Idle off the dock counts too: taken off it to clean its brushes, the robot says
+    /// INACTIVE_DISCHARGING, and its last clean is long over.
     /// </summary>
     public bool TaskOver { get; private set; }
 
@@ -69,7 +71,7 @@ public sealed class RobotActivityTracker
             _ => DockActivity.Idle,
         };
 
-        TaskOver = Docked && s?.State is "INACTIVE_CHARGING" or "INACTIVE_CHARGED"
+        TaskOver = s?.State?.StartsWith("INACTIVE_", StringComparison.Ordinal) == true
             && Dock is not (DockActivity.EmptyingBin or DockActivity.WashingRoller or DockActivity.FillingWater);
 
         Robot = Docked || s is null ? RobotActivity.Idle

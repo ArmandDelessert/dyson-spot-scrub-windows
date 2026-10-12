@@ -117,4 +117,32 @@ public class RobotActivityTrackerTests
         t.Apply(State("INACTIVE_CHARGED"));
         Assert.True(t.TaskOver);
     }
+
+    [Fact]
+    public void ARobotIdleOffItsDockIsDoneWithItsTaskToo()
+    {
+        // 2026-10-12: taken off the dock to clean its brushes, the day after a clean.
+        var t = new RobotActivityTracker();
+        t.Apply(State("INACTIVE_CHARGING"));
+        var jdm = new JdmProperties();
+        Push(t, jdm, """{"charge_state":0,"station_act":0}""");
+
+        t.Apply(State("INACTIVE_DISCHARGING"));
+
+        Assert.False(t.Docked);
+        Assert.True(t.TaskOver);
+    }
+
+    [Theory]
+    [InlineData("FULL_CLEAN_PAUSED")]
+    [InlineData("FULL_CLEAN_DISCOVERING")]
+    [InlineData("MAPPING_RUNNING")]
+    public void ARobotStillAtItsTaskOffTheDockIsNotDone(string state)
+    {
+        var t = new RobotActivityTracker();
+
+        t.Apply(State(state));
+
+        Assert.False(t.TaskOver);
+    }
 }
