@@ -438,7 +438,9 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             return Task.CompletedTask;
         }
         LastLaunch = new LaunchedClean(Zones.Where(z => z.Selected).OrderBy(z => z.Order).Select(z => z.Name).ToList(), _hub.Time.GetUtcNow());
-        return _hub.RunAsync(T($"démarrage de {rooms.Count} pièce(s)", $"starting {rooms.Count} room(s)"), c => CleaningSequence.StartAsync(c, mapId, rooms));
+        var mapRooms = Zones.Where(z => int.TryParse(z.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            .Select(z => new MapRoom(int.Parse(z.Id, CultureInfo.InvariantCulture), z.Name)).ToList();
+        return _hub.RunAsync(T($"démarrage de {rooms.Count} pièce(s)", $"starting {rooms.Count} room(s)"), c => CleaningSequence.StartAsync(c, mapId, rooms, mapRooms));
     }
 
     /// <summary>What this window last sent the robot to clean — the rooms, or none for a drawn zone — and when. The robot's own messages never say which rooms it set off for.</summary>

@@ -43,7 +43,7 @@ public class CleaningSequenceTests
         """;
 
     [Fact]
-    public async Task PublishesTheFourMessagesOfTheOfficialAppInOrder()
+    public async Task SendsThePreferencesThenTheStartAlone()
     {
         var robot = new RecordingRobot(PreferenceReply);
         RoomSelection[] rooms =
@@ -52,11 +52,11 @@ public class CleaningSequenceTests
             new("10", new RoomSettings(CleanType.VacuumThenMop, CleaningStrategy.Quiet, WaterLevel.High, MopPasses: 2), Order: 1),
         ];
 
-        await CleaningSequence.StartAsync(robot, MapId, rooms, TestContext.Current.CancellationToken);
+        await CleaningSequence.StartAsync(robot, MapId, rooms, [], TestContext.Current.CancellationToken);
 
-        Assert.Equal(
-            ["service.get_preference", "service.set_preference", "START", "service.set_cur_map", "service.set_room_clean"],
-            robot.Sent.Select(m => m.Method));
+        // set_cur_map and set_room_clean are the cloud's own translation of the START: sent again,
+        // they reached the robot twice.
+        Assert.Equal(["service.get_preference", "service.set_preference", "START"], robot.Sent.Select(m => m.Method));
         JsonAssert.Equal("""{"map_id":1000000002}""", robot.Sent[0].Payload);
         // The chosen rooms get their settings (indices 3 to 6), 8 (selected) and 10 (order); the
         // twelfth element is dropped because the app publishes eleven. Couloir keeps its type and
@@ -69,13 +69,33 @@ public class CleaningSequenceTests
                                 [15,"Pièce1",0,0,0,0,0,0,0,0,0]],
              "uv_switch":[]}
             """, robot.Sent[1].Payload);
-        // Zones in cleaning order, as strings on the classic topic and numbers on the jdm one.
+        // Zones in cleaning order.
         JsonAssert.Equal("""
             {"msg":"START","mode-reason":"RAPP","cleaningMode":"zoneConfigured","fullCleanType":"immediate",
              "cleaningProgramme":{"persistentMapId":"1000000002","zonesDefinitionLastUpdatedDate":"","unorderedZones":["10","12"]}}
             """, robot.Sent[2].Payload);
-        JsonAssert.Equal("""{"map_id":1000000002}""", robot.Sent[3].Payload);
-        JsonAssert.Equal("""{"ctrl_value":1,"clean_type":0,"room_ids":[10,12]}""", robot.Sent[4].Payload);
+    }
+
+    [Fact]
+    public async Task TheRoomsTheRobotForgotAreAddedFromTheMap()
+    {
+        // 2026-10-12: after a one-off schedule of the Couloir, get_preference only lists the Couloir.
+        var robot = new RecordingRobot("""
+            {"msgId":"1","code":0,"method":"service.get_preference","data":{
+              "room":[[13,"{\"type\":\"hallway\",\"name\":\"Couloir\"}",3,0,0,0,0,0,1,0,1,0]],"material":[],"prefer_on":1}}
+            """);
+
+        await CleaningSequence.StartAsync(robot, MapId, [new("11", new RoomSettings(CleanType.Vacuum), Order: 1)],
+            [new MapRoom(13, "Couloir"), new MapRoom(11, "Salle de bain"), new MapRoom(10, "Cuisine")], TestContext.Current.CancellationToken);
+
+        // The Couloir as the robot had it, deselected; the others from the map, the bathroom chosen.
+        JsonAssert.Equal("""
+            {"map_id":1000000002,"prefer_type":1,
+             "room_preference":[[13,"{\"type\":\"hallway\",\"name\":\"Couloir\"}",3,0,0,0,0,0,0,0,1],
+                                [11,"Salle de bain",0,0,0,0,0,0,1,0,1],
+                                [10,"Cuisine",0,0,0,0,0,0,0,0,0]],
+             "uv_switch":[]}
+            """, robot.Sent[1].Payload);
     }
 
     [Fact]
@@ -88,7 +108,7 @@ public class CleaningSequenceTests
               "uv_switch":[[11,1],[14,0]]}}
             """);
 
-        await CleaningSequence.StartAsync(robot, MapId, [new("14", new RoomSettings(CleanType.Mop), Order: 1)], TestContext.Current.CancellationToken);
+        await CleaningSequence.StartAsync(robot, MapId, [new("14", new RoomSettings(CleanType.Mop), Order: 1)], [], TestContext.Current.CancellationToken);
 
         JsonAssert.Equal("""
             {"map_id":1000000002,"prefer_type":1,
@@ -105,7 +125,7 @@ public class CleaningSequenceTests
               "room":[["11","Salle de bain",0,0,0,0,0,0,0,0,1],[3000000000,"Salon",0,0,0,0,0,0,0,0,2]]}}
             """);
 
-        await CleaningSequence.StartAsync(robot, MapId, [new("11", new RoomSettings(CleanType.Mop), Order: 1)], TestContext.Current.CancellationToken);
+        await CleaningSequence.StartAsync(robot, MapId, [new("11", new RoomSettings(CleanType.Mop), Order: 1)], [], TestContext.Current.CancellationToken);
 
         JsonAssert.Equal("""
             {"map_id":1000000002,"prefer_type":1,
@@ -118,7 +138,7 @@ public class CleaningSequenceTests
     public async Task RefusesAnEmptySelectionBeforeTalkingToTheRobot()
     {
         var robot = new RecordingRobot(PreferenceReply);
-        await Assert.ThrowsAsync<ArgumentException>(() => CleaningSequence.StartAsync(robot, MapId, [], TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<ArgumentException>(() => CleaningSequence.StartAsync(robot, MapId, [], [], TestContext.Current.CancellationToken));
         Assert.Empty(robot.Sent);
     }
 

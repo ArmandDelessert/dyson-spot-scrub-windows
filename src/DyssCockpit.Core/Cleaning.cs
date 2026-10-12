@@ -165,18 +165,26 @@ public sealed record RoomSettings(CleanType CleanType, CleaningStrategy Strategy
 public sealed record RoomSelection(string ZoneId, RoomSettings Settings, int Order);
 
 /// <summary>
-/// The start sequence of the official app, reproduced from captures. Four messages on two topics:
-/// preferences, START, current map, room list. The room_preference arrays are taken from the
-/// robot's own get_preference so unknown indices stay untouched; only the room settings (indices 3
-/// to 6, see <see cref="RoomSettings"/>), the selection flag (index 8) and the order (index 10) of
-/// the chosen rooms are rewritten, as the phone does.
+/// Starting a clean of whole rooms: the room preferences (service.set_preference), then the classic
+/// START. The cloud turns the START into set_cur_map and set_room_clean for the robot itself (seen on
+/// 2026-10-10 and tried on 2026-10-12 with the START alone), so those two are not sent again; it
+/// does not send the preferences, which carry each room's settings and the order.
+/// <para>
+/// The room_preference arrays are taken from the robot's own get_preference so unknown indices stay
+/// untouched; only the room settings (indices 3 to 6, see <see cref="RoomSettings"/>), the selection
+/// flag (index 8) and the order (index 10) are rewritten, as the phone does. The robot's list is not
+/// enough on its own: after a scheduled clean it only holds that clean's rooms (seen on 2026-10-12,
+/// the Couloir alone after its one-off schedule), so every room of the map it lacks is added, as a
+/// schedule lists them all.
+/// </para>
 /// </summary>
 public static class CleaningSequence
 {
     public const int IndexSelected = 8;
     public const int IndexOrder = 10;
 
-    public static async Task StartAsync(IRobotCommands robot, long mapId, IReadOnlyList<RoomSelection> rooms, CancellationToken ct = default)
+    /// <param name="mapRooms">Every room of the map, for those the robot's own list lacks.</param>
+    public static async Task StartAsync(IRobotCommands robot, long mapId, IReadOnlyList<RoomSelection> rooms, IReadOnlyList<MapRoom> mapRooms, CancellationToken ct = default)
     {
         if (rooms.Count == 0) throw new ArgumentException("At least one room is required.", nameof(rooms));
 
@@ -185,8 +193,7 @@ public static class CleaningSequence
         var roomArray = data?["room"] as JsonArray ?? new JsonArray();
         var uvSwitch = data?["uv_switch"]?.DeepClone() as JsonArray ?? new JsonArray();
 
-        var bySelection = rooms.ToDictionary(r => r.ZoneId, r => r);
-        var rewritten = new JsonArray();
+        var entries = new List<(string Id, JsonArray Entry)>();
         foreach (var node in roomArray)
         {
             if (node is not JsonArray entry || entry.Count < 2) continue;
@@ -199,6 +206,27 @@ public static class CleaningSequence
             var id = arr[0] is JsonValue v && v.TryGetValue<long>(out var n) ? n.ToString(CultureInfo.InvariantCulture)
                 : arr[0] is JsonValue s && s.TryGetValue<string>(out var text) ? text
                 : "";
+            entries.Add((id, arr));
+        }
+
+        // The rooms of the map, and any chosen room, the robot did not list: all zeros but for the id and the name.
+        var known = entries.Select(e => e.Id).ToHashSet(StringComparer.Ordinal);
+        var missing = mapRooms.Select(r => (Id: r.ZoneId.ToString(CultureInfo.InvariantCulture), r.Name))
+            .Concat(rooms.Select(r => (Id: r.ZoneId, Name: r.ZoneId)))
+            .Where(r => int.TryParse(r.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            .DistinctBy(r => r.Id);
+        foreach (var (id, name) in missing)
+        {
+            if (!known.Add(id)) continue;
+            var arr = new JsonArray(int.Parse(id, CultureInfo.InvariantCulture), name);
+            while (arr.Count < 11) arr.Add(0);
+            entries.Add((id, arr));
+        }
+
+        var bySelection = rooms.ToDictionary(r => r.ZoneId, r => r);
+        var rewritten = new JsonArray();
+        foreach (var (id, arr) in entries)
+        {
             if (bySelection.TryGetValue(id, out var sel))
             {
                 sel.Settings.WriteTo(arr);
@@ -214,8 +242,6 @@ public static class CleaningSequence
 
         await robot.SetRoomPreferenceAsync(mapId, rewritten, uvSwitch, ct).ConfigureAwait(false);
         await robot.StartZoneCleanAsync(mapId.ToString(CultureInfo.InvariantCulture), rooms.OrderBy(r => r.Order).Select(r => r.ZoneId), ct).ConfigureAwait(false);
-        await robot.SetCurrentMapAsync(mapId, ct).ConfigureAwait(false);
-        await robot.SetRoomCleanAsync(rooms.OrderBy(r => r.Order).Select(r => int.Parse(r.ZoneId, CultureInfo.InvariantCulture)), ct: ct).ConfigureAwait(false);
     }
 }
 

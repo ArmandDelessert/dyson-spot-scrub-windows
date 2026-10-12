@@ -169,13 +169,12 @@ public class SentToTheRobotTests
 
         await vm.StartCleanCommand.ExecuteAsync(null);
 
-        Assert.Equal(["service.get_preference", "service.set_preference", "START", "service.set_cur_map", "service.set_room_clean"], Methods(robot));
+        Assert.Equal(["service.get_preference", "service.set_preference", "START"], Methods(robot));   // the cloud sends the robot the rest
         Assert.Equal("""{"map_id":1000000002}""", robot.Sent[0].Payload.ToJsonString());
         // Selected (index 8) and their order (index 10); the room left out is unticked.
         var prefs = robot.Sent[1].Payload["room_preference"]!.AsArray().Select(r => (Id: r![0]!.GetValue<int>(), Selected: r[8]!.GetValue<int>(), Order: r[10]!.GetValue<int>()));
         Assert.Equal([(10, 1, 2), (12, 0, 0), (13, 1, 1)], prefs);
         Assert.Equal(["13", "10"], robot.Sent[2].Payload["cleaningProgramme"]!["unorderedZones"]!.AsArray().Select(z => z!.GetValue<string>()));
-        Assert.Equal("""{"ctrl_value":1,"clean_type":0,"room_ids":[13,10]}""", robot.Sent[4].Payload.ToJsonString());
         Assert.Equal(["Couloir", "Cuisine"], vm.LastLaunch!.Rooms);
     }
 

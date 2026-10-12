@@ -27,7 +27,7 @@ Ce document décrit comment l'application Android MyDyson dialogue avec le robot
 
 **Cleaning**
 
-- Starting a cleaning is a sequence: `set_preference`, `START`, `set_cur_map`, `set_room_clean`. A pause is `ctrl_value` 2; an abort must carry the current state.
+- Starting a cleaning is `set_preference` then `START`: the cloud turns the `START` into `set_cur_map` and `set_room_clean` (or `set_areas_start` for a zone) itself, and sending those as well makes them reach the robot twice. A pause is `ctrl_value` 2; an abort must carry the current state.
 - The record of a cleaning (`clean_finish`, `clean_record`) arrives minutes after the cleaning ends, after the last wash. `record_task_status` tells how it ended: 1 done, 2 stopped by the user, 3 done after an interruption (seen once), 4 aborted by the robot.
 - The path of the robot is streamed in batches of a flat array (`cur_path`) with an `update` flag.
 
@@ -269,14 +269,14 @@ Deux valeurs de `type` observées : `liquid`, et `solid`, vue dans deux nettoyag
 
 ### Démarrer un nettoyage de pièces
 
-La séquence exacte du bouton de démarrage, en quatre messages sur deux topics :
+Ce que le robot reçoit au démarrage, en quatre messages sur deux topics. Seuls les deux premiers viennent de l'application ; les deux derniers sont la traduction du `START` par le cloud, sans champ `time` (voir plus bas) :
 
 ```
 -> command/jdm   service.set_preference   { map_id, prefer_type: 1, room_preference, uv_switch }
 <- status/jdm    code 0, data.result 0
 -> command       START
--> command/jdm   service.set_cur_map      { map_id }
--> command/jdm   service.set_room_clean   { ctrl_value: 1, clean_type: 0, room_ids: [11] }
+-> command/jdm   service.set_cur_map      { map_id }                                   (cloud)
+-> command/jdm   service.set_room_clean   { ctrl_value: 1, clean_type: 0, room_ids: [11] }   (cloud)
 ```
 
 La charge utile du `START` :
@@ -299,6 +299,10 @@ La charge utile du `START` :
 Les champs `fullCleanType` et `zonesDefinitionLastUpdatedDate` ne figurent dans aucune implémentation communautaire connue ; l'application les envoie systématiquement.
 
 `service.set_cur_map` fait partie de la séquence même quand la carte visée est déjà active. Rejouer la séquence sur une autre carte revient donc à changer de carte active et à démarrer en une seule action, ce que l'application mobile ne propose pas. Le robot a été entendu annoncer deux fois « Lancer un nettoyage personnalisé » lors d'un tel démarrage, sans que la capture permette d'en isoler la cause.
+
+**Le `START` seul, avec les préférences.** DySS Cockpit envoyait aussi `set_cur_map` et `set_room_clean` : le robot les recevait donc deux fois, et le second `set_room_clean` répondait `result: 1` (10 octobre 2026), sans autre effet visible. Essayé le 12 octobre 2026 avec `set_preference` puis le `START` seul, sur la salle de bain en aspiration seule : le cloud a envoyé `set_cur_map` et `set_room_clean` dans la même seconde, un seul `event.startClean.post`, la salle de bain nettoyée (`CLEAN_COMPLETE`) et une seule entrée dans l'historique. Le cloud ne traduit pas les préférences : `set_preference` reste à envoyer.
+
+**Les préférences que le robot oublie.** Après l'exécution d'un horaire, `get_preference` ne liste plus que les pièces de cet horaire (le 12 octobre 2026, le Couloir seul, depuis l'horaire ponctuel de la veille ; huit pièces avant). Un `set_preference` construit sur cette seule réponse ne contiendrait pas la pièce choisie : DySS Cockpit y ajoute toutes les pièces de la carte qu'elle ne liste pas, comme le fait un horaire.
 
 ### Réglages par pièce (`room_preference`)
 
