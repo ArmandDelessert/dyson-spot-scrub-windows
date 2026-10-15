@@ -170,6 +170,7 @@
                         <StackPanel>
                             <TextBlock Text='{local:Tr Fr="Conservation des journaux de l&apos;application", En="Keep the application logs"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
                             <TextBlock Text='{local:Tr Fr="Un fichier par jour, dans le dossier Logs. Les plus anciens sont supprimés.", En="One file a day, in the Logs folder. The oldest are deleted."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <HyperlinkButton Content='{local:Tr Fr="Ouvrir le dossier des journaux", En="Open the logs folder"}' Command="{x:Bind ViewModel.OpenLogsFolderCommand}" Padding="0" Margin="0,2,0,0"/>
                         </StackPanel>
                         <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.LogRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center"
                                   AutomationProperties.Name='{local:Tr Fr="Durée de conservation", En="Retention"}'>
@@ -262,10 +263,7 @@
                     <TextBlock Text="{x:Bind ViewModel.VersionText}" Style="{StaticResource BodyStrongTextBlockStyle}" IsTextSelectionEnabled="True"/>
                     <TextBlock Text='{local:Tr Fr="Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson. Dyson, Spot+Scrub et MyDyson sont des marques du groupe Dyson.", En="Independent project, not affiliated with, approved or supported by Dyson. Dyson, Spot+Scrub and MyDyson are trademarks of the Dyson group."}'
                                Style="{StaticResource Caption}"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <HyperlinkButton Content='{local:Tr Fr="Code source", En="Source code"}' NavigateUri="https://github.com/ArmandDelessert/dyson-spot-scrub-windows" Padding="0"/>
-                        <HyperlinkButton Content='{local:Tr Fr="Ouvrir le dossier des journaux", En="Open the logs folder"}' Command="{x:Bind ViewModel.OpenLogsFolderCommand}"/>
-                    </StackPanel>
+                    <HyperlinkButton Content='{local:Tr Fr="Code source", En="Source code"}' NavigateUri="https://github.com/ArmandDelessert/dyson-spot-scrub-windows" Padding="0"/>
                 </StackPanel>
             </Border>
         </StackPanel>
