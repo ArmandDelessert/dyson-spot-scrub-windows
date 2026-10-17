@@ -33,12 +33,14 @@ public partial class App : Application
     private bool _trayShowsAlert;
     /// <summary>Set once the user chose to quit: closing the window then closes it for real.</summary>
     private bool _exiting;
+    /// <summary>What this run was started with: mostly nothing, or a diagnostic one-shot (see App.Diagnostics.cs).</summary>
+    private readonly LaunchOptions _options = LaunchOptions.Parse(Environment.GetCommandLineArgs().Skip(1).ToArray());
 
     public App()
     {
         // The language comes first: the XAML resources loaded just below already carry texts.
         var stored = _settings = AppSettings.Load();
-        Translation.Current = Option(Environment.GetCommandLineArgs(), "--lang") switch
+        Translation.Current = _options.Language switch
         {
             "fr" => AppLanguage.French,
             "en" => AppLanguage.English,
@@ -99,10 +101,9 @@ public partial class App : Application
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
-        var argv = Environment.GetCommandLineArgs().Skip(1).ToArray();
         try
         {
-            await RunAsync(argv);
+            await RunAsync(_options);
         }
         catch (Exception ex)
         {
@@ -115,55 +116,19 @@ public partial class App : Application
         }
     }
 
-    private static string? Option(string[] args, string name) =>
-        Array.IndexOf(args, name) is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
-
-    private async Task RunAsync(string[] args)
+    private async Task RunAsync(LaunchOptions options)
     {
-        // --theme light|dark forces a theme, mainly for screenshots and exports.
-        var theme = Option(args, "--theme") switch
-        {
-            "light" => ElementTheme.Light,
-            "dark" => ElementTheme.Dark,
-            _ => ElementTheme.Default,
-        };
+        // A map or the icon to a file: done without a window.
+        if (await ExportAsync(options)) return;
 
-        // Headless helper: render a map to a PNG and exit. Used to check the renderer without a
-        // window, and handy for sharing a map. Defaults to the current map.
-        //   DyssCockpit.exe --export-map out.png [--serial S] [--map-id ID] [--theme light]
-        if (Option(args, "--export-map") is { } exportPath)
-        {
-            // Headless: a failure goes to the console and the exit code, not to a dialog nobody
-            // may be there to close.
-            try { Environment.ExitCode = await ExportMapAsync(exportPath, Option(args, "--serial"), Option(args, "--map-id"), theme, _loggers); }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine(T($"Export impossible : {ex.Message}", $"Export failed: {ex.Message}"));
-                Environment.ExitCode = 1;
-            }
-            Exit();
-            return;
-        }
-
-        // Headless helper: writes the application icon, drawn by the map's own code, to an .ico;
-        // with --alert, the notification area's while the robot reports a fault.
-        //   DyssCockpit.exe --export-icon Assets\AppIcon.ico
-        //   DyssCockpit.exe --export-icon Assets\AppIconAlert.ico --alert
-        if (Option(args, "--export-icon") is { } iconPath)
-        {
-            await using (var file = File.Create(iconPath))
-                await AppIcon.WriteIcoAsync(file, AppIcon.Sizes, alert: Array.IndexOf(args, "--alert") >= 0);
-            Exit();
-            return;
-        }
-
+        var theme = ThemeOf(options);
+        var screenshot = options.IsScreenshot;
         // A screenshot is always the same size, wherever the window was left.
-        _window = new MainWindow(Option(args, "--screenshot") is null ? _settings : null);
+        _window = new MainWindow(screenshot ? null : _settings);
         if (theme != ElementTheme.Default) _window.ForceTheme(theme);
-        var screenshot = Option(args, "--screenshot");
         // Started with Windows, with a session to resume: straight to the notification area, the
         // window left closed. A login to fill in opens it all the same.
-        if (screenshot is not null || Array.IndexOf(args, Program.MinimizedArgument) < 0 || !SessionStore.Exists) _window.Activate();
+        if (screenshot || !options.Minimized || !SessionStore.Exists) _window.Activate();
         _notifications = new NotificationService(_window.DispatcherQueue, _loggers.CreateLogger<NotificationService>());
         var shell = new AppShell(_notifications, () => Restart().ToString(), ShowWindow, _loggers.CreateLogger<AppShell>());
         _window.Closed += (_, _) =>
@@ -171,7 +136,7 @@ public partial class App : Application
             _notifications.Dispose();
             _tray?.Dispose();
         };
-        if (screenshot is not null) _ = ScreenshotAsync(args, screenshot);
+        if (screenshot) _ = ScreenshotAsync(options);
         else
         {
             // A one-shot screenshot has no business in the notification area.
@@ -181,9 +146,8 @@ public partial class App : Application
             AppInstance.GetCurrent().Activated += (_, e) => _window.DispatcherQueue.TryEnqueue(() => OnActivated(e));
         }
 
-        // --login starts at the login whatever session is stored, mainly for screenshots: the stored
-        // one stays until another login replaces it.
-        var skipStored = Array.IndexOf(args, "--login") >= 0;
+        // --login starts at the login whatever session is stored, mainly for screenshots.
+        var skipStored = options.Login;
 
         // Loops so that logging out from the dashboard comes back here to sign in again.
         while (true)
@@ -197,9 +161,9 @@ public partial class App : Application
             }
 
             // A screenshot may run beside the application: it reads the preferences, never writes them.
-            var settings = screenshot is null ? _settings : AppSettings.LoadReadOnly();
+            var settings = screenshot ? AppSettings.LoadReadOnly() : _settings;
             // ... and what it was told to speak is what it shows as chosen, so no restart is asked for.
-            if (screenshot is not null && Option(args, "--lang") is "fr" or "en") settings.Language = AppSettings.NormalizeLanguage(Option(args, "--lang"));
+            if (screenshot && options.Language is { } language) settings.Language = AppSettings.NormalizeLanguage(language);
             _shell = new ShellView(_window, ctx, _notifications, shell, settings);
             _window.Show(_shell);
             _shell.Start();
@@ -373,89 +337,5 @@ public partial class App : Application
         CreateTrayIcon();
         UpdateTray();
         return failure;
-    }
-
-    private static async Task<int> ExportMapAsync(string path, string? serial, string? mapId, ElementTheme theme, ILoggerFactory loggers)
-    {
-        var ctx = RobotContext.FromStoredSession(loggers);
-        if (ctx is null) { Console.Error.WriteLine(T("Aucune session. Lancez l'application et connectez-vous d'abord.", "No session. Start the application and log in first.")); return 2; }
-        await using var _ = ctx;
-        var robot = await ctx.LoadDevicesAsync(serial);
-        if (robot is null) { Console.Error.WriteLine(T("Robot introuvable.", "Robot not found.")); return 2; }
-        var s = robot.SerialNumber;
-
-        var maps = await ctx.Api.GetMapMetadataAsync(s);
-        var current = mapId is not null
-            ? maps.FirstOrDefault(m => m.Id == mapId) ?? throw new InvalidOperationException(T($"Carte {mapId} introuvable.", $"Map {mapId} not found."))
-            : maps.FirstOrDefault(m => m.IsCurrentMap) ?? maps.First();
-        var map = await ctx.Api.GetPersistentMapAsync(s, current.Id);
-        // The occupancy grid and the live robot position/path only ever describe the currently
-        // active map; attaching them to another map would overlay an unrelated task's stray path.
-        MapGrid? grid = null; RobotPosition? robotPos = null; List<DyssCockpit.Core.Point>? cleanPath = null; List<DyssCockpit.Core.Point>? obstacles = null; List<DirtSpot>? dirt = null;
-        if (current.IsCurrentMap)
-        {
-            grid = MapGrid.From(await ctx.Api.GetMappingMapAsync(s));
-            var live = await ctx.Api.GetLiveCleaningMapAsync(s);
-            robotPos = live.RobotLocation;
-            cleanPath = live.CleanPath;
-            obstacles = live.Obstacles;
-            dirt = live.Dirt;
-        }
-
-        var scene = new MapScene
-        {
-            Grid = grid, Map = map, ZoneMetadata = current.Zones,
-            Dock = map.DockLocation, Robot = robotPos, Path = cleanPath, Obstacles = obstacles, DirtSpots = dirt,
-        };
-        await MapImage.ExportPngAsync(scene, 1200, 1400, path, theme == ElementTheme.Light ? MapPalette.Light : MapPalette.Dark);
-        Console.WriteLine(T($"Carte {current.Name} exportée vers {path}", $"Map {current.Name} exported to {path}"));
-        return 0;
-    }
-
-    /// <summary>
-    /// --screenshot out.png [--after 20]: renders the window once data has arrived — or whatever it
-    /// shows by then, the login for one — then exits. On the dashboard, --tab 1 shows another page,
-    /// --zones 11,10 clicks rooms in that order, --manage-maps shoots the map manager instead
-    /// (--layer 1 or 2 on the zones or furniture tab, --map-id on another map), --scroll the page shown
-    /// scrolled to its end, and --edit-schedule the editor of a new schedule.
-    /// </summary>
-    private async Task ScreenshotAsync(string[] args, string path)
-    {
-        try
-        {
-            var seconds = int.TryParse(Option(args, "--after"), out var n) ? n : 20;
-            await Task.Delay(TimeSpan.FromSeconds(seconds));
-            UIElement shot = _window!.View;
-            if (_shell is { } shell)
-            {
-                foreach (var zone in Option(args, "--zones")?.Split(',') ?? []) shell.ClickZone(zone);
-                shell.SelectTab(int.TryParse(Option(args, "--tab"), out var tab) ? tab : 0);
-                await Task.Delay(500);
-                // --scroll: the page shown, scrolled to its end, for a settings page longer than the window.
-                if (Array.IndexOf(args, "--scroll") >= 0)
-                {
-                    shell.ScrollPageToEnd();
-                    await Task.Delay(500);
-                }
-                if (Array.IndexOf(args, "--manage-maps") >= 0)
-                {
-                    shell.OpenMapManagerForScreenshot(int.TryParse(Option(args, "--layer"), out var layer) ? layer : 0, Option(args, "--map-id"));
-                    await Task.Delay(TimeSpan.FromSeconds(6));
-                }
-                else if (Array.IndexOf(args, "--edit-schedule") >= 0 && shell.OpenScheduleEditorForScreenshot() is { } dialog)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(2));
-                    shot = dialog;
-                }
-            }
-            await Screenshot.SaveAsync(shot, path, _window.Theme);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"--screenshot failed: {ex}");
-        }
-        // A diagnostic one-shot process has no reason to wait for a graceful close or for the
-        // broker to say goodbye: the PNG is already on disk.
-        Environment.Exit(0);
     }
 }

@@ -1,4 +1,5 @@
 using System.Globalization;
+using DyssCockpit.Presentation.Services;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
@@ -16,13 +17,10 @@ public static class Program
     private const string InstanceKey = "DyssCockpit.Main";
 
     /// <summary>Starting with Windows: straight to the notification area, the window left closed.</summary>
-    public const string MinimizedArgument = "--minimized";
+    public const string MinimizedArgument = LaunchOptions.MinimizedArgument;
 
     /// <summary>"--wait-for-exit=PID", from a restart: the old instance must be gone, with its key and its icon, before this one starts.</summary>
     public const string WaitForExitArgument = "--wait-for-exit";
-
-    /// <summary>The diagnostic options, one-shot runs that may go alongside the running instance (see the README).</summary>
-    private static readonly string[] DiagnosticArguments = ["--export-map", "--export-icon", "--screenshot"];
 
     [STAThread]
     private static int Main(string[] args)
@@ -30,7 +28,7 @@ public static class Program
         WinRT.ComWrappersSupport.InitializeComWrappers();
         WaitForPreviousInstance(args);
 
-        if (!args.Any(DiagnosticArguments.Contains))
+        if (!LaunchOptions.Parse(args).IsOneShot)
         {
             var main = AppInstance.FindOrRegisterForKey(InstanceKey);
             if (!main.IsCurrent)
