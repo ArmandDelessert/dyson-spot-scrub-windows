@@ -163,7 +163,7 @@ public partial class App : Application
             // A screenshot may run beside the application: it reads the preferences, never writes them.
             var settings = screenshot ? AppSettings.LoadReadOnly() : _settings;
             // ... and what it was told to speak is what it shows as chosen, so no restart is asked for.
-            if (screenshot && options.Language is { } language) settings.Language = AppSettings.NormalizeLanguage(language);
+            if (screenshot && options.Language is { } language) settings.Language = language == "fr" ? "fr-FR" : "en-US";
             _shell = new ShellView(_window, ctx, _notifications, shell, settings);
             _window.Show(_shell);
             _shell.Start();

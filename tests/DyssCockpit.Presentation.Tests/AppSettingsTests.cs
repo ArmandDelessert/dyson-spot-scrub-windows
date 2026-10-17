@@ -80,30 +80,14 @@ public sealed class AppSettingsTests : IDisposable
     [InlineData("fr-FR", "fr-FR")]
     [InlineData("en-US", "en-US")]
     [InlineData("", "")]
-    [InlineData("fr", "fr-FR")]        // the first versions
-    [InlineData("en", "en-US")]
-    [InlineData("auto", "")]
-    [InlineData("fr-CH", "fr-FR")]     // any French is French
-    [InlineData("EN-gb", "en-US")]
     [InlineData("de-DE", "")]          // a language the application does not have: Windows' own
+    [InlineData("fr", "")]
     [InlineData(null, "")]
-    public void TheLanguageIsStoredAsACultureNameAndTheOldValuesAreStillRead(string? stored, string expected)
+    public void TheLanguageIsStoredAsACultureNameAndAnythingElseIsWindowsOwn(string? stored, string expected)
     {
         File.WriteAllText(_path, stored is null ? "{}" : $$"""{"Language":"{{stored}}"}""");
 
         Assert.Equal(expected, AppSettings.Load(_path).Language);
-        Assert.Equal(expected, AppSettings.NormalizeLanguage(stored));
-    }
-
-    [Fact]
-    public void AnOldLanguageValueIsWrittenBackAsACultureNameAtTheNextSave()
-    {
-        File.WriteAllText(_path, """{"Language":"fr","ShowFurniture":true}""");
-        var settings = AppSettings.Load(_path);
-
-        settings.SnapToGrid = false;   // any change saves
-
-        Assert.Contains("\"Language\": \"fr-FR\"", File.ReadAllText(_path), StringComparison.Ordinal);
     }
 
     [Fact]

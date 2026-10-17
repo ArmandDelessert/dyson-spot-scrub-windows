@@ -95,8 +95,7 @@ public sealed partial class AppSettings : ObservableObject
     /// <summary>
     /// The language of the application, as the name of a culture, which is what HusqA Cockpit writes too:
     /// <c>"fr-FR"</c>, <c>"en-US"</c>, or empty for Windows' own (French on a French Windows, English
-    /// otherwise). Read once at start-up, see <see cref="ChosenLanguage"/>. A file written by an earlier
-    /// version (<c>"fr"</c>, <c>"en"</c>, <c>"auto"</c>) is read all the same, see <see cref="NormalizeLanguage"/>.
+    /// otherwise). Read once at start-up, see <see cref="ChosenLanguage"/>; any other value reads as empty.
     /// </summary>
     [ObservableProperty] private string _language = "";
 
@@ -150,23 +149,12 @@ public sealed partial class AppSettings : ObservableObject
 
     /// <summary>The language <see cref="Language"/> stands for on this machine.</summary>
     [JsonIgnore]
-    public AppLanguage ChosenLanguage => NormalizeLanguage(Language) switch
+    public AppLanguage ChosenLanguage => Language switch
     {
         "fr-FR" => AppLanguage.French,
         "en-US" => AppLanguage.English,
         _ => Translation.FromCulture(CultureInfo.CurrentUICulture),
     };
-
-    /// <summary>
-    /// What is stored for a language: <c>"fr-FR"</c> for any French (<c>"fr"</c>, <c>"fr-CH"</c>…), <c>"en-US"</c> for any
-    /// English, and empty for anything else, <c>"auto"</c> of the first versions included, which means Windows' own.
-    /// </summary>
-    public static string NormalizeLanguage(string? language)
-    {
-        var name = language?.Trim() ?? "";
-        if (name.StartsWith("fr", StringComparison.OrdinalIgnoreCase)) return "fr-FR";
-        return name.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? "en-US" : "";
-    }
 
     /// <summary>Raised after any of the above changes, once they have been written back to disk.</summary>
     public event Action? Changed;
@@ -199,12 +187,12 @@ public sealed partial class AppSettings : ObservableObject
 
     /// <summary>
     /// Puts back to its default whatever the file holds that this version does not offer: a
-    /// retention written in by hand that the list lacks, an empty window, a language of an
-    /// earlier version (see <see cref="NormalizeLanguage"/>).
+    /// retention written in by hand that the list lacks, an empty window, a language the
+    /// application does not have.
     /// </summary>
     private void Validate()
     {
-        Language = NormalizeLanguage(Language);
+        if (Language is not ("fr-FR" or "en-US")) Language = "";
         if (!RetentionChoices.Contains(LogRetentionDays)) LogRetentionDays = 7;
         if (!RetentionChoices.Contains(MessageRetentionDays)) MessageRetentionDays = 30;
         if (!CleanArchiveChoices.Contains(CleanArchiveRetentionDays)) CleanArchiveRetentionDays = 365;
