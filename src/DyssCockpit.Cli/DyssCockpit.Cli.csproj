@@ -12,4 +12,8 @@
     <ProjectReference Include="..\DyssCockpit.Core\DyssCockpit.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="DyssCockpit.Cli.Tests" />
+  </ItemGroup>
+
 </Project>
