@@ -296,4 +296,87 @@ public sealed class AppSettingsTests : IDisposable
         Assert.Equal(1, changes);
         Assert.False(File.Exists(_path));
     }
+
+    // ---- The file format, unchanged by the class becoming its own format ------------------------
+
+    /// <summary>A file as the version before wrote it, every setting away from its default.</summary>
+    private const string EveryKeyAwayFromItsDefault = """
+        {
+          "ShowFurniture": false,
+          "ShowTravelPath": false,
+          "ShowExportButton": true,
+          "RecordMessages": true,
+          "SnapToGrid": false,
+          "SmoothRobotMotion": true,
+          "Language": "en-US",
+          "CloseToTray": false,
+          "TrayHintShown": true,
+          "ShowCleanedArea": false,
+          "TaskNotifications": "StartAndEnd",
+          "NotifyUnreachable": false,
+          "LogRetentionDays": 14,
+          "MessageRetentionDays": 90,
+          "NotifyRobotFault": false,
+          "Window": { "X": 10, "Y": 20, "Width": 1200, "Height": 800, "Maximized": true },
+          "ArchiveCleans": true,
+          "CleanArchiveRetentionDays": 730,
+          "ShowPointerCoordinates": true,
+          "ShowShapeDimensions": true
+        }
+        """;
+
+    [Fact]
+    public void AFileOfThePreviousVersionIsReadSettingBySetting()
+    {
+        File.WriteAllText(_path, EveryKeyAwayFromItsDefault);
+
+        var s = AppSettings.Load(_path);
+
+        Assert.Equal((false, false, true, true, false, true), (s.ShowFurniture, s.ShowTravelPath, s.ShowExportButton, s.RecordMessages, s.SnapToGrid, s.SmoothRobotMotion));
+        Assert.Equal(("en-US", false, true, false), (s.Language, s.CloseToTray, s.TrayHintShown, s.ShowCleanedArea));
+        Assert.Equal((TaskNotificationMode.StartAndEnd, false, false), (s.TaskNotifications, s.NotifyUnreachable, s.NotifyRobotFault));
+        Assert.Equal((14, 90, true, 730), (s.LogRetentionDays, s.MessageRetentionDays, s.ArchiveCleans, s.CleanArchiveRetentionDays));
+        Assert.Equal(new WindowBounds(10, 20, 1200, 800, true), s.Window);
+        Assert.Equal((true, true), (s.ShowPointerCoordinates, s.ShowShapeDimensions));
+    }
+
+    [Fact]
+    public void WrittenBackItHasTheSameKeysAndValuesAndNothingElse()
+    {
+        File.WriteAllText(_path, EveryKeyAwayFromItsDefault);
+        var settings = AppSettings.Load(_path);
+
+        settings.ShowFurniture = true;
+        settings.ShowFurniture = false;   // written twice, ending where it was
+
+        using var written = System.Text.Json.JsonDocument.Parse(File.ReadAllText(_path));
+        using var before = System.Text.Json.JsonDocument.Parse(EveryKeyAwayFromItsDefault);
+        Assert.Equal(before.RootElement.EnumerateObject().Select(p => p.Name).Order(), written.RootElement.EnumerateObject().Select(p => p.Name).Order());
+        Assert.True(System.Text.Json.JsonElement.DeepEquals(before.RootElement, written.RootElement), File.ReadAllText(_path));
+    }
+
+    [Theory]
+    [InlineData("\"Sometimes\"")]
+    [InlineData("2")]
+    [InlineData("{}")]
+    public void ANotificationChoiceThisVersionDoesNotKnowIsTheDefaultAndTheRestIsKept(string value)
+    {
+        File.WriteAllText(_path, $$"""{"TaskNotifications": {{value}}, "ShowFurniture": false}""");
+
+        var settings = AppSettings.Load(_path);
+
+        Assert.Equal(TaskNotificationMode.EndOnly, settings.TaskNotifications);
+        Assert.False(settings.ShowFurniture);
+    }
+
+    [Fact]
+    public void AnEmptyWindowIsForgottenAndUnknownKeysAreIgnored()
+    {
+        File.WriteAllText(_path, """{"Window": {"X": 0, "Y": 0, "Width": 0, "Height": 0, "Maximized": false}, "SomethingNew": 3, "ShowFurniture": false}""");
+
+        var settings = AppSettings.Load(_path);
+
+        Assert.Null(settings.Window);
+        Assert.False(settings.ShowFurniture);
+    }
 }
