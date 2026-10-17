@@ -47,7 +47,7 @@ public sealed partial class ConnectionWaitView : UserControl
         if (e.IsAvailable) DispatcherQueue.TryEnqueue(() => Answer(true));
     }
 
-    private void UpdateCountdown() => Countdown.Text = T($"Nouvel essai dans {_secondsLeft} s…", $"Trying again in {_secondsLeft} s…");
+    private void UpdateCountdown() => Countdown.Text = Tf($"Nouvel essai dans {_secondsLeft} s…", $"Trying again in {_secondsLeft} s…");
 
     private void Retry_Click(object sender, RoutedEventArgs e) => Answer(true);
     private void Quit_Click(object sender, RoutedEventArgs e) => Answer(false);

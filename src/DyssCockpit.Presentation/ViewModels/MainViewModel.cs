@@ -53,9 +53,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// it is doing and its battery, a fault if it has one, or why there is nothing to say.
     /// </summary>
     public string Summary =>
-        !Hub.Connected ? T($"{RobotName} : {Hub.Connection}", $"{RobotName}: {Hub.Connection}")
+        !Hub.Connected ? Tf($"{RobotName} : {Hub.Connection}", $"{RobotName}: {Hub.Connection}")
         : string.IsNullOrEmpty(Status.StateText) ? RobotName
-        : T($"{RobotName} : ", $"{RobotName}: ") + $"{Status.StateText} · {Status.Battery} %" + (Status.HasRealFault ? $" · {Status.FaultText}" : "");
+        : Tf($"{RobotName} : ", $"{RobotName}: ") + $"{Status.StateText} · {Status.Battery} %" + (Status.HasRealFault ? $" · {Status.FaultText}" : "");
 
     /// <summary>A fault the user should see: the icon in the notification area then carries a badge.</summary>
     public bool NeedsAttention => Status.HasRealFault;
@@ -182,8 +182,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (faults.Count == 0 || !AppSettings.NotifyRobotFault) return;
         var what = string.Join(", ", faults.Select(StatusViewModel.Describe));
         NotifyRequested?.Invoke(T("Panne du robot", "Robot fault"), faults.Count == 1
-            ? T($"Le robot signale la {what}.", $"The robot reports {what}.")
-            : T($"Le robot signale plusieurs fautes : {what}.", $"The robot reports several faults: {what}."));
+            ? Tf($"Le robot signale la {what}.", $"The robot reports {what}.")
+            : Tf($"Le robot signale plusieurs fautes : {what}.", $"The robot reports several faults: {what}."));
     }
 
     /// <summary>
@@ -243,8 +243,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (rooms.Count == 0) return T("Le robot nettoie la zone.", "The robot is cleaning the zone.");
             var names = rooms.Count <= 3
                 ? string.Join(", ", rooms)
-                : string.Join(", ", rooms.Take(3)) + T($" et {rooms.Count - 3} autre(s)", $" and {rooms.Count - 3} more");
-            return T($"Le robot nettoie : {names}.", $"The robot is cleaning: {names}.");
+                : string.Join(", ", rooms.Take(3)) + Tf($" et {rooms.Count - 3} autre(s)", $" and {rooms.Count - 3} more");
+            return Tf($"Le robot nettoie : {names}.", $"The robot is cleaning: {names}.");
         }
         return notice.IsZone
             ? T("Le robot nettoie une zone.", "The robot is cleaning a zone.")
@@ -256,7 +256,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (minutes is not > 0) return T("Le robot a terminé son nettoyage.", "The robot has finished cleaning.");
         var duration = ScheduleEditorViewModel.FormatMinutes(minutes.Value);
-        return T($"Le robot a terminé son nettoyage en {duration}.", $"The robot has finished cleaning in {duration}.");
+        return Tf($"Le robot a terminé son nettoyage en {duration}.", $"The robot has finished cleaning in {duration}.");
     }
 
     /// <summary>
@@ -296,8 +296,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             catch (Exception ex) when (!Hub.IsShuttingDown)
             {
                 var delay = RobotSession.BackoffFor(attempt);
-                Hub.Connection = T($"Hors ligne, nouvel essai dans {delay.TotalSeconds:F0} s", $"Offline, retrying in {delay.TotalSeconds:F0} s");
-                Hub.AddLog(T($"connexion au robot impossible : {ex.Message}", $"cannot connect to the robot: {ex.Message}"));
+                Hub.Connection = Tf($"Hors ligne, nouvel essai dans {delay.TotalSeconds:F0} s", $"Offline, retrying in {delay.TotalSeconds:F0} s");
+                Hub.AddLog(Tf($"connexion au robot impossible : {ex.Message}", $"cannot connect to the robot: {ex.Message}"));
                 await Task.Delay(delay, Hub.Time, Hub.Ct);
             }
         }
@@ -334,7 +334,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _reloading = true;
         try
         {
-            if (reason is not null) Hub.AddLog(T($"{reason}, rechargement des données", $"{reason}, reloading the data"));
+            if (reason is not null) Hub.AddLog(Tf($"{reason}, rechargement des données", $"{reason}, reloading the data"));
             // Drop cached geometry too: furniture, zones or rooms edited from the phone would
             // otherwise keep showing as they were when first loaded.
             _maps.Invalidate();
@@ -364,7 +364,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The token died mid-session: same exit as a logout, but told rather than asked.</summary>
     private async Task SessionExpiredAsync(string reason)
     {
-        Hub.AddLog(T($"session expirée: {reason}", $"session expired: {reason}"));
+        Hub.AddLog(Tf($"session expirée: {reason}", $"session expired: {reason}"));
         await Hub.Dialogs.AlertAsync(T("Session expirée", "Session expired"),
             T("La session MyDyson n'est plus acceptée par le cloud Dyson. Vous devez vous reconnecter.", "The Dyson cloud no longer accepts the MyDyson session. Please log in again."));
         await ShutdownAsync();

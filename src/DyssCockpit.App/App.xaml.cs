@@ -1,3 +1,4 @@
+using System.Globalization;
 using DyssCockpit.App.Rendering;
 using DyssCockpit.App.Services;
 using DyssCockpit.App.Views;
@@ -40,12 +41,13 @@ public partial class App : Application
     {
         // The language comes first: the XAML resources loaded just below already carry texts.
         var stored = _settings = AppSettings.Load();
-        Translation.Current = _options.Language switch
+        Translation.Current = AppLanguages.FromTag(_options.Language) ?? stored.ChosenLanguage;
+        // A language that was chosen also decides how dates and numbers are written; "automatic" leaves them to Windows.
+        if (_options.Language is not null || stored.Language.Length > 0)
         {
-            "fr" => AppLanguage.French,
-            "en" => AppLanguage.English,
-            _ => stored.ChosenLanguage,
-        };
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.DefaultThreadCurrentUICulture = Translation.Culture;
+            CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = Translation.Culture;
+        }
         // What is too old is cleared whether or not anything is being written to it now.
         using (var records = new MessageLog(keepDays: stored.MessageRetentionDays)) records.Purge();
         new CleanArchive(AppFolders.Cleans(SessionStore.Directory)).Purge(stored.CleanArchiveRetentionDays);
@@ -111,7 +113,7 @@ public partial class App : Application
             // is what an unreachable network used to do.
             Console.Error.WriteLine(ex);
             LogStartFailed(_logger, ex);
-            if (await ShowErrorAsync("DySS Cockpit", T($"L'application n'a pas pu démarrer : {ex.Message}", $"The application could not start: {ex.Message}"))) _window?.Close();
+            if (await ShowErrorAsync("DySS Cockpit", Tf($"L'application n'a pas pu démarrer : {ex.Message}", $"The application could not start: {ex.Message}"))) _window?.Close();
             else Exit();
         }
     }

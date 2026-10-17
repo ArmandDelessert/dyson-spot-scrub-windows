@@ -10,6 +10,12 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
   </ItemGroup>
 
+  <!-- The texts of the languages other than French and English: Translations\{tag}.json, read by Translation.
+       They are written with tools/translations; see the README. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Translations\*.json" LogicalName="DyssCockpit.Core.Translations.%(Filename)%(Extension)" WithCulture="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="DyssCockpit.Core.Tests" />
   </ItemGroup>

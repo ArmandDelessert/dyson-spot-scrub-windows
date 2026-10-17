@@ -44,7 +44,7 @@ public sealed partial class ManagedZone(Restriction restriction, int sourceIndex
     public RestrictionKind? Kind { get; } = RestrictionKind.FromBehavior(restriction.Behavior);
     public IReadOnlyList<DyssCockpit.Core.Point> Corners => Restriction.Points ?? [];
     public bool CanBeSentBack => Kind is not null && Corners.Count == 4;
-    public string Label => Kind?.Label ?? T($"Type inconnu ({Restriction.Behavior})", $"Unknown type ({Restriction.Behavior})");
+    public string Label => Kind?.Label ?? Tf($"Type inconnu ({Restriction.Behavior})", $"Unknown type ({Restriction.Behavior})");
     public string SizeText => MapManagerViewModel.SizeOf(Corners);
     /// <summary>The zone's colour on the map, for the list.</summary>
     public ArgbColor Swatch { get; } = MapColors.Restriction(restriction.Behavior);
@@ -61,7 +61,7 @@ public sealed partial class ManagedFurniture(FurnitureItem item) : ObservableObj
     public IReadOnlyList<DyssCockpit.Core.Point> Corners => Item.Points ?? [];
     public int Index => int.TryParse(Item.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) ? i : -1;
     public bool CanBeSentBack => Kind is not null && Corners.Count == 4 && Index >= 0;
-    public string Label => Kind?.Label ?? T($"Meuble inconnu ({Item.Type})", $"Unknown furniture ({Item.Type})");
+    public string Label => Kind?.Label ?? Tf($"Meuble inconnu ({Item.Type})", $"Unknown furniture ({Item.Type})");
     public string SizeText => MapManagerViewModel.SizeOf(Corners);
     /// <summary>Clockwise quarter turns from the way a new piece is laid out, or null at another angle.</summary>
     public int? QuarterTurns => MapShapes.QuarterTurns(Corners);

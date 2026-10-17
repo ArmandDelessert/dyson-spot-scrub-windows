@@ -115,7 +115,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
     private static string NameOf(RegionInfo region)
     {
         // Windows names countries in its own language; .NET knows their English names.
-        if (IsEnglish) return region.EnglishName;
+        if (Translation.Current == AppLanguage.English) return region.EnglishName;
         try
         {
             var buffer = new char[128];
@@ -193,7 +193,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
             var status = await _api.GetUserStatusAsync(Email.Trim());
             if (!string.Equals(status.AccountStatus, "ACTIVE", StringComparison.OrdinalIgnoreCase))
             {
-                Say(T($"Aucun compte MyDyson actif avec cette adresse pour ce pays ({SelectedCountry.Name}). Vérifiez l'adresse et le pays choisi lors de la création du compte.", $"No active MyDyson account with this address for this country ({SelectedCountry.Name}). Check the address and the country chosen when the account was created."), isError: true);
+                Say(Tf($"Aucun compte MyDyson actif avec cette adresse pour ce pays ({SelectedCountry.Name}). Vérifiez l'adresse et le pays choisi lors de la création du compte.", $"No active MyDyson account with this address for this country ({SelectedCountry.Name}). Check the address and the country chosen when the account was created."), isError: true);
                 return;
             }
             _challengeId = (await _api.BeginLoginAsync(Email.Trim())).ChallengeId;
@@ -266,7 +266,7 @@ public sealed partial class LoginViewModel : ObservableObject, IDisposable
         DysonApiException { StatusCode: HttpStatusCode.BadRequest or HttpStatusCode.NotFound } =>
             T("Le cloud Dyson a refusé la demande. Vérifiez l'adresse e-mail, ainsi que le pays et la langue du compte.", "The Dyson cloud refused the request. Check the e-mail address, and the account's country and language."),
         DysonApiException { StatusCode: { } status } =>
-            T($"Le cloud Dyson a répondu par une erreur (HTTP {(int)status}). Réessayez dans un moment.", $"The Dyson cloud answered with an error (HTTP {(int)status}). Try again in a moment."),
-        _ => T($"La connexion a échoué : {ex.Message}", $"Login failed: {ex.Message}"),
+            Tf($"Le cloud Dyson a répondu par une erreur (HTTP {(int)status}). Réessayez dans un moment.", $"The Dyson cloud answered with an error (HTTP {(int)status}). Try again in a moment."),
+        _ => Tf($"La connexion a échoué : {ex.Message}", $"Login failed: {ex.Message}"),
     };
 }

@@ -16,9 +16,14 @@ public sealed class TranslationTests : IDisposable
     [InlineData("fr-CH", AppLanguage.French)]
     [InlineData("fr-FR", AppLanguage.French)]
     [InlineData("en-US", AppLanguage.English)]
-    [InlineData("de-CH", AppLanguage.English)]
-    [InlineData("it-IT", AppLanguage.English)]
-    public void WindowsInFrenchGivesFrenchAndAnyOtherLanguageEnglish(string culture, AppLanguage expected) =>
+    [InlineData("de-CH", AppLanguage.German)]
+    [InlineData("it-IT", AppLanguage.Italian)]
+    [InlineData("pt-PT", AppLanguage.Portuguese)]
+    [InlineData("zh-CN", AppLanguage.ChineseSimplified)]
+    [InlineData("zh-Hans-SG", AppLanguage.ChineseSimplified)]
+    [InlineData("zh-TW", AppLanguage.English)]    // the traditional Chinese is not offered
+    [InlineData("ru-RU", AppLanguage.English)]    // nor Russian: English is the language most likely understood
+    public void WindowsInALanguageOfTheApplicationGivesItAndAnyOtherLanguageEnglish(string culture, AppLanguage expected) =>
         Assert.Equal(expected, Translation.FromCulture(new CultureInfo(culture)));
 
     [Fact]

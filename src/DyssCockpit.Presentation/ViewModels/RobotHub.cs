@@ -127,7 +127,7 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
         // ends the process, and a periodic refresh is never worth that, whatever went wrong.
         try { await Session.RefreshStateAsync(Ct); }
         catch (OperationCanceledException) when (IsShuttingDown) { }
-        catch (Exception ex) { AddLog(T($"état: {ex.Message}", $"state: {ex.Message}")); }
+        catch (Exception ex) { AddLog(Tf($"état: {ex.Message}", $"state: {ex.Message}")); }
     }
 
     /// <summary>One prop.get at start-up, so jdm-only facts (drying countdown, trip back to wash) show at once instead of at their next push.</summary>
@@ -136,7 +136,7 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
         if (Session is null || Session.Status != RobotConnectionStatus.Connected) return;
         try { await Session.RefreshPropertiesAsync(Ct); }
         catch (OperationCanceledException) when (IsShuttingDown) { }
-        catch (Exception ex) { AddLog(T($"propriétés: {ex.Message}", $"properties: {ex.Message}")); }
+        catch (Exception ex) { AddLog(Tf($"propriétés: {ex.Message}", $"properties: {ex.Message}")); }
     }
 
     /// <summary>Stops every REST call and timer-driven refresh; the session itself is closed by the context's disposal.</summary>

@@ -19,8 +19,8 @@ namespace DyssCockpit.Presentation.ViewModels;
 /// </summary>
 public sealed partial class SettingsViewModel : ObservableObject
 {
-    /// <summary>The values of <see cref="AppSettings.Language"/>, in the order the language list shows them.</summary>
-    private static readonly string[] Languages = ["", "fr-FR", "en-US"];
+    /// <summary>The values of <see cref="AppSettings.Language"/>, in the order the language list shows them: Windows' own, then <see cref="AppLanguages.All"/>.</summary>
+    private static readonly string[] Languages = ["", .. AppLanguages.All.Select(l => l.Tag)];
 
     private readonly AppSettings _settings;
     private readonly IAppShell _shell;
@@ -44,7 +44,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _dataFolder = dataFolder ?? SessionStore.Directory;
         _time = time ?? TimeProvider.System;
         LogoutCommand = logout ?? new RelayCommand(() => { });
-        AccountText = string.IsNullOrEmpty(accountEmail) ? "" : T($"Connecté avec {accountEmail}", $"Signed in as {accountEmail}");
+        AccountText = string.IsNullOrEmpty(accountEmail) ? "" : Tf($"Connecté avec {accountEmail}", $"Signed in as {accountEmail}");
         _running = running ?? Translation.Current;
         _settings = settings;
         _shell = shell;
@@ -165,7 +165,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         // Only comes back when Windows could not restart the application.
         if (_shell.Restart() is { } failure)
             await _dialogs.AlertAsync(T("Changer de langue", "Change language"),
-                T($"Le redémarrage a échoué ({failure}). Relancez l'application pour changer de langue.",
+                Tf($"Le redémarrage a échoué ({failure}). Relancez l'application pour changer de langue.",
                   $"The restart failed ({failure}). Start the application again to change its language."));
     }
 
@@ -225,7 +225,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (!_initialized || _reverting || value < 0 || value >= AppSettings.RetentionChoices.Length) return;
         _ = ChangeRetentionAsync(AppSettings.RetentionChoices[value], days => AppFolders.LogsOlderThan(_dataFolder, days, Today),
-            T("Journaux de l'application", "Application logs"), T("de journal", "log"),
+            T("Journaux de l'application", "Application logs"),
+            (count, days) => Tf($"{count} fichier(s) de journal, plus ancien(s) que {days} jour(s), seront supprimé(s) tout de suite, sans pouvoir être récupéré(s).\n\nContinuer ?",
+                $"{count} log file(s) older than {days} day(s) will be deleted at once, and cannot be recovered.\n\nContinue?"),
             apply: days => _settings.LogRetentionDays = days,
             revert: () => Revert(() => LogRetentionIndex = AppSettings.RetentionChoices.IndexOf(_settings.LogRetentionDays)));
     }
@@ -234,7 +236,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (!_initialized || _reverting || value < 0 || value >= AppSettings.RetentionChoices.Length) return;
         _ = ChangeRetentionAsync(AppSettings.RetentionChoices[value], days => AppFolders.MessagesOlderThan(_dataFolder, days, Today),
-            T("Messages enregistrés", "Recorded messages"), T("d'enregistrement de messages", "message record"),
+            T("Messages enregistrés", "Recorded messages"),
+            (count, days) => Tf($"{count} fichier(s) d'enregistrement de messages, plus ancien(s) que {days} jour(s), seront supprimé(s) tout de suite, sans pouvoir être récupéré(s).\n\nContinuer ?",
+                $"{count} message record file(s) older than {days} day(s) will be deleted at once, and cannot be recovered.\n\nContinue?"),
             apply: days => _settings.MessageRetentionDays = days,
             revert: () => Revert(() => MessageRetentionIndex = AppSettings.RetentionChoices.IndexOf(_settings.MessageRetentionDays)));
     }
@@ -246,12 +250,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// retention is deleted at once, and no bin takes the files back), and puts the list back on what
     /// it was if the user says no.
     /// </summary>
-    private async Task ChangeRetentionAsync(int days, Func<int, int> countOlder, string title, string kind, Action<int> apply, Action revert)
+    /// <param name="question">The question asked, from how many files go and how many days are kept: a whole sentence of its own, so that it can be translated as one.</param>
+    private async Task ChangeRetentionAsync(int days, Func<int, int> countOlder, string title, Func<int, int, string> question, Action<int> apply, Action revert)
     {
         var count = countOlder(days);
-        if (count > 0 && !await _dialogs.ConfirmAsync(title,
-                T($"{count} fichier(s) {kind}, plus ancien(s) que {days} jour(s), seront supprimé(s) tout de suite, sans pouvoir être récupéré(s).\n\nContinuer ?",
-                  $"{count} {kind} file(s) older than {days} day(s) will be deleted at once, and cannot be recovered.\n\nContinue?")))
+        if (count > 0 && !await _dialogs.ConfirmAsync(title, question(count, days)))
         {
             revert();
             return;
@@ -282,7 +285,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (!_initialized || _reverting || value < 0 || value >= AppSettings.CleanArchiveChoices.Length) return;
         _ = ChangeRetentionAsync(AppSettings.CleanArchiveChoices[value], days => AppFolders.CleansOlderThan(_dataFolder, days, Today),
-            T("Historique des nettoyages", "Cleaning history"), T("de nettoyage conservé", "kept clean"),
+            T("Historique des nettoyages", "Cleaning history"),
+            (count, days) => Tf($"{count} fichier(s) de nettoyage conservé, plus ancien(s) que {days} jour(s), seront supprimé(s) tout de suite, sans pouvoir être récupéré(s).\n\nContinuer ?",
+                $"{count} kept clean file(s) older than {days} day(s) will be deleted at once, and cannot be recovered.\n\nContinue?"),
             apply: days => _settings.CleanArchiveRetentionDays = days,
             revert: () => Revert(() => CleanArchiveRetentionIndex = AppSettings.CleanArchiveChoices.IndexOf(_settings.CleanArchiveRetentionDays)));
     }

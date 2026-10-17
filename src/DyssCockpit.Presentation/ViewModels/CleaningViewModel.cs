@@ -79,7 +79,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             RebuildScene();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { _hub.AddLog(T($"zones du nettoyage: {ex.Message}", $"zones of the clean: {ex.Message}")); }
+        catch (Exception ex) { _hub.AddLog(Tf($"zones du nettoyage: {ex.Message}", $"zones of the clean: {ex.Message}")); }
     }
 
     // ---- Robot state ----------------------------------------------------------
@@ -168,7 +168,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
                 ?? Maps.FirstOrDefault();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { _hub.AddLog(T($"cartes: {ex.Message}", $"maps: {ex.Message}")); }
+        catch (Exception ex) { _hub.AddLog(Tf($"cartes: {ex.Message}", $"maps: {ex.Message}")); }
     }
 
     partial void OnSelectedMapChanged(MapItem? value)
@@ -289,7 +289,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             RebuildScene();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { _hub.AddLog(T($"carte {mapId}: {ex.Message}", $"map {mapId}: {ex.Message}")); }
+        catch (Exception ex) { _hub.AddLog(Tf($"carte {mapId}: {ex.Message}", $"map {mapId}: {ex.Message}")); }
     }
 
     public void RebuildScene()
@@ -365,7 +365,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             finally { _persistZonesLock.Release(); }
         }
         catch (OperationCanceledException) when (pending.IsCancellationRequested) { } // superseded, or shutting down
-        catch (Exception ex) { _hub.AddLog(T($"réglages des pièces: {ex.Message}", $"room settings: {ex.Message}")); }
+        catch (Exception ex) { _hub.AddLog(Tf($"réglages des pièces: {ex.Message}", $"room settings: {ex.Message}")); }
     }
 
     // ---- Cleaning a zone drawn on the map --------------------------------------
@@ -505,13 +505,13 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         if (SpotZones is not { Count: > 0 } zones || SelectedMap is null) return Task.CompletedTask;
         if (!long.TryParse(SelectedMap.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapId))
         {
-            _hub.Message = T($"Identifiant de carte inattendu : {SelectedMap.Id}", $"Unexpected map id: {SelectedMap.Id}");
+            _hub.Message = Tf($"Identifiant de carte inattendu : {SelectedMap.Id}", $"Unexpected map id: {SelectedMap.Id}");
             return Task.CompletedTask;
         }
         var settings = new RoomSettings(SpotCleanType.Value, SpotStrategy.Value, SpotWaterLevel.Value, SpotMopPass.Value);
         LastLaunch = new LaunchedClean([], _hub.Time.GetUtcNow());
         var spots = zones.Select(z => (Guid.NewGuid().ToString(), z)).ToList();
-        return _hub.RunAsync(T($"nettoyage : {SpotSizeText}", $"cleaning: {SpotSizeText}"),
+        return _hub.RunAsync(Tf($"nettoyage : {SpotSizeText}", $"cleaning: {SpotSizeText}"),
             c => SpotCleanSequence.StartAsync(c, mapId, spots, settings, _hub.Ct));
     }
 
@@ -527,13 +527,13 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         // unhandled exception in the command dispatch rather than a message.
         if (!long.TryParse(SelectedMap.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapId))
         {
-            _hub.Message = T($"Identifiant de carte inattendu : {SelectedMap.Id}", $"Unexpected map id: {SelectedMap.Id}");
+            _hub.Message = Tf($"Identifiant de carte inattendu : {SelectedMap.Id}", $"Unexpected map id: {SelectedMap.Id}");
             return Task.CompletedTask;
         }
         LastLaunch = new LaunchedClean(Zones.Where(z => z.Selected).OrderBy(z => z.Order).Select(z => z.Name).ToList(), _hub.Time.GetUtcNow());
         var mapRooms = Zones.Where(z => int.TryParse(z.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
             .Select(z => new MapRoom(int.Parse(z.Id, CultureInfo.InvariantCulture), z.Name)).ToList();
-        return _hub.RunAsync(T($"démarrage de {rooms.Count} pièce(s)", $"starting {rooms.Count} room(s)"), c => CleaningSequence.StartAsync(c, mapId, rooms, mapRooms));
+        return _hub.RunAsync(Tf($"démarrage de {rooms.Count} pièce(s)", $"starting {rooms.Count} room(s)"), c => CleaningSequence.StartAsync(c, mapId, rooms, mapRooms));
     }
 
     /// <summary>What this window last sent the robot to clean — the rooms, or none for a drawn zone — and when. The robot's own messages never say which rooms it set off for.</summary>
@@ -559,7 +559,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     private async Task SetActiveMapAsync()
     {
         if (SelectedMap is not { } map || map.Metadata.IsCurrentMap) return;
-        await _hub.RunAsync(T($"carte active : {map.Metadata.Name}", $"active map: {map.Metadata.Name}"), c => c.SetCurrentMapAsync(long.Parse(map.Id, CultureInfo.InvariantCulture)));
+        await _hub.RunAsync(Tf($"carte active : {map.Metadata.Name}", $"active map: {map.Metadata.Name}"), c => c.SetCurrentMapAsync(long.Parse(map.Id, CultureInfo.InvariantCulture)));
         await LoadMapsAsync();
     }
 
@@ -567,7 +567,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     private async Task ExportMapAsync()
     {
         if (await _hub.Dialogs.SaveMapImageAsync(Scene, ExportFileName(SelectedMap?.Metadata.Name, _hub.Time.GetLocalNow())) is { } path)
-            _hub.AddLog(T($"carte exportée vers {path}", $"map exported to {path}"));
+            _hub.AddLog(Tf($"carte exportée vers {path}", $"map exported to {path}"));
     }
 
     /// <summary>

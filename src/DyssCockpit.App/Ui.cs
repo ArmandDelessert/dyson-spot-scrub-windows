@@ -32,11 +32,11 @@ internal static class Ui
 
     public static string Area(double squareMetres) => string.Create(CultureInfo.CurrentCulture, $"({squareMetres:F1} m²)");
 
-    public static string Updated(string time) => string.IsNullOrEmpty(time) ? "" : T($"mis à jour {time}", $"updated {time}");
+    public static string Updated(string time) => string.IsNullOrEmpty(time) ? "" : Tf($"mis à jour {time}", $"updated {time}");
 
-    public static string SettingsOf(string room) => T($"Réglages de {room}", $"Settings of {room}");
+    public static string SettingsOf(string room) => Tf($"Réglages de {room}", $"Settings of {room}");
 
-    public static string ScheduleSwitch(string time) => T($"Horaire de {time} activé", $"{time} schedule on");
+    public static string ScheduleSwitch(string time) => Tf($"Horaire de {time} activé", $"{time} schedule on");
 
     /// <summary>Only another map than the active one can be made active.</summary>
     public static bool CanSetActive(MapItem? map) => map is { Metadata.IsCurrentMap: false };

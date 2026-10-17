@@ -85,7 +85,12 @@ public sealed class AppSettingsTests : IDisposable
     [InlineData("auto", "")]
     [InlineData("fr-CH", "fr-FR")]     // any French is French
     [InlineData("EN-gb", "en-US")]
-    [InlineData("de-DE", "")]          // a language the application does not have: Windows' own
+    [InlineData("de-DE", "de-DE")]     // the languages of the translations
+    [InlineData("de", "de-DE")]
+    [InlineData("pt-PT", "pt-BR")]     // one Portuguese for all
+    [InlineData("zh-Hans-CN", "zh-CN")]
+    [InlineData("zh-TW", "")]          // not the traditional Chinese
+    [InlineData("ru-RU", "")]          // a language the application does not have: Windows' own
     [InlineData(null, "")]
     public void TheLanguageIsStoredAsACultureNameAndTheOldValuesAreStillRead(string? stored, string expected)
     {

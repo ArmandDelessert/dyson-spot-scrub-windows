@@ -150,23 +150,15 @@ public sealed partial class AppSettings : ObservableObject
 
     /// <summary>The language <see cref="Language"/> stands for on this machine.</summary>
     [JsonIgnore]
-    public AppLanguage ChosenLanguage => NormalizeLanguage(Language) switch
-    {
-        "fr-FR" => AppLanguage.French,
-        "en-US" => AppLanguage.English,
-        _ => Translation.FromCulture(CultureInfo.CurrentUICulture),
-    };
+    public AppLanguage ChosenLanguage => AppLanguages.FromTag(NormalizeLanguage(Language)) ?? Translation.FromCulture(CultureInfo.CurrentUICulture);
 
     /// <summary>
-    /// What is stored for a language: <c>"fr-FR"</c> for any French (<c>"fr"</c>, <c>"fr-CH"</c>…), <c>"en-US"</c> for any
-    /// English, and empty for anything else, <c>"auto"</c> of the first versions included, which means Windows' own.
+    /// What is stored for a language: its tag (<c>"fr-FR"</c> for any French, <c>"fr"</c> and <c>"fr-CH"</c> included, <c>"de-DE"</c>
+    /// for any German…), and empty for anything the application does not speak, <c>"auto"</c> of the first versions included,
+    /// which means Windows' own.
     /// </summary>
-    public static string NormalizeLanguage(string? language)
-    {
-        var name = language?.Trim() ?? "";
-        if (name.StartsWith("fr", StringComparison.OrdinalIgnoreCase)) return "fr-FR";
-        return name.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? "en-US" : "";
-    }
+    public static string NormalizeLanguage(string? language) =>
+        AppLanguages.FromTag(language) is { } known ? AppLanguages.Of(known).Tag : "";
 
     /// <summary>Raised after any of the above changes, once they have been written back to disk.</summary>
     public event Action? Changed;

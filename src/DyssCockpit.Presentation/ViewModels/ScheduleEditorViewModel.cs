@@ -66,7 +66,7 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
 
     public MapItem Map { get; }
     public string Title { get; }
-    public string MapText => T($"Pour la carte « {Map.Metadata.Name ?? Map.Id} » : un horaire appartient à une carte et ne s'exécute que lorsqu'elle est active.", $"For the “{Map.Metadata.Name ?? Map.Id}” map: a schedule belongs to a map and only runs while that map is active.");
+    public string MapText => Tf($"Pour la carte « {Map.Metadata.Name ?? Map.Id} » : un horaire appartient à une carte et ne s'exécute que lorsqu'elle est active.", $"For the “{Map.Metadata.Name ?? Map.Id}” map: a schedule belongs to a map and only runs while that map is active.");
 
     public IReadOnlyList<int> Hours { get; } = Enumerable.Range(0, 24).ToList();
     public IReadOnlyList<int> Minutes { get; } = Enumerable.Range(0, 60).ToList();
@@ -151,7 +151,7 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
             return;
         }
         var minutes = CleanDurationEstimate.Minutes(rooms.Select(r => (r.Area, r.Settings)), _minutesPerSquareMetre);
-        EstimateText = T($"Durée estimée : environ {FormatMinutes(minutes)}, d'après les nettoyages passés.", $"Estimated duration: about {FormatMinutes(minutes)}, from past cleans.");
+        EstimateText = Tf($"Durée estimée : environ {FormatMinutes(minutes)}, d'après les nettoyages passés.", $"Estimated duration: about {FormatMinutes(minutes)}, from past cleans.");
 
         OverlapWarning = "";
         if (days == ScheduleDays.None) return;
@@ -161,7 +161,7 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
             var otherMinutes = CleanDurationEstimate.Minutes(other.Rooms.Select(r => (AreaOf(r.ZoneId), r.Settings)), _minutesPerSquareMetre);
             if (CleanDurationEstimate.Overlaps(other, otherMinutes, self) || CleanDurationEstimate.Overlaps(self, minutes, other))
             {
-                OverlapWarning = T($"Chevauche l'horaire de {ScheduleDayLabels.Time(other.Hour, other.Minute)} ({ScheduleDayLabels.Describe(other.Days)}) : ", $"Overlaps the {ScheduleDayLabels.Time(other.Hour, other.Minute)} schedule ({ScheduleDayLabels.Describe(other.Days)}): ")
+                OverlapWarning = Tf($"Chevauche l'horaire de {ScheduleDayLabels.Time(other.Hour, other.Minute)} ({ScheduleDayLabels.Describe(other.Days)}) : ", $"Overlaps the {ScheduleDayLabels.Time(other.Hour, other.Minute)} schedule ({ScheduleDayLabels.Describe(other.Days)}): ")
                     + T("le robot ne commence pas un horaire tant que le précédent est en cours.", "the robot does not start a schedule while the previous one is running.");
                 return;
             }

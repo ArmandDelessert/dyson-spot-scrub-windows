@@ -112,7 +112,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
         catch (Exception ex)
         {
-            _hub.AddLog(T($"historique: {ex.Message}", $"history: {ex.Message}"));
+            _hub.AddLog(Tf($"historique: {ex.Message}", $"history: {ex.Message}"));
             // Without the cloud (offline), what was kept is still there to look at.
             if (_settings.ArchiveCleans && History.Count == 0)
                 foreach (var c in _archive.Summaries()) History.Add(new CleanItem(c));
@@ -174,7 +174,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
                 if (Keeping) await CompleteKeptSnapshotAsync(item.Summary);
             }
             catch (OperationCanceledException) when (_hub.IsShuttingDown) { return; }
-            catch (Exception ex) { item.Rooms = ""; _hub.AddLog(T($"pièces du nettoyage {item.Summary.CleanId}: {ex.Message}", $"rooms of clean {item.Summary.CleanId}: {ex.Message}")); }
+            catch (Exception ex) { item.Rooms = ""; _hub.AddLog(Tf($"pièces du nettoyage {item.Summary.CleanId}: {ex.Message}", $"rooms of clean {item.Summary.CleanId}: {ex.Message}")); }
         }
     }
 
@@ -210,7 +210,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         var detail = await _hub.Api.GetCleanDetailAsync(_hub.Serial, summary.CleanId, _hub.Ct);
         var snapshot = Keeping ? await DownloadSnapshotAsync(summary) : null;
         if (Keeping && !await Task.Run(() => _archive.Save(summary, detail, snapshot)))
-            _hub.AddLog(T($"nettoyage {summary.CleanId} : copie locale impossible", $"clean {summary.CleanId}: local copy failed"));
+            _hub.AddLog(Tf($"nettoyage {summary.CleanId} : copie locale impossible", $"clean {summary.CleanId}: local copy failed"));
         return detail;
     }
 
@@ -266,13 +266,13 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             }
             catch (Exception ex) when (ex is DysonApiException or HttpRequestException)
             {
-                _hub.AddLog(T($"carte du nettoyage {summary.CleanId} : {ex.Message}", $"map of clean {summary.CleanId}: {ex.Message}"));
+                _hub.AddLog(Tf($"carte du nettoyage {summary.CleanId} : {ex.Message}", $"map of clean {summary.CleanId}: {ex.Message}"));
                 return null;
             }
         }
         catch (HttpRequestException ex)
         {
-            _hub.AddLog(T($"carte du nettoyage {summary.CleanId} : {ex.Message}", $"map of clean {summary.CleanId}: {ex.Message}"));
+            _hub.AddLog(Tf($"carte du nettoyage {summary.CleanId} : {ex.Message}", $"map of clean {summary.CleanId}: {ex.Message}"));
             return null;
         }
     }
@@ -330,7 +330,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             if (mapId is not null)
             {
                 try { _map = await _maps.GetMapAsync(mapId); }
-                catch (Exception ex) when (!_hub.IsShuttingDown) { _hub.AddLog(T($"carte {mapId} du nettoyage: {ex.Message}", $"map {mapId} of the clean: {ex.Message}")); }
+                catch (Exception ex) when (!_hub.IsShuttingDown) { _hub.AddLog(Tf($"carte {mapId} du nettoyage: {ex.Message}", $"map {mapId} of the clean: {ex.Message}")); }
             }
             // Reads inside "Trajet du nettoyage sélectionné sur la carte …". A clean can name a map
             // the account no longer has, deleted or replaced since; saying so beats printing a raw
@@ -339,7 +339,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             RebuildScene();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { _hub.AddLog(T($"nettoyage: {ex.Message}", $"clean: {ex.Message}")); }
+        catch (Exception ex) { _hub.AddLog(Tf($"nettoyage: {ex.Message}", $"clean: {ex.Message}")); }
     }
 
     public void RebuildScene()

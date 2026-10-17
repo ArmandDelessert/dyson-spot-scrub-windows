@@ -83,6 +83,18 @@
                             <ComboBoxItem Content='{local:Tr Fr="Automatique (langue de Windows)", En="Automatic (Windows language)"}'/>
                             <ComboBoxItem Content="Français"/>
                             <ComboBoxItem Content="English"/>
+                            <ComboBoxItem Content="Deutsch"/>
+                            <ComboBoxItem Content="Español"/>
+                            <ComboBoxItem Content="Italiano"/>
+                            <ComboBoxItem Content="Nederlands"/>
+                            <ComboBoxItem Content="Polski"/>
+                            <ComboBoxItem Content="Português (Brasil)"/>
+                            <ComboBoxItem Content="Română"/>
+                            <ComboBoxItem Content="Türkçe"/>
+                            <ComboBoxItem Content="Українська"/>
+                            <ComboBoxItem Content="日本語"/>
+                            <ComboBoxItem Content="한국어"/>
+                            <ComboBoxItem Content="简体中文"/>
                         </ComboBox>
                     </Grid>
                     <InfoBar IsClosable="False" IsOpen="{x:Bind ViewModel.IsRestartRequired, Mode=OneWay}" Severity="Informational"

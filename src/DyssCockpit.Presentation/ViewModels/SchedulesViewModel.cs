@@ -18,7 +18,7 @@ public sealed class ScheduleItem(CleaningSchedule schedule, string roomsText, in
     public string DaysText => char.ToUpper(ScheduleDayLabels.Describe(Schedule.Days)[0], CultureInfo.CurrentCulture) + ScheduleDayLabels.Describe(Schedule.Days)[1..]
         + (Schedule.Repeats ? "" : T(", une seule fois", ", once"));
     public string RoomsText { get; } = roomsText;
-    public string DurationText { get; } = minutes > 0 ? T($"environ {ScheduleEditorViewModel.FormatMinutes(minutes)}", $"about {ScheduleEditorViewModel.FormatMinutes(minutes)}") : "";
+    public string DurationText { get; } = minutes > 0 ? Tf($"environ {ScheduleEditorViewModel.FormatMinutes(minutes)}", $"about {ScheduleEditorViewModel.FormatMinutes(minutes)}") : "";
     public string OverlapText { get; } = overlap;
 }
 
@@ -78,7 +78,7 @@ public sealed partial class SchedulesViewModel : ObservableObject
         var active = _maps.Maps.FirstOrDefault(m => m.Metadata.IsCurrentMap);
         var changed = active?.Id != ActiveMap?.Id;
         ActiveMap = active;
-        Heading = active is { } map ? T($"Carte active : {map.Metadata.Name ?? map.Id}", $"Active map: {map.Metadata.Name ?? map.Id}") : T("Aucune carte active", "No active map");
+        Heading = active is { } map ? Tf($"Carte active : {map.Metadata.Name ?? map.Id}", $"Active map: {map.Metadata.Name ?? map.Id}") : T("Aucune carte active", "No active map");
         NewCommand.NotifyCanExecuteChanged();
         if (changed) ScheduleReload(TimeSpan.Zero);
         else Rebuild();   // same map, but its rooms (names, areas) may have changed
@@ -105,8 +105,8 @@ public sealed partial class SchedulesViewModel : ObservableObject
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
         catch (Exception ex)
         {
-            Status = T($"Horaires : {ex.Message}", $"Schedules: {ex.Message}");
-            _hub.AddLog(T($"horaires: {ex.Message}", $"schedules: {ex.Message}"));
+            Status = Tf($"Horaires : {ex.Message}", $"Schedules: {ex.Message}");
+            _hub.AddLog(Tf($"horaires: {ex.Message}", $"schedules: {ex.Message}"));
         }
     }
 
@@ -152,7 +152,7 @@ public sealed partial class SchedulesViewModel : ObservableObject
             var overlap = mine.FirstOrDefault(o => o.Id != s.Id && o.Enabled && s.Enabled
                 && CleanDurationEstimate.Overlaps(o, MinutesOf(o, rate), s));
             Items.Add(new ScheduleItem(s, RoomsText(s), minutes,
-                overlap is null ? "" : T($"Risque de ne pas démarrer : l'horaire de {ScheduleDayLabels.Time(overlap.Hour, overlap.Minute)} sera sans doute encore en cours.", $"May not start: the {ScheduleDayLabels.Time(overlap.Hour, overlap.Minute)} schedule will probably still be running.")));
+                overlap is null ? "" : Tf($"Risque de ne pas démarrer : l'horaire de {ScheduleDayLabels.Time(overlap.Hour, overlap.Minute)} sera sans doute encore en cours.", $"May not start: the {ScheduleDayLabels.Time(overlap.Hour, overlap.Minute)} schedule will probably still be running.")));
         }
         EmptyText = ActiveMap is not null && Items.Count == 0 ? T("Aucun horaire pour cette carte.", "No schedule for this map.") : "";
     }
@@ -170,7 +170,7 @@ public sealed partial class SchedulesViewModel : ObservableObject
         var zones = ActiveMap?.Metadata.Zones ?? [];
         var names = s.Rooms.Select(r => zones.FirstOrDefault(z => z.Id == r.ZoneId.ToString(CultureInfo.InvariantCulture)) is { } z
             ? RoomTypeLabels.Resolve(string.IsNullOrEmpty(z.Type) ? null : z.Type, z.Name, z.Id)
-            : T($"pièce {r.ZoneId} (disparue)", $"room {r.ZoneId} (gone)"));
+            : Tf($"pièce {r.ZoneId} (disparue)", $"room {r.ZoneId} (gone)"));
         return string.Join(", ", names);
     }
 
@@ -192,7 +192,7 @@ public sealed partial class SchedulesViewModel : ObservableObject
         if (NewEditor() is not { } editor) return;
         if (!await _hub.Dialogs.EditScheduleAsync(editor)) return;
         var schedule = editor.Build(CleaningSchedule.NewId());
-        await SaveAsync(schedule, T($"horaire de {ScheduleDayLabels.Time(schedule.Hour, schedule.Minute)} créé", $"{ScheduleDayLabels.Time(schedule.Hour, schedule.Minute)} schedule created"));
+        await SaveAsync(schedule, Tf($"horaire de {ScheduleDayLabels.Time(schedule.Hour, schedule.Minute)} créé", $"{ScheduleDayLabels.Time(schedule.Hour, schedule.Minute)} schedule created"));
     }
 
     [RelayCommand(CanExecute = nameof(CanChange))]
@@ -217,7 +217,7 @@ public sealed partial class SchedulesViewModel : ObservableObject
     private async Task DeleteAsync(ScheduleItem? item)
     {
         if (item is null) return;
-        if (!await _hub.Dialogs.ConfirmAsync(T("Supprimer l'horaire", "Delete the schedule"), T($"Supprimer l'horaire de {item.TimeText} ({ScheduleDayLabels.Describe(item.Schedule.Days)}) ?", $"Delete the {item.TimeText} schedule ({ScheduleDayLabels.Describe(item.Schedule.Days)})?"))) return;
+        if (!await _hub.Dialogs.ConfirmAsync(T("Supprimer l'horaire", "Delete the schedule"), Tf($"Supprimer l'horaire de {item.TimeText} ({ScheduleDayLabels.Describe(item.Schedule.Days)}) ?", $"Delete the {item.TimeText} schedule ({ScheduleDayLabels.Describe(item.Schedule.Days)})?"))) return;
 
         var done = await SendAsync(T("horaire supprimé", "schedule deleted"), c => c.DeleteScheduleAsync(item.Schedule.Id, _hub.Ct));
         if (done == true) _schedules = [.. _schedules.Where(s => s.Id != item.Schedule.Id)];
@@ -261,7 +261,7 @@ public sealed partial class SchedulesViewModel : ObservableObject
         if (!_timeZoneLoaded)
         {
             try { _robotTimeZone = await _hub.Api.GetTimeZoneAsync(_hub.Serial, _hub.Ct); }
-            catch (Exception ex) when (ex is not OperationCanceledException) { _hub.AddLog(T($"fuseau horaire: {ex.Message}", $"time zone: {ex.Message}")); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { _hub.AddLog(Tf($"fuseau horaire: {ex.Message}", $"time zone: {ex.Message}")); }
             _timeZoneLoaded = true;
         }
         var now = DateTimeOffset.UtcNow;
@@ -279,7 +279,7 @@ public sealed partial class SchedulesViewModel : ObservableObject
             if (!await send(client))
             {
                 Status = T("Le robot a refusé.", "The robot refused.");
-                _hub.AddLog(T($"{label} : refusé par le robot", $"{label}: refused by the robot"));
+                _hub.AddLog(Tf($"{label} : refusé par le robot", $"{label}: refused by the robot"));
                 return false;
             }
             _hub.AddLog(label);
@@ -290,7 +290,7 @@ public sealed partial class SchedulesViewModel : ObservableObject
         catch (Exception ex)
         {
             Status = ex.Message;
-            _hub.AddLog(T($"{label} : {ex.Message}", $"{label}: {ex.Message}"));
+            _hub.AddLog(Tf($"{label} : {ex.Message}", $"{label}: {ex.Message}"));
             return null;
         }
         finally { Busy = false; }

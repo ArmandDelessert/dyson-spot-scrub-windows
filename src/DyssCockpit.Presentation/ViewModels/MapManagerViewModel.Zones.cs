@@ -22,7 +22,7 @@ public sealed partial class MapManagerViewModel
 
     /// <summary>Why the zones cannot be changed on this map, or empty when they can.</summary>
     public string ZonesBlockedReason => RestrictionZones.FirstOrDefault(z => !z.CanBeSentBack) is { } odd
-        ? T($"Cette carte porte une zone que cette application ne sait pas décrire ({odd.Label}) : toute modification l'effacerait, les zones restent donc en lecture seule.", $"This map holds a zone this application cannot describe ({odd.Label}): any change would erase it, so the zones are read-only.")
+        ? Tf($"Cette carte porte une zone que cette application ne sait pas décrire ({odd.Label}) : toute modification l'effacerait, les zones restent donc en lecture seule.", $"This map holds a zone this application cannot describe ({odd.Label}): any change would erase it, so the zones are read-only.")
         : "";
 
     public string ZonesEmptyText => RestrictionZones.Count == 0 ? T("Aucune zone sur cette carte.", "No zone on this map.") : "";
@@ -68,9 +68,9 @@ public sealed partial class MapManagerViewModel
     {
         AddingZone = true;
         Hint = SnapToGrid
-            ? T($"Cliquez deux coins opposés de la zone « {ZoneKind.Label} » ; ils se calent sur la grille de 5 cm, visible en zoomant. Échap pour annuler.",
+            ? Tf($"Cliquez deux coins opposés de la zone « {ZoneKind.Label} » ; ils se calent sur la grille de 5 cm, visible en zoomant. Échap pour annuler.",
                 $"Click two opposite corners of the “{ZoneKind.Label}” zone; they snap to the 5 cm grid, visible when zoomed in. Esc to cancel.")
-            : T($"Cliquez deux coins opposés de la zone « {ZoneKind.Label} » ; sans calage sur la grille. Échap pour annuler.",
+            : Tf($"Cliquez deux coins opposés de la zone « {ZoneKind.Label} » ; sans calage sur la grille. Échap pour annuler.",
                 $"Click two opposite corners of the “{ZoneKind.Label}” zone; no snapping to the grid. Esc to cancel.");
         Status = "";
         RefreshCommandStates();
@@ -88,7 +88,7 @@ public sealed partial class MapManagerViewModel
         }
         var zones = CurrentZones();
         zones.Add(new RestrictionZone(kind, MapShapes.Rectangle(a, b)));
-        await SendZonesAsync(T($"zone « {kind.Label} » ajoutée", $"“{kind.Label}” zone added"), zones);
+        await SendZonesAsync(Tf($"zone « {kind.Label} » ajoutée", $"“{kind.Label}” zone added"), zones);
     }
 
     [RelayCommand(CanExecute = nameof(CanChangeZoneKind))]
@@ -97,16 +97,16 @@ public sealed partial class MapManagerViewModel
         if (SelectedZone is not { } chosen) return;
         var kind = ZoneKind;
         var zones = OrderedZones().Select(z => new RestrictionZone(ReferenceEquals(z, chosen) ? kind : z.Kind!, z.Corners)).ToList();
-        await SendZonesAsync(T($"zone changée en « {kind.Label} »", $"zone changed to “{kind.Label}”"), zones);
+        await SendZonesAsync(Tf($"zone changée en « {kind.Label} »", $"zone changed to “{kind.Label}”"), zones);
     }
 
     [RelayCommand(CanExecute = nameof(CanDeleteZone))]
     private async Task DeleteZoneAsync()
     {
         if (SelectedZone is not { } chosen) return;
-        if (!await _hub.Dialogs.ConfirmAsync(T("Supprimer la zone", "Delete the zone"), T($"Supprimer la zone « {chosen.Label} » ({chosen.SizeText}) ?", $"Delete the “{chosen.Label}” zone ({chosen.SizeText})?"))) return;
+        if (!await _hub.Dialogs.ConfirmAsync(T("Supprimer la zone", "Delete the zone"), Tf($"Supprimer la zone « {chosen.Label} » ({chosen.SizeText}) ?", $"Delete the “{chosen.Label}” zone ({chosen.SizeText})?"))) return;
         var zones = OrderedZones().Where(z => !ReferenceEquals(z, chosen)).Select(z => new RestrictionZone(z.Kind!, z.Corners)).ToList();
-        await SendZonesAsync(T($"zone « {chosen.Label} » supprimée", $"“{chosen.Label}” zone deleted"), zones);
+        await SendZonesAsync(Tf($"zone « {chosen.Label} » supprimée", $"“{chosen.Label}” zone deleted"), zones);
     }
 
     /// <summary>The zones in the cloud's order rather than the list's alphabetical one, so a change moves nothing else around.</summary>

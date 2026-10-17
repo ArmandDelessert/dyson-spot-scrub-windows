@@ -80,7 +80,7 @@ public sealed partial class MapManagerViewModel
         if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
 
         // A free name travels as type "custom", which is what the app sends too.
-        await EditAsync(T($"pièce renommée en « {answer.Name.Trim()} »", $"room renamed to “{answer.Name.Trim()}”"),
+        await EditAsync(Tf($"pièce renommée en « {answer.Name.Trim()} »", $"room renamed to “{answer.Name.Trim()}”"),
             c => c.RenameRoomAsync(mapId, room.NumericId, answer.Name.Trim(), answer.Type ?? "custom", _hub.Ct));
     }
 
@@ -110,10 +110,10 @@ public sealed partial class MapManagerViewModel
         var rooms = _mergeSet.Where(r => r.NumericId >= 0).ToList();
         if (rooms.Count < 2) { Status = T("Choisissez au moins deux pièces à fusionner.", "Choose at least two rooms to merge."); return; }
         if (!await _hub.Dialogs.ConfirmAsync(T("Fusionner les pièces", "Merge the rooms"),
-                T($"Fusionner {string.Join(", ", rooms.Select(p => p.DisplayName))} en une seule pièce ?", $"Merge {string.Join(", ", rooms.Select(p => p.DisplayName))} into a single room?"))) return;
+                Tf($"Fusionner {string.Join(", ", rooms.Select(p => p.DisplayName))} en une seule pièce ?", $"Merge {string.Join(", ", rooms.Select(p => p.DisplayName))} into a single room?"))) return;
 
         LeaveModes();
-        await EditAsync(T($"{rooms.Count} pièces fusionnées", $"{rooms.Count} rooms merged"), c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
+        await EditAsync(Tf($"{rooms.Count} pièces fusionnées", $"{rooms.Count} rooms merged"), c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
             refused: T("Le robot a refusé la fusion : les pièces doivent se toucher.", "The robot refused the merge: the rooms must touch."));
     }
 
@@ -121,7 +121,7 @@ public sealed partial class MapManagerViewModel
     {
         MergeButtonLabel = !Merging ? T("Fusionner des pièces…", "Merge rooms…")
             : _mergeSet.Count < 2 ? T("Fusionner (choisissez 2 pièces ou plus)", "Merge (choose 2 rooms or more)")
-            : T($"Fusionner les {_mergeSet.Count} pièces", $"Merge the {_mergeSet.Count} rooms");
+            : Tf($"Fusionner les {_mergeSet.Count} pièces", $"Merge the {_mergeSet.Count} rooms");
         MergeCommand.NotifyCanExecuteChanged();
     }
 
@@ -144,7 +144,7 @@ public sealed partial class MapManagerViewModel
         if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
 
         // A cut that misses the room, or that the robot will not make, comes back refused.
-        await EditAsync(T($"pièce {room.DisplayName} divisée", $"room {room.DisplayName} split"), c => c.SplitRoomAsync(mapId, room.NumericId, from, to, MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
+        await EditAsync(Tf($"pièce {room.DisplayName} divisée", $"room {room.DisplayName} split"), c => c.SplitRoomAsync(mapId, room.NumericId, from, to, MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
             refused: T("Le robot a refusé la division : la pièce est sans doute trop petite à cet endroit, ou le trait ne la traverse pas.", "The robot refused the split: the room is probably too small there, or the line does not cross it."));
     }
 }

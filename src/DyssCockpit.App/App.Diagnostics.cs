@@ -41,7 +41,7 @@ public partial class App
             try { Environment.ExitCode = await ExportMapAsync(exportPath, options.Serial, options.MapId, ThemeOf(options), _loggers); }
             catch (Exception ex)
             {
-                Console.Error.WriteLine(T($"Export impossible : {ex.Message}", $"Export failed: {ex.Message}"));
+                Console.Error.WriteLine(Tf($"Export impossible : {ex.Message}", $"Export failed: {ex.Message}"));
                 Environment.ExitCode = 1;
             }
             Exit();
@@ -68,7 +68,7 @@ public partial class App
 
         var maps = await ctx.Api.GetMapMetadataAsync(s);
         var current = mapId is not null
-            ? maps.FirstOrDefault(m => m.Id == mapId) ?? throw new InvalidOperationException(T($"Carte {mapId} introuvable.", $"Map {mapId} not found."))
+            ? maps.FirstOrDefault(m => m.Id == mapId) ?? throw new InvalidOperationException(Tf($"Carte {mapId} introuvable.", $"Map {mapId} not found."))
             : maps.FirstOrDefault(m => m.IsCurrentMap) ?? maps.First();
         var map = await ctx.Api.GetPersistentMapAsync(s, current.Id);
         // The occupancy grid and the live robot position/path only ever describe the currently
@@ -90,7 +90,7 @@ public partial class App
             Dock = map.DockLocation, Robot = robotPos, Path = cleanPath, Obstacles = obstacles, DirtSpots = dirt,
         };
         await MapImage.ExportPngAsync(scene, 1200, 1400, path, theme == ElementTheme.Light ? MapPalette.Light : MapPalette.Dark);
-        Console.WriteLine(T($"Carte {current.Name} exportée vers {path}", $"Map {current.Name} exported to {path}"));
+        Console.WriteLine(Tf($"Carte {current.Name} exportée vers {path}", $"Map {current.Name} exported to {path}"));
         return 0;
     }
 

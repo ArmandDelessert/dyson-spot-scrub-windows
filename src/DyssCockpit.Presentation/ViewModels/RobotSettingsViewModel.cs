@@ -79,11 +79,11 @@ public sealed partial class RobotSettingsViewModel(RobotHub hub) : ObservableObj
     partial void OnHotWaterSwitchChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("autonettoyage à l'eau chaude", "self-clean with hot water"), c => c.SetHotWaterSwitchAsync(value)); }
     partial void OnAlarmChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("sons", "sounds"), c => c.SetAlarmAsync(value)); }
     partial void OnWashMopBeforeCleanChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("prolonger les préparatifs (message classique seul)", "extend the preparation (classic message only)"), c => c.SetWashMopBeforeCleanAsync(value)); }
-    partial void OnDryDurationChanged(DryOption? value) { if (!_applyingState && value is not null) _ = hub.RunAsync(T($"séchage {value.Hours} h", $"drying {value.Hours} h"), c => c.SetAirDryFrequencyAsync(value.Hours)); }
+    partial void OnDryDurationChanged(DryOption? value) { if (!_applyingState && value is not null) _ = hub.RunAsync(Tf($"séchage {value.Hours} h", $"drying {value.Hours} h"), c => c.SetAirDryFrequencyAsync(value.Hours)); }
     partial void OnBackWashChanged(BackWashOption? value)
     {
         if (_applyingState || value is null) return;
-        _ = hub.RunAsync(T($"intervalle: {value.Label}", $"interval: {value.Label}"), c => value.Key switch
+        _ = hub.RunAsync(Tf($"intervalle: {value.Label}", $"interval: {value.Label}"), c => value.Key switch
         {
             "ROOM" => c.SetBackWashPerRoomAsync(),
             "TIME15" => c.SetBackWashByTimeAsync(15),

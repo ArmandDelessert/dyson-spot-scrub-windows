@@ -287,7 +287,12 @@ public static class CleanDurationEstimate
 /// <summary>Short names for the days in the current language, and a compact text for a set of them.</summary>
 public static class ScheduleDayLabels
 {
-    public static IReadOnlyList<(ScheduleDays Day, string Letter, string Short, string Long)> All => IsEnglish ? English : French;
+    public static IReadOnlyList<(ScheduleDays Day, string Letter, string Short, string Long)> All => Translation.Current switch
+    {
+        AppLanguage.French => French,
+        AppLanguage.English => English,
+        _ => OfCulture(Translation.Culture),
+    };
 
     private static readonly (ScheduleDays, string, string, string)[] French =
     [
@@ -311,14 +316,37 @@ public static class ScheduleDayLabels
         (ScheduleDays.Sunday, "S", "Sun", "Sunday"),
     ];
 
+    /// <summary>
+    /// The days as the culture names them, Monday first: its short and long names, and one letter, the first of the short name
+    /// ("L M M J V S D" in Spanish) or, in Chinese, its last since the short names all start with the same character.
+    /// </summary>
+    private static (ScheduleDays, string, string, string)[] OfCulture(CultureInfo culture)
+    {
+        var format = culture.DateTimeFormat;
+        ScheduleDays[] days = [ScheduleDays.Monday, ScheduleDays.Tuesday, ScheduleDays.Wednesday, ScheduleDays.Thursday, ScheduleDays.Friday, ScheduleDays.Saturday, ScheduleDays.Sunday];
+        return [.. days.Select((day, i) =>
+        {
+            var weekday = (i + 1) % 7; // DayOfWeek counts from Sunday.
+            var shortName = format.AbbreviatedDayNames[weekday].TrimEnd('.');
+            var letter = culture.TwoLetterISOLanguageName == "zh" ? shortName[^1..] : shortName[..1].ToUpper(culture);
+            return (day, letter, shortName, format.DayNames[weekday]);
+        })];
+    }
+
     public static string Describe(ScheduleDays days) => days switch
     {
         ScheduleDays.None => T("aucun jour", "no day"),
         ScheduleDays.All => T("tous les jours", "every day"),
         ScheduleDays.Weekdays => T("du lundi au vendredi", "Monday to Friday"),
         ScheduleDays.Weekend => T("le week-end", "at weekends"),
-        _ when All.Count(d => days.HasFlag(d.Day)) == 1 => T("le ", "on ") + All.First(d => days.HasFlag(d.Day)).Long,
-        _ => string.Join(", ", All.Where(d => days.HasFlag(d.Day)).Select(d => d.Short)),
+        ScheduleDays.Monday => T("le lundi", "on Monday"),
+        ScheduleDays.Tuesday => T("le mardi", "on Tuesday"),
+        ScheduleDays.Wednesday => T("le mercredi", "on Wednesday"),
+        ScheduleDays.Thursday => T("le jeudi", "on Thursday"),
+        ScheduleDays.Friday => T("le vendredi", "on Friday"),
+        ScheduleDays.Saturday => T("le samedi", "on Saturday"),
+        ScheduleDays.Sunday => T("le dimanche", "on Sunday"),
+        _ => string.Join(ListSeparator, All.Where(d => days.HasFlag(d.Day)).Select(d => d.Short)),
     };
 
     public static string Time(int hour, int minute) => string.Create(CultureInfo.InvariantCulture, $"{hour:00}:{minute:00}");

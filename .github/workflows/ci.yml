@@ -71,3 +71,17 @@ jobs:
           path: |
             TestResults/**/*.trx
             TestResults/**/*.cobertura.xml
+
+  translations:
+    # The translations are tables from the English wording of the code to the other languages: fail on one that
+    # cannot be used. What a language lacks is only a warning, the English text being shown meanwhile.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+
+      - name: Check the translations
+        run: python tools/translations/extract.py --check

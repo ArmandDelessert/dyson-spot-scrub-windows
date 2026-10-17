@@ -19,7 +19,7 @@ public sealed partial class RoomNameDialog : ContentDialog
     public RoomNameDialog(ManagedRoom room, IReadOnlyList<RoomTypeOption> types)
     {
         InitializeComponent();
-        Intro.Text = T($"Pièce « {room.DisplayName} », {room.AreaText}.", $"Room “{room.DisplayName}”, {room.AreaText}.");
+        Intro.Text = Tf($"Pièce « {room.DisplayName} », {room.AreaText}.", $"Room “{room.DisplayName}”, {room.AreaText}.");
         TypeBox.ItemsSource = types;
         TypeBox.SelectedItem = types.FirstOrDefault(t => t.Type == room.Zone.Type) ?? types[0];
         NameBox.Text = room.Zone.Name ?? room.DisplayName;

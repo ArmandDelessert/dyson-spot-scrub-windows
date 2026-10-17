@@ -47,7 +47,7 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
 
     /// <summary>A fault in a few words: its code, and what it means when that is known (589, a locate failure; 2007, a room the robot cannot reach; 501, a wheel off the floor).</summary>
     public static string Describe(ActiveFault fault) =>
-        T($"faute {fault.FaultCode}", $"fault {fault.FaultCode}") + fault.FaultCode switch
+        Tf($"faute {fault.FaultCode}", $"fault {fault.FaultCode}") + fault.FaultCode switch
         {
             "589" => T(" (localisation impossible)", " (cannot locate itself)"),
             "2007" => T(" (pièce inaccessible)", " (room unreachable)"),
@@ -126,7 +126,7 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
     {
         var text = DescribeDock(_dockState);
         if (_dockState == "DRYING_MOP" && _dryingRemaining is { } r)
-            text += T($", {FormatRemaining(r)} restantes", $", {FormatRemaining(r)} left");
+            text += Tf($", {FormatRemaining(r)} restantes", $", {FormatRemaining(r)} left");
         DockText = text;
     }
 
@@ -176,7 +176,7 @@ public sealed partial class StatusViewModel(RobotHub hub) : ObservableObject
         "WASHING_MOP" => T("Station : lavage du rouleau humide", "Dock: washing the mop roller"),
         "DRYING_MOP" => T("Station : séchage du rouleau humide", "Dock: drying the mop roller"),
         "COLLECTING_DUST" => T("Station : vidage du collecteur", "Dock: emptying the bin"),
-        var d => T($"Station : {d}", $"Dock: {d}"),
+        var d => Tf($"Station : {d}", $"Dock: {d}"),
     };
 
     private static string DescribeConsumable(string type) => type switch
