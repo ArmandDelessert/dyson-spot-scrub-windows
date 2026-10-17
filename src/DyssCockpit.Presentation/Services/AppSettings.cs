@@ -1,5 +1,7 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DyssCockpit.Core;
 
@@ -27,6 +29,12 @@ public enum TaskNotificationMode
 /// it is closed. Kept apart from the robot settings on purpose: everything on that page is sent to
 /// the robot and visible from the phone app, whereas nothing here leaves this machine. Stored in
 /// clear as settings.json next to the session, since none of it is sensitive.
+/// <para>
+/// The class is its own file format: each observable property below is a setting, written under
+/// its own name, and declared once. A key the file lacks keeps the initial value, so a file
+/// written by an older version gets the defaults for what came after it; a value that is not
+/// one this version offers is put back to its default by <see cref="Validate"/>.
+/// </para>
 /// </summary>
 public sealed partial class AppSettings : ObservableObject
 {
@@ -106,7 +114,9 @@ public sealed partial class AppSettings : ObservableObject
     /// Whether a Windows notification tells when a clean starts and when it ends, see
     /// <see cref="TaskNotificationMode"/>. Stored by name, so the file reads as what it means.
     /// </summary>
-    [ObservableProperty] private TaskNotificationMode _taskNotifications = TaskNotificationMode.EndOnly;
+    [ObservableProperty]
+    [property: JsonConverter(typeof(TaskNotificationsByName))]
+    private TaskNotificationMode _taskNotifications = TaskNotificationMode.EndOnly;
 
     /// <summary>A Windows notification when the robot starts to report a fault that needs someone, see <see cref="RobotFaultWatcher"/>. On by default.</summary>
     [ObservableProperty] private bool _notifyRobotFault = true;
@@ -139,6 +149,7 @@ public sealed partial class AppSettings : ObservableObject
     [ObservableProperty] private int _cleanArchiveRetentionDays = 365;
 
     /// <summary>The language <see cref="Language"/> stands for on this machine.</summary>
+    [JsonIgnore]
     public AppLanguage ChosenLanguage => NormalizeLanguage(Language) switch
     {
         "fr-FR" => AppLanguage.French,
@@ -166,40 +177,38 @@ public sealed partial class AppSettings : ObservableObject
     /// </summary>
     public static AppSettings Load(string? path = null)
     {
-        var settings = new AppSettings { _path = path ?? DefaultPath };
+        path ??= DefaultPath;
+        AppSettings? settings = null;
         try
         {
-            if (File.Exists(settings._path) && JsonSerializer.Deserialize<Stored>(File.ReadAllText(settings._path)) is { } s)
-            {
-                settings._loading = true;
-                settings.ShowFurniture = s.ShowFurniture ?? true;
-                settings.ShowTravelPath = s.ShowTravelPath ?? true;
-                settings.ShowExportButton = s.ShowExportButton ?? false;
-                settings.RecordMessages = s.RecordMessages ?? false;
-                settings.SnapToGrid = s.SnapToGrid ?? true;
-                settings.ShowPointerCoordinates = s.ShowPointerCoordinates ?? false;
-                settings.ShowShapeDimensions = s.ShowShapeDimensions ?? false;
-                settings.SmoothRobotMotion = s.SmoothRobotMotion ?? false;
-                settings.ShowCleanedArea = s.ShowCleanedArea ?? true;
-                settings.Language = NormalizeLanguage(s.Language);
-                settings.CloseToTray = s.CloseToTray ?? true;
-                settings.TrayHintShown = s.TrayHintShown ?? false;
-                settings.TaskNotifications = Enum.TryParse<TaskNotificationMode>(s.TaskNotifications, out var mode) && Enum.IsDefined(mode) ? mode : TaskNotificationMode.EndOnly;
-                settings.NotifyUnreachable = s.NotifyUnreachable ?? true;
-                settings.NotifyRobotFault = s.NotifyRobotFault ?? true;
-                settings.ArchiveCleans = s.ArchiveCleans ?? false;
-                settings.CleanArchiveRetentionDays = s.CleanArchiveRetentionDays is { } archiveDays && CleanArchiveChoices.Contains(archiveDays) ? archiveDays : 365;
-                settings.Window = s.Window is { Width: > 0, Height: > 0 } ? s.Window : null;
-                settings.LogRetentionDays = s.LogRetentionDays is { } logDays && RetentionChoices.Contains(logDays) ? logDays : 7;
-                settings.MessageRetentionDays = s.MessageRetentionDays is { } messageDays && RetentionChoices.Contains(messageDays) ? messageDays : 30;
-                settings._loading = false;
-            }
+            // Read into an instance that writes nowhere and that nobody listens to yet: setting its
+            // properties from the file is not a change to save.
+            if (File.Exists(path)) settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), FileFormat);
         }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or NotSupportedException)
         {
             // A corrupt or unreadable preferences file is not worth failing a launch over.
         }
+        settings ??= new AppSettings();
+        settings._loading = true;
+        settings.Validate();
+        settings._loading = false;
+        settings._path = path;
         return settings;
+    }
+
+    /// <summary>
+    /// Puts back to its default whatever the file holds that this version does not offer: a
+    /// retention written in by hand that the list lacks, an empty window, a language of an
+    /// earlier version (see <see cref="NormalizeLanguage"/>).
+    /// </summary>
+    private void Validate()
+    {
+        Language = NormalizeLanguage(Language);
+        if (!RetentionChoices.Contains(LogRetentionDays)) LogRetentionDays = 7;
+        if (!RetentionChoices.Contains(MessageRetentionDays)) MessageRetentionDays = 30;
+        if (!CleanArchiveChoices.Contains(CleanArchiveRetentionDays)) CleanArchiveRetentionDays = 365;
+        if (Window is not { Width: > 0, Height: > 0 }) Window = null;
     }
 
     /// <summary>
@@ -224,18 +233,27 @@ public sealed partial class AppSettings : ObservableObject
     /// True for a run that must leave the user's files alone (see <see cref="LoadReadOnly"/>): besides the
     /// settings, the kept cleans are read but neither added to nor cleared.
     /// </summary>
+    [JsonIgnore]
     public bool LeavesFilesAlone { get; internal set; }
 
     private bool _loading;
 
-    private void Save()
+    /// <summary>
+    /// Every observable property is a setting: any change is written back and told through
+    /// <see cref="Changed"/>, before the change itself is raised, as each setting used to do on its own.
+    /// </summary>
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
-        if (_loading) return;
-        Changed?.Invoke();
-        Write();
+        if (!_loading)
+        {
+            Changed?.Invoke();
+            Write();
+        }
+        base.OnPropertyChanged(e);
     }
 
     /// <summary>Where the window was last, and its size, for the next start; null until it has been moved or resized.</summary>
+    [JsonInclude]
     public WindowBounds? Window { get; private set; }
 
     /// <summary>
@@ -255,7 +273,7 @@ public sealed partial class AppSettings : ObservableObject
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(new Stored(ShowFurniture, ShowTravelPath, ShowExportButton, RecordMessages, SnapToGrid, SmoothRobotMotion, Language, CloseToTray, TrayHintShown, ShowCleanedArea, TaskNotifications.ToString(), NotifyUnreachable, LogRetentionDays, MessageRetentionDays, NotifyRobotFault, Window, ArchiveCleans, CleanArchiveRetentionDays, ShowPointerCoordinates, ShowShapeDimensions), FileFormat));
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(this, FileFormat));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -263,26 +281,23 @@ public sealed partial class AppSettings : ObservableObject
         }
     }
 
-    partial void OnShowFurnitureChanged(bool value) => Save();
-    partial void OnShowTravelPathChanged(bool value) => Save();
-    partial void OnShowExportButtonChanged(bool value) => Save();
-    partial void OnRecordMessagesChanged(bool value) => Save();
-    partial void OnSnapToGridChanged(bool value) => Save();
-    partial void OnShowPointerCoordinatesChanged(bool value) => Save();
-    partial void OnShowShapeDimensionsChanged(bool value) => Save();
-    partial void OnSmoothRobotMotionChanged(bool value) => Save();
-    partial void OnShowCleanedAreaChanged(bool value) => Save();
-    partial void OnLanguageChanged(string value) => Save();
-    partial void OnCloseToTrayChanged(bool value) => Save();
-    partial void OnTrayHintShownChanged(bool value) => Save();
-    partial void OnTaskNotificationsChanged(TaskNotificationMode value) => Save();
-    partial void OnNotifyUnreachableChanged(bool value) => Save();
-    partial void OnNotifyRobotFaultChanged(bool value) => Save();
-    partial void OnArchiveCleansChanged(bool value) => Save();
-    partial void OnCleanArchiveRetentionDaysChanged(int value) => Save();
-    partial void OnLogRetentionDaysChanged(int value) => Save();
-    partial void OnMessageRetentionDaysChanged(int value) => Save();
+    /// <summary>
+    /// <see cref="TaskNotifications"/> by its name, as the file has always held it. A name this
+    /// version does not know, or anything but a name, reads as the default rather than failing the
+    /// whole file.
+    /// </summary>
+    private sealed class TaskNotificationsByName : JsonConverter<TaskNotificationMode>
+    {
+        public override TaskNotificationMode Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String
+                && Enum.TryParse<TaskNotificationMode>(reader.GetString(), out var mode) && Enum.IsDefined(mode))
+                return mode;
+            reader.Skip();
+            return TaskNotificationMode.EndOnly;
+        }
 
-    /// <summary>Nullable members so a file written by an older version keeps the defaults for what it lacks.</summary>
-    private sealed record Stored(bool? ShowFurniture, bool? ShowTravelPath, bool? ShowExportButton, bool? RecordMessages = null, bool? SnapToGrid = null, bool? SmoothRobotMotion = null, string? Language = null, bool? CloseToTray = null, bool? TrayHintShown = null, bool? ShowCleanedArea = null, string? TaskNotifications = null, bool? NotifyUnreachable = null, int? LogRetentionDays = null, int? MessageRetentionDays = null, bool? NotifyRobotFault = null, WindowBounds? Window = null, bool? ArchiveCleans = null, int? CleanArchiveRetentionDays = null, bool? ShowPointerCoordinates = null, bool? ShowShapeDimensions = null);
+        public override void Write(Utf8JsonWriter writer, TaskNotificationMode value, JsonSerializerOptions options) =>
+            writer.WriteStringValue(value.ToString());
+    }
 }
