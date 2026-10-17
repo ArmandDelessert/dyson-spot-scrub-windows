@@ -1,6 +1,6 @@
-using DyssCockpit.Core;
+using DyssCockpit.Cli.Diagnostics;
 
-namespace DyssCockpit.Core.Tests;
+namespace DyssCockpit.Cli.Tests;
 
 public class AwsSigV4Tests
 {
@@ -45,4 +45,19 @@ public class AwsSigV4Tests
 
     private static string Signature(string url) =>
         new Uri(url).Query.Split('&').First(p => p.StartsWith("X-Amz-Signature=", StringComparison.Ordinal)).Split('=')[1];
+}
+
+public class RoleCredentialsTests
+{
+    [Fact]
+    public void TheIamCredentialsGiveAPresignedWebSocketToTheirOwnEndpoint()
+    {
+        var role = new DyssCockpit.Core.IotRoleData(new("AKID", "secret", "TOKEN", null), "h.iot.eu-west-1.amazonaws.com", "eu-west-1");
+
+        var endpoint = RoleCredentials.Endpoint(role, "client-1");
+
+        Assert.Equal(("h.iot.eu-west-1.amazonaws.com", "client-1", "sigv4"), (endpoint.Endpoint, endpoint.ClientId, endpoint.AuthMode));
+        Assert.StartsWith("wss://h.iot.eu-west-1.amazonaws.com/mqtt?X-Amz-Algorithm=AWS4-HMAC-SHA256", endpoint.WebSocketUrl, StringComparison.Ordinal);
+        Assert.Contains("X-Amz-Security-Token=TOKEN", endpoint.WebSocketUrl, StringComparison.Ordinal);
+    }
 }

@@ -1,7 +1,7 @@
 using System.Net.WebSockets;
 using System.Text;
 
-namespace DyssCockpit.Core;
+namespace DyssCockpit.Cli.Diagnostics;
 
 /// <summary>
 /// Opens a WebSocket to AWS IoT and performs an MQTT 3.1.1 CONNECT by hand, so the WebSocket
@@ -9,7 +9,7 @@ namespace DyssCockpit.Core;
 /// CONNACK when the IAM policy denies iot:Connect for the client id, which higher level libraries
 /// surface only as a generic "disconnected".
 /// </summary>
-public static class RawMqttProbe
+internal static class RawMqttProbe
 {
     public sealed record Result(bool WebSocketConnected, string? WebSocketError, byte[]? ConnAck, string? MqttError)
     {

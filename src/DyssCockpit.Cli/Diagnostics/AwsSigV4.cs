@@ -2,13 +2,13 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace DyssCockpit.Core;
+namespace DyssCockpit.Cli.Diagnostics;
 
 /// <summary>
 /// Minimal AWS Signature Version 4 presigner for the AWS IoT MQTT-over-WebSocket endpoint.
 /// Implemented here rather than pulling in the AWS SDK, which would only be used for this URL.
 /// </summary>
-public static class AwsSigV4
+internal static class AwsSigV4
 {
     private const string Service = "iotdevicegateway";
     private const string Algorithm = "AWS4-HMAC-SHA256";

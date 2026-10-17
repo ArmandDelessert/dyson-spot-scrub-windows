@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using DyssCockpit.Cli.Diagnostics;
 using DyssCockpit.Core;
 using Microsoft.Extensions.Logging;
 
@@ -177,7 +178,7 @@ internal static class Program
 
         // Diagnostic aid: the presigned URL embeds the credentials, so it is only printed on request.
         if (o.Has("ws-url"))
-            Console.WriteLine(role.BuildWebSocketUri());
+            Console.WriteLine(RoleCredentials.Endpoint(role).WebSocketUrl);
         return 0;
     }
 
@@ -535,7 +536,7 @@ internal static class Program
             try
             {
                 endpoint = mode == "sigv4"
-                    ? MqttEndpoint.FromRoleCredentials(await api.GetIotRoleCredentialsAsync(serial, ct))
+                    ? RoleCredentials.Endpoint(await api.GetIotRoleCredentialsAsync(serial, ct))
                     : MqttEndpoint.FromCustomAuthorizerWebSocket(await api.GetIotCredentialsAsync(serial, ct));
             }
             catch (DysonApiException ex)
@@ -606,7 +607,7 @@ internal static class Program
     private static async Task<MqttEndpoint> GetMqttEndpointAsync(DysonCloudClient api, string serial, Options o, CancellationToken ct)
     {
         if (o.Has("sigv4"))
-            return MqttEndpoint.FromRoleCredentials(await api.GetIotRoleCredentialsAsync(serial, ct), o.Get("client-id"));
+            return RoleCredentials.Endpoint(await api.GetIotRoleCredentialsAsync(serial, ct), o.Get("client-id"));
         var iot = await api.GetIotCredentialsAsync(serial, ct);
         var endpoint = o.Has("websocket") ? MqttEndpoint.FromCustomAuthorizerWebSocket(iot) : MqttEndpoint.FromCustomAuthorizerTls(iot);
         return o.Get("client-id") is { } cid ? endpoint with { ClientId = cid } : endpoint;

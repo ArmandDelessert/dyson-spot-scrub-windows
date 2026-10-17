@@ -6,6 +6,7 @@
     <Project Path="src/DyssCockpit.Presentation/DyssCockpit.Presentation.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/DyssCockpit.Cli.Tests/DyssCockpit.Cli.Tests.csproj" />
     <Project Path="tests/DyssCockpit.Core.Tests/DyssCockpit.Core.Tests.csproj" />
     <Project Path="tests/DyssCockpit.Presentation.Tests/DyssCockpit.Presentation.Tests.csproj" />
   </Folder>

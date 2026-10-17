@@ -108,16 +108,7 @@ public sealed record IamCredentials(
 public sealed record IotRoleData(
     [property: JsonPropertyName("iamCredentials")] IamCredentials IamCredentials,
     [property: JsonPropertyName("endpoint")] string Endpoint,
-    [property: JsonPropertyName("region")] string Region)
-{
-    /// <summary>Presigned AWS IoT WebSocket URL (SigV4).</summary>
-    public string BuildWebSocketUri() =>
-        AwsSigV4.PresignWebSocketUrl(
-            Endpoint, Region,
-            IamCredentials.AccessKeyId,
-            IamCredentials.SecretAccessKey,
-            IamCredentials.SessionToken);
-}
+    [property: JsonPropertyName("region")] string Region);
 
 /// <summary>
 /// How to reach the AWS IoT broker. Either a direct MQTT-over-TLS connection to port 443 with the
@@ -149,10 +140,6 @@ public sealed record MqttEndpoint(string Endpoint, string ClientId, string AuthM
     /// <summary>Custom authorizer over WebSocket, parameters in the query string. Observed to grant subscribe only.</summary>
     public static MqttEndpoint FromCustomAuthorizerWebSocket(IotData iot) =>
         new(iot.Endpoint, iot.IoTCredentials.ClientId, "custom-authorizer-ws", WebSocketUrl: iot.BuildWebSocketUri());
-
-    /// <summary>Temporary IAM credentials, SigV4-presigned WebSocket. Observed to grant connect only.</summary>
-    public static MqttEndpoint FromRoleCredentials(IotRoleData role, string? clientId = null) =>
-        new(role.Endpoint, clientId ?? Guid.NewGuid().ToString(), "sigv4", WebSocketUrl: role.BuildWebSocketUri());
 }
 
 /// <summary>Persisted session (bearer token + context), stored encrypted on disk.</summary>
