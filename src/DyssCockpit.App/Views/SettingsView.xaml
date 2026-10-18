@@ -126,16 +126,16 @@
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock x:Uid="Settings_ShowThePNGExportButton" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
-                        <ToggleSwitch x:Uid="Settings_ShowThePNGExportButton2" Grid.Column="1" IsOn="{x:Bind ViewModel.ShowExportButton, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
-                    </Grid>
-                    <Grid Style="{StaticResource Setting}">
-                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock x:Uid="Settings_SmoothTheRobotSMovements" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                             <TextBlock x:Uid="Settings_TheRobotGlidesFromOne" Style="{StaticResource Caption}"/>
                         </StackPanel>
                         <ToggleSwitch x:Uid="Settings_SmoothTheRobotSMovements2" Grid.Column="1" IsOn="{x:Bind ViewModel.SmoothRobotMotion, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
+                    </Grid>
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock x:Uid="Settings_ShowThePNGExportButton" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <ToggleSwitch x:Uid="Settings_ShowThePNGExportButton2" Grid.Column="1" IsOn="{x:Bind ViewModel.ShowExportButton, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
