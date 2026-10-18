@@ -74,8 +74,8 @@ public sealed partial class RobotSettingsViewModel(RobotHub hub) : ObservableObj
     }
 
     // Only react to user changes, not to values coming from the robot.
-    partial void OnHotWaterMopChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_MopWithHotWater"), c => c.SetHotWaterMopAsync(value)); }
-    partial void OnDetergentChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_MopWithCleaningSolution"), c => c.SetDetergentAsync(value)); }
+    partial void OnHotWaterMopChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_MopWithHotWater3"), c => c.SetHotWaterMopAsync(value)); }
+    partial void OnDetergentChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_MopWithCleaningSolution3"), c => c.SetDetergentAsync(value)); }
     partial void OnHotWaterSwitchChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_SelfCleanWithHotWater"), c => c.SetHotWaterSwitchAsync(value)); }
     partial void OnAlarmChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_Sounds"), c => c.SetAlarmAsync(value)); }
     partial void OnWashMopBeforeCleanChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_ExtendThePreparationClassicMessage"), c => c.SetWashMopBeforeCleanAsync(value)); }

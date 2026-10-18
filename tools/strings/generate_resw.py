@@ -83,8 +83,11 @@ def xaml_problems() -> list[str]:
     """Every x:Uid of the XAML has resources, and every resource with a dot belongs to an x:Uid: a text missing shows nothing, silently."""
     used = {uid for path in APP_DIR.rglob("*.xaml") if "obj" not in path.parts for uid in XAML_UID.findall(path.read_text(encoding="utf-8"))}
     defined = {key.split(".", 1)[0] for key in STRINGS if "." in key}
+    # Windows cannot hold a resource and a group of resources under one name: "Key" and "Key.Text" together fail the build (PRI278).
+    clashes = [key for key in STRINGS if "." not in key and key in defined]
     return [f"x:Uid '{uid}' has no resource in ui_strings.py" for uid in sorted(used - defined)] \
-        + [f"ui_strings.py has resources for '{uid}', which no XAML file uses" for uid in sorted(defined - used)]
+        + [f"ui_strings.py has resources for '{uid}', which no XAML file uses" for uid in sorted(defined - used)] \
+        + [f"'{key}' is both a text of the code and the x:Uid of an element: rename one of them" for key in clashes]
 
 
 def missing(table: dict) -> tuple[list[str], list[int]]:

@@ -212,7 +212,7 @@ Wylogować z konta MyDyson?</value></data>
   <data name="MapManager_RoomRenamedTo" xml:space="preserve"><value>zmieniono nazwę pomieszczenia na „{0}”</value></data>
   <data name="MapManager_TheRobotRefusedTheZones" xml:space="preserve"><value>Robot odrzucił strefy.</value></data>
   <data name="MapManager_ZoneDeleted" xml:space="preserve"><value>usunięto strefę „{0}”</value></data>
-  <data name="MapManager_DeleteTheZone" xml:space="preserve"><value>Usunąć strefę „{0}” ({1})?</value></data>
+  <data name="MapManager_DeleteTheZone3" xml:space="preserve"><value>Usunąć strefę „{0}” ({1})?</value></data>
   <data name="MapManager_DeleteTheZone2" xml:space="preserve"><value>Usuń strefę</value></data>
   <data name="MapManager_ZoneChangedTo" xml:space="preserve"><value>zmieniono typ strefy na „{0}”</value></data>
   <data name="MapManager_ZoneAdded" xml:space="preserve"><value>dodano strefę „{0}”</value></data>
@@ -237,11 +237,11 @@ Rozpocząć mapowanie?</value></data>
   <data name="MapManager_PermanentlyDeleteTheMapWith" xml:space="preserve"><value>Trwale usunąć mapę „{0}” razem z jej pomieszczeniami i ich ustawieniami?{1}
 
 Tej operacji nie można cofnąć.</value></data>
-  <data name="MapManager_DeleteTheMap" xml:space="preserve"><value>Usuń mapę</value></data>
+  <data name="MapManager_DeleteTheMap2" xml:space="preserve"><value>Usuń mapę</value></data>
   <data name="MapManager_ThisIsTheActiveMap" xml:space="preserve"><value>To jest aktywna mapa: robot sam wybierze inną.</value></data>
   <data name="MapManager_MapRenamedTo" xml:space="preserve"><value>zmieniono nazwę mapy na „{0}”</value></data>
   <data name="MapManager_MapName" xml:space="preserve"><value>Nazwa mapy:</value></data>
-  <data name="MapManager_RenameTheMap" xml:space="preserve"><value>Zmień nazwę mapy</value></data>
+  <data name="MapManager_RenameTheMap2" xml:space="preserve"><value>Zmień nazwę mapy</value></data>
   <data name="MapManager_ActiveMap" xml:space="preserve"><value>aktywna mapa: {0}</value></data>
   <data name="MapManager_Moved" xml:space="preserve"><value>Przesunięto „{0}”</value></data>
   <data name="MapManager_ZoneMoved" xml:space="preserve"><value>przesunięto strefę „{0}”</value></data>
@@ -256,7 +256,7 @@ Tej operacji nie można cofnąć.</value></data>
   <data name="MapManager_180HalfTurn" xml:space="preserve"><value>180° (pół obrotu)</value></data>
   <data name="MapManager_90QuarterTurnClockwise" xml:space="preserve"><value>90° (ćwierć obrotu w prawo)</value></data>
   <data name="MapManager_0Original" xml:space="preserve"><value>0° (oryginalna)</value></data>
-  <data name="MapManager_Maps" xml:space="preserve"><value>Mapy: {0}</value></data>
+  <data name="MapManager_Maps2" xml:space="preserve"><value>Mapy: {0}</value></data>
   <data name="MapManager_ClickAPieceOfFurniture" xml:space="preserve"><value>Kliknij mebel, aby go wybrać, a potem przeciągnij go, aby go przesunąć. Kółko myszy powiększa, przeciągnięcie gdzie indziej przesuwa mapę.</value></data>
   <data name="MapManager_ClickAZoneToChoose" xml:space="preserve"><value>Kliknij strefę, aby ją wybrać, a potem przeciągnij ją, aby ją przesunąć, lub pociągnij za jeden z jej rogów, aby zmienić rozmiar. Kółko myszy powiększa, przeciągnięcie gdzie indziej przesuwa mapę.</value></data>
   <data name="MapManager_ClickARoomToChoose" xml:space="preserve"><value>Kliknij pomieszczenie, aby je wybrać, lub kliknij poza pomieszczeniem, aby wyczyścić wybór. Kółko myszy powiększa, przeciąganie przesuwa mapę.</value></data>
@@ -356,8 +356,8 @@ Tej operacji nie można cofnąć.</value></data>
   <data name="RobotSettings_ExtendThePreparationClassicMessage" xml:space="preserve"><value>wydłużenie przygotowania (tylko wiadomość klasyczna)</value></data>
   <data name="RobotSettings_Sounds" xml:space="preserve"><value>dźwięki</value></data>
   <data name="RobotSettings_SelfCleanWithHotWater" xml:space="preserve"><value>samoczyszczenie gorącą wodą</value></data>
-  <data name="RobotSettings_MopWithCleaningSolution" xml:space="preserve"><value>mycie ze środkiem czyszczącym</value></data>
-  <data name="RobotSettings_MopWithHotWater" xml:space="preserve"><value>mycie gorącą wodą</value></data>
+  <data name="RobotSettings_MopWithCleaningSolution3" xml:space="preserve"><value>mycie ze środkiem czyszczącym</value></data>
+  <data name="RobotSettings_MopWithHotWater3" xml:space="preserve"><value>mycie gorącą wodą</value></data>
   <data name="RobotSettings_ReadyToUse" xml:space="preserve"><value>Gotowe do użycia</value></data>
   <data name="RobotSettings_ToRefill" xml:space="preserve"><value>Do uzupełnienia</value></data>
   <data name="RobotSettings_BestForDocksInVery" xml:space="preserve"><value>Najlepsze dla stacji ustawionych w miejscach bardzo wilgotnych lub słabo wentylowanych.</value></data>
@@ -502,7 +502,7 @@ Tej operacji nie można cofnąć.</value></data>
   <data name="Settings_KeptCleanFileSOlder" xml:space="preserve"><value>Zostaną natychmiast usunięte pliki zachowanych sprzątań (liczba: {0}) starsze niż {1} dn. Nie będzie można ich odzyskać.
 
 Kontynuować?</value></data>
-  <data name="Settings_CleaningHistory" xml:space="preserve"><value>Historia sprzątań</value></data>
+  <data name="Settings_CleaningHistory2" xml:space="preserve"><value>Historia sprzątań</value></data>
   <data name="Settings_MessageRecordFileSOlder" xml:space="preserve"><value>Zostaną natychmiast usunięte pliki zapisanych wiadomości (liczba: {0}) starsze niż {1} dn. Nie będzie można ich odzyskać.
 
 Kontynuować?</value></data>

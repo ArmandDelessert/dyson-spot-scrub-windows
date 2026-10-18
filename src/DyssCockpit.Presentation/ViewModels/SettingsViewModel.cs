@@ -282,7 +282,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (!_initialized || _reverting || value < 0 || value >= AppSettings.CleanArchiveChoices.Length) return;
         _ = ChangeRetentionAsync(AppSettings.CleanArchiveChoices[value], days => AppFolders.CleansOlderThan(_dataFolder, days, Today),
-            T("Settings_CleaningHistory"),
+            T("Settings_CleaningHistory2"),
             (count, days) => Tf("Settings_KeptCleanFileSOlder", count, days),
             apply: days => _settings.CleanArchiveRetentionDays = days,
             revert: () => Revert(() => CleanArchiveRetentionIndex = AppSettings.CleanArchiveChoices.IndexOf(_settings.CleanArchiveRetentionDays)));

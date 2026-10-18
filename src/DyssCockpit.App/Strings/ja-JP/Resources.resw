@@ -212,7 +212,7 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="MapManager_RoomRenamedTo" xml:space="preserve"><value>部屋の名前を「{0}」に変更しました</value></data>
   <data name="MapManager_TheRobotRefusedTheZones" xml:space="preserve"><value>ロボットがゾーンを受け付けませんでした。</value></data>
   <data name="MapManager_ZoneDeleted" xml:space="preserve"><value>「{0}」ゾーンを削除しました</value></data>
-  <data name="MapManager_DeleteTheZone" xml:space="preserve"><value>「{0}」ゾーン（{1}）を削除しますか？</value></data>
+  <data name="MapManager_DeleteTheZone3" xml:space="preserve"><value>「{0}」ゾーン（{1}）を削除しますか？</value></data>
   <data name="MapManager_DeleteTheZone2" xml:space="preserve"><value>ゾーンを削除</value></data>
   <data name="MapManager_ZoneChangedTo" xml:space="preserve"><value>ゾーンを「{0}」に変更しました</value></data>
   <data name="MapManager_ZoneAdded" xml:space="preserve"><value>「{0}」ゾーンを追加しました</value></data>
@@ -237,11 +237,11 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="MapManager_PermanentlyDeleteTheMapWith" xml:space="preserve"><value>「{0}」マップを、部屋とその設定ごと完全に削除しますか？{1}
 
 この操作は元に戻せません。</value></data>
-  <data name="MapManager_DeleteTheMap" xml:space="preserve"><value>マップを削除</value></data>
+  <data name="MapManager_DeleteTheMap2" xml:space="preserve"><value>マップを削除</value></data>
   <data name="MapManager_ThisIsTheActiveMap" xml:space="preserve"><value>これはアクティブなマップです。ロボットが別のマップを自動的に選択します。</value></data>
   <data name="MapManager_MapRenamedTo" xml:space="preserve"><value>マップの名前を「{0}」に変更しました</value></data>
   <data name="MapManager_MapName" xml:space="preserve"><value>マップ名：</value></data>
-  <data name="MapManager_RenameTheMap" xml:space="preserve"><value>マップの名前を変更</value></data>
+  <data name="MapManager_RenameTheMap2" xml:space="preserve"><value>マップの名前を変更</value></data>
   <data name="MapManager_ActiveMap" xml:space="preserve"><value>アクティブなマップ：{0}</value></data>
   <data name="MapManager_Moved" xml:space="preserve"><value>「{0}」を移動しました</value></data>
   <data name="MapManager_ZoneMoved" xml:space="preserve"><value>「{0}」ゾーンを移動しました</value></data>
@@ -256,7 +256,7 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="MapManager_180HalfTurn" xml:space="preserve"><value>180°（半回転）</value></data>
   <data name="MapManager_90QuarterTurnClockwise" xml:space="preserve"><value>90°（時計回りに1/4回転）</value></data>
   <data name="MapManager_0Original" xml:space="preserve"><value>0°（元の向き）</value></data>
-  <data name="MapManager_Maps" xml:space="preserve"><value>マップ：{0}</value></data>
+  <data name="MapManager_Maps2" xml:space="preserve"><value>マップ：{0}</value></data>
   <data name="MapManager_ClickAPieceOfFurniture" xml:space="preserve"><value>家具をクリックして選択し、ドラッグして移動します。ホイールでズーム、家具以外をドラッグするとマップを移動します。</value></data>
   <data name="MapManager_ClickAZoneToChoose" xml:space="preserve"><value>ゾーンをクリックして選択し、ドラッグして移動するか、角をドラッグしてサイズを変更します。ホイールでズーム、ゾーン以外をドラッグするとマップを移動します。</value></data>
   <data name="MapManager_ClickARoomToChoose" xml:space="preserve"><value>部屋をクリックして選択します。部屋の外をクリックすると選択を解除します。ホイールでズーム、ドラッグで移動します。</value></data>
@@ -356,8 +356,8 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="RobotSettings_ExtendThePreparationClassicMessage" xml:space="preserve"><value>準備時間の延長（従来のメッセージのみ）</value></data>
   <data name="RobotSettings_Sounds" xml:space="preserve"><value>サウンド</value></data>
   <data name="RobotSettings_SelfCleanWithHotWater" xml:space="preserve"><value>温水で自動洗浄</value></data>
-  <data name="RobotSettings_MopWithCleaningSolution" xml:space="preserve"><value>洗浄液で水拭き</value></data>
-  <data name="RobotSettings_MopWithHotWater" xml:space="preserve"><value>温水で水拭き</value></data>
+  <data name="RobotSettings_MopWithCleaningSolution3" xml:space="preserve"><value>洗浄液で水拭き</value></data>
+  <data name="RobotSettings_MopWithHotWater3" xml:space="preserve"><value>温水で水拭き</value></data>
   <data name="RobotSettings_ReadyToUse" xml:space="preserve"><value>使用可能</value></data>
   <data name="RobotSettings_ToRefill" xml:space="preserve"><value>要補充</value></data>
   <data name="RobotSettings_BestForDocksInVery" xml:space="preserve"><value>湿気が非常に多い場所や風通しの悪い場所にあるステーションに最適です。</value></data>
@@ -502,7 +502,7 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="Settings_KeptCleanFileSOlder" xml:space="preserve"><value>{1}日より古い保存済みの掃除データ（ファイル）{0}個をすぐに削除します。削除したファイルは復元できません。
 
 続行しますか？</value></data>
-  <data name="Settings_CleaningHistory" xml:space="preserve"><value>掃除履歴</value></data>
+  <data name="Settings_CleaningHistory2" xml:space="preserve"><value>掃除履歴</value></data>
   <data name="Settings_MessageRecordFileSOlder" xml:space="preserve"><value>{1}日より古いメッセージ記録ファイル{0}個をすぐに削除します。削除したファイルは復元できません。
 
 続行しますか？</value></data>

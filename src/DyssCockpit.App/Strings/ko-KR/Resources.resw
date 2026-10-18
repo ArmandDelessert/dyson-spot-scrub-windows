@@ -212,7 +212,7 @@ MyDyson 계정에서 로그아웃하시겠습니까?</value></data>
   <data name="MapManager_RoomRenamedTo" xml:space="preserve"><value>방 이름 변경됨: “{0}”</value></data>
   <data name="MapManager_TheRobotRefusedTheZones" xml:space="preserve"><value>로봇이 구역을 거부했습니다.</value></data>
   <data name="MapManager_ZoneDeleted" xml:space="preserve"><value>“{0}” 구역 삭제됨</value></data>
-  <data name="MapManager_DeleteTheZone" xml:space="preserve"><value>“{0}” 구역({1})을(를) 삭제하시겠습니까?</value></data>
+  <data name="MapManager_DeleteTheZone3" xml:space="preserve"><value>“{0}” 구역({1})을(를) 삭제하시겠습니까?</value></data>
   <data name="MapManager_DeleteTheZone2" xml:space="preserve"><value>구역 삭제</value></data>
   <data name="MapManager_ZoneChangedTo" xml:space="preserve"><value>구역 변경됨: “{0}”</value></data>
   <data name="MapManager_ZoneAdded" xml:space="preserve"><value>“{0}” 구역 추가됨</value></data>
@@ -237,11 +237,11 @@ MyDyson 계정에서 로그아웃하시겠습니까?</value></data>
   <data name="MapManager_PermanentlyDeleteTheMapWith" xml:space="preserve"><value>“{0}” 지도를 방과 방 설정까지 포함하여 영구적으로 삭제하시겠습니까?{1}
 
 이 작업은 취소할 수 없습니다.</value></data>
-  <data name="MapManager_DeleteTheMap" xml:space="preserve"><value>지도 삭제</value></data>
+  <data name="MapManager_DeleteTheMap2" xml:space="preserve"><value>지도 삭제</value></data>
   <data name="MapManager_ThisIsTheActiveMap" xml:space="preserve"><value>활성 지도입니다. 로봇이 다른 지도를 자동으로 선택합니다.</value></data>
   <data name="MapManager_MapRenamedTo" xml:space="preserve"><value>지도 이름 변경됨: “{0}”</value></data>
   <data name="MapManager_MapName" xml:space="preserve"><value>지도 이름:</value></data>
-  <data name="MapManager_RenameTheMap" xml:space="preserve"><value>지도 이름 바꾸기</value></data>
+  <data name="MapManager_RenameTheMap2" xml:space="preserve"><value>지도 이름 바꾸기</value></data>
   <data name="MapManager_ActiveMap" xml:space="preserve"><value>활성 지도: {0}</value></data>
   <data name="MapManager_Moved" xml:space="preserve"><value>“{0}” 이동됨</value></data>
   <data name="MapManager_ZoneMoved" xml:space="preserve"><value>“{0}” 구역 이동됨</value></data>
@@ -256,7 +256,7 @@ MyDyson 계정에서 로그아웃하시겠습니까?</value></data>
   <data name="MapManager_180HalfTurn" xml:space="preserve"><value>180°(반 바퀴 회전)</value></data>
   <data name="MapManager_90QuarterTurnClockwise" xml:space="preserve"><value>90°(시계 방향 1/4 회전)</value></data>
   <data name="MapManager_0Original" xml:space="preserve"><value>0°(원래 상태)</value></data>
-  <data name="MapManager_Maps" xml:space="preserve"><value>지도: {0}</value></data>
+  <data name="MapManager_Maps2" xml:space="preserve"><value>지도: {0}</value></data>
   <data name="MapManager_ClickAPieceOfFurniture" xml:space="preserve"><value>가구를 클릭하여 선택한 다음, 끌어서 이동하세요. 휠로 확대/축소하고, 다른 곳을 끌어 지도를 이동하세요.</value></data>
   <data name="MapManager_ClickAZoneToChoose" xml:space="preserve"><value>구역을 클릭하여 선택한 다음, 끌어서 이동하거나 모서리를 당겨 크기를 조정하세요. 휠로 확대/축소하고, 다른 곳을 끌어 지도를 이동하세요.</value></data>
   <data name="MapManager_ClickARoomToChoose" xml:space="preserve"><value>방을 클릭하여 선택하고, 바깥쪽을 클릭하면 선택이 해제됩니다. 휠로 확대/축소하고 끌어서 이동하세요.</value></data>
@@ -356,8 +356,8 @@ MyDyson 계정에서 로그아웃하시겠습니까?</value></data>
   <data name="RobotSettings_ExtendThePreparationClassicMessage" xml:space="preserve"><value>준비 시간 연장(클래식 메시지 전용)</value></data>
   <data name="RobotSettings_Sounds" xml:space="preserve"><value>소리</value></data>
   <data name="RobotSettings_SelfCleanWithHotWater" xml:space="preserve"><value>온수로 자동 세척</value></data>
-  <data name="RobotSettings_MopWithCleaningSolution" xml:space="preserve"><value>세정액으로 물걸레 청소</value></data>
-  <data name="RobotSettings_MopWithHotWater" xml:space="preserve"><value>온수로 물걸레 청소</value></data>
+  <data name="RobotSettings_MopWithCleaningSolution3" xml:space="preserve"><value>세정액으로 물걸레 청소</value></data>
+  <data name="RobotSettings_MopWithHotWater3" xml:space="preserve"><value>온수로 물걸레 청소</value></data>
   <data name="RobotSettings_ReadyToUse" xml:space="preserve"><value>사용 준비 완료</value></data>
   <data name="RobotSettings_ToRefill" xml:space="preserve"><value>보충 필요</value></data>
   <data name="RobotSettings_BestForDocksInVery" xml:space="preserve"><value>매우 습하거나 통풍이 잘 안 되는 곳에 있는 도크에 가장 적합합니다.</value></data>
@@ -502,7 +502,7 @@ MyDyson 계정에서 로그아웃하시겠습니까?</value></data>
   <data name="Settings_KeptCleanFileSOlder" xml:space="preserve"><value>{1}일보다 오래된 청소 보관 파일 {0}개가 즉시 삭제되며 복구할 수 없습니다.
 
 계속하시겠습니까?</value></data>
-  <data name="Settings_CleaningHistory" xml:space="preserve"><value>청소 기록</value></data>
+  <data name="Settings_CleaningHistory2" xml:space="preserve"><value>청소 기록</value></data>
   <data name="Settings_MessageRecordFileSOlder" xml:space="preserve"><value>{1}일보다 오래된 메시지 기록 파일 {0}개가 즉시 삭제되며 복구할 수 없습니다.
 
 계속하시겠습니까?</value></data>

@@ -212,7 +212,7 @@ Afmelden bij het MyDyson-account?</value></data>
   <data name="MapManager_RoomRenamedTo" xml:space="preserve"><value>kamer hernoemd naar “{0}”</value></data>
   <data name="MapManager_TheRobotRefusedTheZones" xml:space="preserve"><value>De robot heeft de zones geweigerd.</value></data>
   <data name="MapManager_ZoneDeleted" xml:space="preserve"><value>zone “{0}” verwijderd</value></data>
-  <data name="MapManager_DeleteTheZone" xml:space="preserve"><value>Wil je de zone “{0}” ({1}) verwijderen?</value></data>
+  <data name="MapManager_DeleteTheZone3" xml:space="preserve"><value>Wil je de zone “{0}” ({1}) verwijderen?</value></data>
   <data name="MapManager_DeleteTheZone2" xml:space="preserve"><value>Zone verwijderen</value></data>
   <data name="MapManager_ZoneChangedTo" xml:space="preserve"><value>zone gewijzigd naar “{0}”</value></data>
   <data name="MapManager_ZoneAdded" xml:space="preserve"><value>zone “{0}” toegevoegd</value></data>
@@ -237,11 +237,11 @@ In kaart brengen starten?</value></data>
   <data name="MapManager_PermanentlyDeleteTheMapWith" xml:space="preserve"><value>Wil je de kaart “{0}” definitief verwijderen, met de kamers en hun instellingen?{1}
 
 Dit kan niet ongedaan worden gemaakt.</value></data>
-  <data name="MapManager_DeleteTheMap" xml:space="preserve"><value>Kaart verwijderen</value></data>
+  <data name="MapManager_DeleteTheMap2" xml:space="preserve"><value>Kaart verwijderen</value></data>
   <data name="MapManager_ThisIsTheActiveMap" xml:space="preserve"><value>Dit is de actieve kaart: de robot kiest zelf een andere.</value></data>
   <data name="MapManager_MapRenamedTo" xml:space="preserve"><value>kaart hernoemd naar “{0}”</value></data>
   <data name="MapManager_MapName" xml:space="preserve"><value>Kaartnaam:</value></data>
-  <data name="MapManager_RenameTheMap" xml:space="preserve"><value>Kaart hernoemen</value></data>
+  <data name="MapManager_RenameTheMap2" xml:space="preserve"><value>Kaart hernoemen</value></data>
   <data name="MapManager_ActiveMap" xml:space="preserve"><value>actieve kaart: {0}</value></data>
   <data name="MapManager_Moved" xml:space="preserve"><value>“{0}” verplaatst</value></data>
   <data name="MapManager_ZoneMoved" xml:space="preserve"><value>zone “{0}” verplaatst</value></data>
@@ -256,7 +256,7 @@ Dit kan niet ongedaan worden gemaakt.</value></data>
   <data name="MapManager_180HalfTurn" xml:space="preserve"><value>180° (halve draai)</value></data>
   <data name="MapManager_90QuarterTurnClockwise" xml:space="preserve"><value>90° (kwartslag met de klok mee)</value></data>
   <data name="MapManager_0Original" xml:space="preserve"><value>0° (origineel)</value></data>
-  <data name="MapManager_Maps" xml:space="preserve"><value>Kaarten: {0}</value></data>
+  <data name="MapManager_Maps2" xml:space="preserve"><value>Kaarten: {0}</value></data>
   <data name="MapManager_ClickAPieceOfFurniture" xml:space="preserve"><value>Klik op een meubel om het te kiezen en sleep het vervolgens om te verplaatsen. Scrollwiel om te zoomen, elders slepen om de kaart te verplaatsen.</value></data>
   <data name="MapManager_ClickAZoneToChoose" xml:space="preserve"><value>Klik op een zone om die te kiezen en sleep de zone vervolgens om te verplaatsen, of trek aan een van de hoeken om het formaat te wijzigen. Scrollwiel om te zoomen, elders slepen om de kaart te verplaatsen.</value></data>
   <data name="MapManager_ClickARoomToChoose" xml:space="preserve"><value>Klik op een kamer om die te kiezen, daarbuiten om de keuze te wissen. Scrollwiel om te zoomen, slepen om te verplaatsen.</value></data>
@@ -356,8 +356,8 @@ Dit kan niet ongedaan worden gemaakt.</value></data>
   <data name="RobotSettings_ExtendThePreparationClassicMessage" xml:space="preserve"><value>voorbereiding verlengen (alleen klassiek bericht)</value></data>
   <data name="RobotSettings_Sounds" xml:space="preserve"><value>geluiden</value></data>
   <data name="RobotSettings_SelfCleanWithHotWater" xml:space="preserve"><value>zelfreiniging met heet water</value></data>
-  <data name="RobotSettings_MopWithCleaningSolution" xml:space="preserve"><value>dweilen met reinigingsmiddel</value></data>
-  <data name="RobotSettings_MopWithHotWater" xml:space="preserve"><value>dweilen met heet water</value></data>
+  <data name="RobotSettings_MopWithCleaningSolution3" xml:space="preserve"><value>dweilen met reinigingsmiddel</value></data>
+  <data name="RobotSettings_MopWithHotWater3" xml:space="preserve"><value>dweilen met heet water</value></data>
   <data name="RobotSettings_ReadyToUse" xml:space="preserve"><value>Klaar voor gebruik</value></data>
   <data name="RobotSettings_ToRefill" xml:space="preserve"><value>Bijvullen</value></data>
   <data name="RobotSettings_BestForDocksInVery" xml:space="preserve"><value>Ideaal voor dockingstations op zeer vochtige of slecht geventileerde plaatsen.</value></data>
@@ -502,7 +502,7 @@ Dit kan niet ongedaan worden gemaakt.</value></data>
   <data name="Settings_KeptCleanFileSOlder" xml:space="preserve"><value>{0} bewaarde reinigingsbestand(en) ouder dan {1} dag(en) worden direct verwijderd en kunnen niet worden hersteld.
 
 Doorgaan?</value></data>
-  <data name="Settings_CleaningHistory" xml:space="preserve"><value>Reinigingsgeschiedenis</value></data>
+  <data name="Settings_CleaningHistory2" xml:space="preserve"><value>Reinigingsgeschiedenis</value></data>
   <data name="Settings_MessageRecordFileSOlder" xml:space="preserve"><value>{0} bestand(en) met geregistreerde berichten ouder dan {1} dag(en) worden direct verwijderd en kunnen niet worden hersteld.
 
 Doorgaan?</value></data>

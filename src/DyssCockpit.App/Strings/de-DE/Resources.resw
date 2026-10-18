@@ -212,7 +212,7 @@ Vom MyDyson-Konto abmelden?</value></data>
   <data name="MapManager_RoomRenamedTo" xml:space="preserve"><value>Raum umbenannt in „{0}“</value></data>
   <data name="MapManager_TheRobotRefusedTheZones" xml:space="preserve"><value>Der Roboter hat die Zonen abgelehnt.</value></data>
   <data name="MapManager_ZoneDeleted" xml:space="preserve"><value>Zone „{0}“ gelöscht</value></data>
-  <data name="MapManager_DeleteTheZone" xml:space="preserve"><value>Zone „{0}“ ({1}) löschen?</value></data>
+  <data name="MapManager_DeleteTheZone3" xml:space="preserve"><value>Zone „{0}“ ({1}) löschen?</value></data>
   <data name="MapManager_DeleteTheZone2" xml:space="preserve"><value>Zone löschen</value></data>
   <data name="MapManager_ZoneChangedTo" xml:space="preserve"><value>Zone geändert in „{0}“</value></data>
   <data name="MapManager_ZoneAdded" xml:space="preserve"><value>Zone „{0}“ hinzugefügt</value></data>
@@ -237,11 +237,11 @@ Kartierung starten?</value></data>
   <data name="MapManager_PermanentlyDeleteTheMapWith" xml:space="preserve"><value>Karte „{0}“ mit ihren Räumen und deren Einstellungen endgültig löschen?{1}
 
 Dies kann nicht rückgängig gemacht werden.</value></data>
-  <data name="MapManager_DeleteTheMap" xml:space="preserve"><value>Karte löschen</value></data>
+  <data name="MapManager_DeleteTheMap2" xml:space="preserve"><value>Karte löschen</value></data>
   <data name="MapManager_ThisIsTheActiveMap" xml:space="preserve"><value>Dies ist die aktive Karte: Der Roboter wählt selbstständig eine andere aus.</value></data>
   <data name="MapManager_MapRenamedTo" xml:space="preserve"><value>Karte umbenannt in „{0}“</value></data>
   <data name="MapManager_MapName" xml:space="preserve"><value>Name der Karte:</value></data>
-  <data name="MapManager_RenameTheMap" xml:space="preserve"><value>Karte umbenennen</value></data>
+  <data name="MapManager_RenameTheMap2" xml:space="preserve"><value>Karte umbenennen</value></data>
   <data name="MapManager_ActiveMap" xml:space="preserve"><value>aktive Karte: {0}</value></data>
   <data name="MapManager_Moved" xml:space="preserve"><value>„{0}“ verschoben</value></data>
   <data name="MapManager_ZoneMoved" xml:space="preserve"><value>Zone „{0}“ verschoben</value></data>
@@ -256,7 +256,7 @@ Dies kann nicht rückgängig gemacht werden.</value></data>
   <data name="MapManager_180HalfTurn" xml:space="preserve"><value>180° (halbe Drehung)</value></data>
   <data name="MapManager_90QuarterTurnClockwise" xml:space="preserve"><value>90° (Vierteldrehung im Uhrzeigersinn)</value></data>
   <data name="MapManager_0Original" xml:space="preserve"><value>0° (Original)</value></data>
-  <data name="MapManager_Maps" xml:space="preserve"><value>Karten: {0}</value></data>
+  <data name="MapManager_Maps2" xml:space="preserve"><value>Karten: {0}</value></data>
   <data name="MapManager_ClickAPieceOfFurniture" xml:space="preserve"><value>Klicken Sie auf ein Möbelstück, um es auszuwählen, und ziehen Sie es dann, um es zu verschieben. Mausrad zum Zoomen, an anderer Stelle ziehen, um die Karte zu verschieben.</value></data>
   <data name="MapManager_ClickAZoneToChoose" xml:space="preserve"><value>Klicken Sie auf eine Zone, um sie auszuwählen. Ziehen Sie sie dann, um sie zu verschieben, oder ziehen Sie an einer ihrer Ecken, um die Größe zu ändern. Mausrad zum Zoomen, an anderer Stelle ziehen, um die Karte zu verschieben.</value></data>
   <data name="MapManager_ClickARoomToChoose" xml:space="preserve"><value>Klicken Sie auf einen Raum, um ihn auszuwählen, oder außerhalb, um die Auswahl aufzuheben. Mausrad zum Zoomen, Ziehen zum Verschieben.</value></data>
@@ -356,8 +356,8 @@ Dies kann nicht rückgängig gemacht werden.</value></data>
   <data name="RobotSettings_ExtendThePreparationClassicMessage" xml:space="preserve"><value>Vorbereitung verlängern (nur klassische Nachricht)</value></data>
   <data name="RobotSettings_Sounds" xml:space="preserve"><value>Töne</value></data>
   <data name="RobotSettings_SelfCleanWithHotWater" xml:space="preserve"><value>Selbstreinigung mit heißem Wasser</value></data>
-  <data name="RobotSettings_MopWithCleaningSolution" xml:space="preserve"><value>mit Reinigungslösung wischen</value></data>
-  <data name="RobotSettings_MopWithHotWater" xml:space="preserve"><value>mit heißem Wasser wischen</value></data>
+  <data name="RobotSettings_MopWithCleaningSolution3" xml:space="preserve"><value>mit Reinigungslösung wischen</value></data>
+  <data name="RobotSettings_MopWithHotWater3" xml:space="preserve"><value>mit heißem Wasser wischen</value></data>
   <data name="RobotSettings_ReadyToUse" xml:space="preserve"><value>Einsatzbereit</value></data>
   <data name="RobotSettings_ToRefill" xml:space="preserve"><value>Nachfüllen</value></data>
   <data name="RobotSettings_BestForDocksInVery" xml:space="preserve"><value>Ideal für Stationen an sehr feuchten oder schlecht belüfteten Orten.</value></data>
@@ -493,7 +493,7 @@ Dies kann nicht rückgängig gemacht werden.</value></data>
   <data name="Schedules_ActiveMap" xml:space="preserve"><value>Aktive Karte: {0}</value></data>
   <data name="Schedules_About" xml:space="preserve"><value>etwa {0}</value></data>
   <data name="Schedules_Once" xml:space="preserve"><value>, einmalig</value></data>
-  <data name="Schedules_TheActiveMapSSchedules.Text" xml:space="preserve"><value>Die Zeitpläne der aktiven Karte, wie sie die Dyson-Cloud speichert: sowohl die hier erstellten als auch die aus der mobilen App. Der Roboter führt nur die Zeitpläne der aktiven Karte aus; die Zeitpläne anderer Karten erscheinen wieder, sobald diese erneut aktiv ist.</value></data>
+  <data name="Schedules_TheActiveMapSSchedules.Text" xml:space="preserve"><value>Die Zeitpläne der aktiven Karte, wie sie die Dyson-Cloud speichert: sowohl die hier erstellten als auch die aus der mobilen App. Der Roboter führt nur die Zeitpläne der aktiven Karte aus; die Zeitpläne einer anderen Karte erscheinen wieder, sobald diese Karte erneut aktiv ist.</value></data>
   <data name="Schedules_NewSchedule.Text" xml:space="preserve"><value>Neuer Zeitplan…</value></data>
   <data name="Schedules_ASchedulePlansAClean.Text" xml:space="preserve"><value>Ein Zeitplan plant eine Reinigung der aktiven Karte; der Roboter muss verbunden sein.</value></data>
   <data name="Schedules_SchedulesOfTheActiveMap.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Zeitpläne der aktiven Karte</value></data>
@@ -502,7 +502,7 @@ Dies kann nicht rückgängig gemacht werden.</value></data>
   <data name="Settings_KeptCleanFileSOlder" xml:space="preserve"><value>{0} gespeicherte Reinigungsdatei(en), die älter als {1} Tag(e) sind, werden sofort gelöscht und können nicht wiederhergestellt werden.
 
 Fortfahren?</value></data>
-  <data name="Settings_CleaningHistory" xml:space="preserve"><value>Reinigungsverlauf</value></data>
+  <data name="Settings_CleaningHistory2" xml:space="preserve"><value>Reinigungsverlauf</value></data>
   <data name="Settings_MessageRecordFileSOlder" xml:space="preserve"><value>{0} Datei(en) mit aufgezeichneten Nachrichten, die älter als {1} Tag(e) sind, werden sofort gelöscht und können nicht wiederhergestellt werden.
 
 Fortfahren?</value></data>

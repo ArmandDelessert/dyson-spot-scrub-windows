@@ -212,7 +212,7 @@ Log out of the MyDyson account?</value></data>
   <data name="MapManager_RoomRenamedTo" xml:space="preserve"><value>room renamed to “{0}”</value></data>
   <data name="MapManager_TheRobotRefusedTheZones" xml:space="preserve"><value>The robot refused the zones.</value></data>
   <data name="MapManager_ZoneDeleted" xml:space="preserve"><value>“{0}” zone deleted</value></data>
-  <data name="MapManager_DeleteTheZone" xml:space="preserve"><value>Delete the “{0}” zone ({1})?</value></data>
+  <data name="MapManager_DeleteTheZone3" xml:space="preserve"><value>Delete the “{0}” zone ({1})?</value></data>
   <data name="MapManager_DeleteTheZone2" xml:space="preserve"><value>Delete the zone</value></data>
   <data name="MapManager_ZoneChangedTo" xml:space="preserve"><value>zone changed to “{0}”</value></data>
   <data name="MapManager_ZoneAdded" xml:space="preserve"><value>“{0}” zone added</value></data>
@@ -237,11 +237,11 @@ Start mapping?</value></data>
   <data name="MapManager_PermanentlyDeleteTheMapWith" xml:space="preserve"><value>Permanently delete the “{0}” map, with its rooms and their settings?{1}
 
 This cannot be undone.</value></data>
-  <data name="MapManager_DeleteTheMap" xml:space="preserve"><value>Delete the map</value></data>
+  <data name="MapManager_DeleteTheMap2" xml:space="preserve"><value>Delete the map</value></data>
   <data name="MapManager_ThisIsTheActiveMap" xml:space="preserve"><value>This is the active map: the robot will pick another one by itself.</value></data>
   <data name="MapManager_MapRenamedTo" xml:space="preserve"><value>map renamed to “{0}”</value></data>
   <data name="MapManager_MapName" xml:space="preserve"><value>Map name:</value></data>
-  <data name="MapManager_RenameTheMap" xml:space="preserve"><value>Rename the map</value></data>
+  <data name="MapManager_RenameTheMap2" xml:space="preserve"><value>Rename the map</value></data>
   <data name="MapManager_ActiveMap" xml:space="preserve"><value>active map: {0}</value></data>
   <data name="MapManager_Moved" xml:space="preserve"><value>“{0}” moved</value></data>
   <data name="MapManager_ZoneMoved" xml:space="preserve"><value>“{0}” zone moved</value></data>
@@ -256,7 +256,7 @@ This cannot be undone.</value></data>
   <data name="MapManager_180HalfTurn" xml:space="preserve"><value>180° (half turn)</value></data>
   <data name="MapManager_90QuarterTurnClockwise" xml:space="preserve"><value>90° (quarter turn clockwise)</value></data>
   <data name="MapManager_0Original" xml:space="preserve"><value>0° (original)</value></data>
-  <data name="MapManager_Maps" xml:space="preserve"><value>Maps: {0}</value></data>
+  <data name="MapManager_Maps2" xml:space="preserve"><value>Maps: {0}</value></data>
   <data name="MapManager_ClickAPieceOfFurniture" xml:space="preserve"><value>Click a piece of furniture to choose it, then drag it to move it. Wheel to zoom, drag elsewhere to move the map.</value></data>
   <data name="MapManager_ClickAZoneToChoose" xml:space="preserve"><value>Click a zone to choose it, then drag it to move it or pull one of its corners to resize it. Wheel to zoom, drag elsewhere to move the map.</value></data>
   <data name="MapManager_ClickARoomToChoose" xml:space="preserve"><value>Click a room to choose it, outside to clear the choice. Wheel to zoom, drag to move.</value></data>
@@ -356,8 +356,8 @@ This cannot be undone.</value></data>
   <data name="RobotSettings_ExtendThePreparationClassicMessage" xml:space="preserve"><value>extend the preparation (classic message only)</value></data>
   <data name="RobotSettings_Sounds" xml:space="preserve"><value>sounds</value></data>
   <data name="RobotSettings_SelfCleanWithHotWater" xml:space="preserve"><value>self-clean with hot water</value></data>
-  <data name="RobotSettings_MopWithCleaningSolution" xml:space="preserve"><value>mop with cleaning solution</value></data>
-  <data name="RobotSettings_MopWithHotWater" xml:space="preserve"><value>mop with hot water</value></data>
+  <data name="RobotSettings_MopWithCleaningSolution3" xml:space="preserve"><value>mop with cleaning solution</value></data>
+  <data name="RobotSettings_MopWithHotWater3" xml:space="preserve"><value>mop with hot water</value></data>
   <data name="RobotSettings_ReadyToUse" xml:space="preserve"><value>Ready to use</value></data>
   <data name="RobotSettings_ToRefill" xml:space="preserve"><value>To refill</value></data>
   <data name="RobotSettings_BestForDocksInVery" xml:space="preserve"><value>Best for docks in very damp or poorly ventilated places.</value></data>
@@ -502,7 +502,7 @@ This cannot be undone.</value></data>
   <data name="Settings_KeptCleanFileSOlder" xml:space="preserve"><value>{0} kept clean file(s) older than {1} day(s) will be deleted at once, and cannot be recovered.
 
 Continue?</value></data>
-  <data name="Settings_CleaningHistory" xml:space="preserve"><value>Cleaning history</value></data>
+  <data name="Settings_CleaningHistory2" xml:space="preserve"><value>Cleaning history</value></data>
   <data name="Settings_MessageRecordFileSOlder" xml:space="preserve"><value>{0} message record file(s) older than {1} day(s) will be deleted at once, and cannot be recovered.
 
 Continue?</value></data>

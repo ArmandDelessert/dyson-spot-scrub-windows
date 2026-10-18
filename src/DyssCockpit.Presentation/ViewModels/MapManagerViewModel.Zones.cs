@@ -102,7 +102,7 @@ public sealed partial class MapManagerViewModel
     private async Task DeleteZoneAsync()
     {
         if (SelectedZone is not { } chosen) return;
-        if (!await _hub.Dialogs.ConfirmAsync(T("MapManager_DeleteTheZone2"), Tf("MapManager_DeleteTheZone", chosen.Label, chosen.SizeText))) return;
+        if (!await _hub.Dialogs.ConfirmAsync(T("MapManager_DeleteTheZone2"), Tf("MapManager_DeleteTheZone3", chosen.Label, chosen.SizeText))) return;
         var zones = OrderedZones().Where(z => !ReferenceEquals(z, chosen)).Select(z => new RestrictionZone(z.Kind!, z.Corners)).ToList();
         await SendZonesAsync(Tf("MapManager_ZoneDeleted", chosen.Label), zones);
     }

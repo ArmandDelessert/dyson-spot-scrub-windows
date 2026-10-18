@@ -212,7 +212,7 @@
   <data name="MapManager_RoomRenamedTo" xml:space="preserve"><value>房间已重命名为“{0}”</value></data>
   <data name="MapManager_TheRobotRefusedTheZones" xml:space="preserve"><value>机器人拒绝了这些区域。</value></data>
   <data name="MapManager_ZoneDeleted" xml:space="preserve"><value>已删除“{0}”区域</value></data>
-  <data name="MapManager_DeleteTheZone" xml:space="preserve"><value>要删除“{0}”区域（{1}）吗？</value></data>
+  <data name="MapManager_DeleteTheZone3" xml:space="preserve"><value>要删除“{0}”区域（{1}）吗？</value></data>
   <data name="MapManager_DeleteTheZone2" xml:space="preserve"><value>删除区域</value></data>
   <data name="MapManager_ZoneChangedTo" xml:space="preserve"><value>区域已更改为“{0}”</value></data>
   <data name="MapManager_ZoneAdded" xml:space="preserve"><value>已添加“{0}”区域</value></data>
@@ -237,11 +237,11 @@
   <data name="MapManager_PermanentlyDeleteTheMapWith" xml:space="preserve"><value>要永久删除“{0}”地图及其房间和房间设置吗？{1}
 
 此操作无法撤销。</value></data>
-  <data name="MapManager_DeleteTheMap" xml:space="preserve"><value>删除地图</value></data>
+  <data name="MapManager_DeleteTheMap2" xml:space="preserve"><value>删除地图</value></data>
   <data name="MapManager_ThisIsTheActiveMap" xml:space="preserve"><value>这是当前地图：机器人会自行选择另一张地图。</value></data>
   <data name="MapManager_MapRenamedTo" xml:space="preserve"><value>地图已重命名为“{0}”</value></data>
   <data name="MapManager_MapName" xml:space="preserve"><value>地图名称：</value></data>
-  <data name="MapManager_RenameTheMap" xml:space="preserve"><value>重命名地图</value></data>
+  <data name="MapManager_RenameTheMap2" xml:space="preserve"><value>重命名地图</value></data>
   <data name="MapManager_ActiveMap" xml:space="preserve"><value>当前地图：{0}</value></data>
   <data name="MapManager_Moved" xml:space="preserve"><value>已移动“{0}”</value></data>
   <data name="MapManager_ZoneMoved" xml:space="preserve"><value>已移动“{0}”区域</value></data>
@@ -256,7 +256,7 @@
   <data name="MapManager_180HalfTurn" xml:space="preserve"><value>180°（旋转半圈）</value></data>
   <data name="MapManager_90QuarterTurnClockwise" xml:space="preserve"><value>90°（顺时针旋转四分之一圈）</value></data>
   <data name="MapManager_0Original" xml:space="preserve"><value>0°（原始方向）</value></data>
-  <data name="MapManager_Maps" xml:space="preserve"><value>地图：{0}</value></data>
+  <data name="MapManager_Maps2" xml:space="preserve"><value>地图：{0}</value></data>
   <data name="MapManager_ClickAPieceOfFurniture" xml:space="preserve"><value>单击家具可选中，然后拖动它可移动。滚轮缩放，在其他位置拖动可移动地图。</value></data>
   <data name="MapManager_ClickAZoneToChoose" xml:space="preserve"><value>单击区域可选中，然后拖动它可移动，或拖动其某个角可调整大小。滚轮缩放，在其他位置拖动可移动地图。</value></data>
   <data name="MapManager_ClickARoomToChoose" xml:space="preserve"><value>单击房间可选中，单击房间外部可取消选择。滚轮缩放，拖动可移动。</value></data>
@@ -356,8 +356,8 @@
   <data name="RobotSettings_ExtendThePreparationClassicMessage" xml:space="preserve"><value>延长准备时间（仅限经典消息）</value></data>
   <data name="RobotSettings_Sounds" xml:space="preserve"><value>声音</value></data>
   <data name="RobotSettings_SelfCleanWithHotWater" xml:space="preserve"><value>使用热水自清洁</value></data>
-  <data name="RobotSettings_MopWithCleaningSolution" xml:space="preserve"><value>使用清洁液拖地</value></data>
-  <data name="RobotSettings_MopWithHotWater" xml:space="preserve"><value>使用热水拖地</value></data>
+  <data name="RobotSettings_MopWithCleaningSolution3" xml:space="preserve"><value>使用清洁液拖地</value></data>
+  <data name="RobotSettings_MopWithHotWater3" xml:space="preserve"><value>使用热水拖地</value></data>
   <data name="RobotSettings_ReadyToUse" xml:space="preserve"><value>可使用</value></data>
   <data name="RobotSettings_ToRefill" xml:space="preserve"><value>需补充</value></data>
   <data name="RobotSettings_BestForDocksInVery" xml:space="preserve"><value>适合基站位于非常潮湿或通风不良的位置时使用。</value></data>
@@ -502,7 +502,7 @@
   <data name="Settings_KeptCleanFileSOlder" xml:space="preserve"><value>将立即删除 {0} 个超过 {1} 天的已保留清洁文件，且无法恢复。
 
 是否继续？</value></data>
-  <data name="Settings_CleaningHistory" xml:space="preserve"><value>清洁历史记录</value></data>
+  <data name="Settings_CleaningHistory2" xml:space="preserve"><value>清洁历史记录</value></data>
   <data name="Settings_MessageRecordFileSOlder" xml:space="preserve"><value>将立即删除 {0} 个超过 {1} 天的消息记录文件，且无法恢复。
 
 是否继续？</value></data>

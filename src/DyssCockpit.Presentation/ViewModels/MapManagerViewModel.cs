@@ -199,7 +199,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
                 ?? Maps.FirstOrDefault();
         }
         catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { Status = Tf("MapManager_Maps", ex.Message); }
+        catch (Exception ex) { Status = Tf("MapManager_Maps2", ex.Message); }
     }
 
     // ---- Map orientation ----------------------------------------------------------
@@ -463,7 +463,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
     private async Task RenameMapAsync()
     {
         if (SelectedMap is not { } map) return;
-        var name = await _hub.Dialogs.AskTextAsync(T("MapManager_RenameTheMap"), T("MapManager_MapName"), map.Metadata.Name ?? "");
+        var name = await _hub.Dialogs.AskTextAsync(T("MapManager_RenameTheMap2"), T("MapManager_MapName"), map.Metadata.Name ?? "");
         if (string.IsNullOrWhiteSpace(name) || name == map.Metadata.Name) return;
         if (!TryMapId(map, out var mapId)) return;
 
@@ -478,7 +478,7 @@ public sealed partial class MapManagerViewModel : ObservableObject
         var active = map.Metadata.IsCurrentMap
             ? ("\n\n" + T("MapManager_ThisIsTheActiveMap"))
             : "";
-        if (!await _hub.Dialogs.ConfirmAsync(T("MapManager_DeleteTheMap"),
+        if (!await _hub.Dialogs.ConfirmAsync(T("MapManager_DeleteTheMap2"),
                 Tf("MapManager_PermanentlyDeleteTheMapWith", name, active))) return;
 
         // Reloaded without a preference: the deleted map is gone, so the list falls back on the
