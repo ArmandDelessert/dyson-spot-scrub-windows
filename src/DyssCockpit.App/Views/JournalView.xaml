@@ -8,14 +8,13 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition/>
         </Grid.RowDefinitions>
-        <TextBlock Style="{StaticResource Muted}" MaxWidth="900" HorizontalAlignment="Left"
-                   Text='{local:Tr Fr="Le journal affiche les événements notables signalés par le robot (fautes, fin de nettoyage, changement de carte…) et le résultat des commandes envoyées depuis cette fenêtre. Il ne montre pas chaque message échangé avec le robot : pour tous les garder, activez « Enregistrer tous les messages » dans Paramètres › Journaux.", En="The log shows the notable events the robot reports (faults, end of a clean, change of map…) and the result of the commands sent from this window. It does not show every message exchanged with the robot: to keep them all, turn on “Record all messages” in Settings › Logs."}'/>
+        <TextBlock x:Uid="Journal_TheLogShowsTheNotable" Style="{StaticResource Muted}" MaxWidth="900" HorizontalAlignment="Left"/>
 
         <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.RecordInfo, Mode=OneWay}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                    Visibility="{x:Bind local:Ui.IfAny(ViewModel.RecordInfo), Mode=OneWay}"/>
 
         <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0" Padding="0,8">
-            <ListView ItemsSource="{x:Bind ViewModel.Log}" SelectionMode="None" AutomationProperties.Name='{local:Tr Fr="Journal", En="Log"}'>
+            <ListView x:Uid="Journal_Log" ItemsSource="{x:Bind ViewModel.Log}" SelectionMode="None">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
                         <TextBlock Text="{x:Bind}" FontFamily="Cascadia Mono, Consolas" FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>

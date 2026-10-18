@@ -50,10 +50,10 @@ public sealed partial class MapManagerViewModel
 
     /// <summary>Why the furniture cannot be changed on this map, or empty when it can.</summary>
     public string FurnitureBlockedReason => FurnitureItems.FirstOrDefault(f => !f.CanBeSentBack) is { } odd
-        ? Tf($"Cette carte porte un meuble que cette application ne sait pas décrire ({odd.Label}) : toute modification l'effacerait, les meubles restent donc en lecture seule.", $"This map holds a piece of furniture this application cannot describe ({odd.Label}): any change would erase it, so the furniture is read-only.")
+        ? Tf("MapManager_ThisMapHoldsAPiece", odd.Label)
         : "";
 
-    public string FurnitureEmptyText => FurnitureItems.Count == 0 ? T("Aucun meuble sur cette carte.", "No furniture on this map.") : "";
+    public string FurnitureEmptyText => FurnitureItems.Count == 0 ? T("MapManager_NoFurnitureOnThisMap") : "";
     private bool FurnitureEditable => IsActiveMap && Idle && FurnitureBlockedReason == "";
     private bool CanAddFurniture() => FurnitureEditable;
     private bool HasFurniture() => SelectedFurniture is not null && FurnitureEditable;
@@ -83,7 +83,7 @@ public sealed partial class MapManagerViewModel
     private void AddFurniture()
     {
         PlacingFurniture = true;
-        Hint = Tf($"Cliquez l'endroit où poser « {FurnitureKind.Label} » (le centre du meuble). Échap pour annuler.", $"Click where to place the “{FurnitureKind.Label}” (the centre of the piece). Esc to cancel.");
+        Hint = Tf("MapManager_ClickWhereToPlaceThe", FurnitureKind.Label);
         Status = "";
         RefreshCommandStates();
     }
@@ -97,7 +97,7 @@ public sealed partial class MapManagerViewModel
         var pieces = CurrentFurniture();
         var index = pieces.Count == 0 ? 1 : pieces.Max(f => f.Index) + 1;
         pieces.Add(new FurniturePiece(index, kind, MapShapes.Centred(p, kind.Length, kind.Width)));
-        await SendFurnitureAsync(Tf($"« {kind.Label} » ajouté", $"“{kind.Label}” added"), pieces);
+        await SendFurnitureAsync(Tf("MapManager_Added", kind.Label), pieces);
     }
 
     /// <summary>
@@ -114,7 +114,7 @@ public sealed partial class MapManagerViewModel
         }
         var (length, width) = MapShapes.Sides(chosen.Corners);
         var corners = MapShapes.Oriented(MapShapes.Centre(chosen.Corners), length, width, quarterTurns);
-        await SendFurnitureAsync(Tf($"« {chosen.Label} » tourné à {quarterTurns * 90}°", $"“{chosen.Label}” turned to {quarterTurns * 90}°"), ReplaceCorners(chosen, corners));
+        await SendFurnitureAsync(Tf("MapManager_TurnedTo", chosen.Label, quarterTurns * 90), ReplaceCorners(chosen, corners));
         // Refused or not sent: the list goes back to how the piece really stands.
         if (ReferenceEquals(SelectedFurniture, chosen)) ShowOrientation(chosen);
     }
@@ -123,8 +123,8 @@ public sealed partial class MapManagerViewModel
     private async Task DeleteFurnitureAsync()
     {
         if (SelectedFurniture is not { } chosen) return;
-        if (!await _hub.Dialogs.ConfirmAsync(T("Supprimer le meuble", "Remove the furniture"), Tf($"Retirer « {chosen.Label} » de la carte ?", $"Remove the “{chosen.Label}” from the map?"))) return;
-        await SendFurnitureAsync(Tf($"« {chosen.Label} » retiré", $"“{chosen.Label}” removed"), CurrentFurniture().Where(f => f.Index != chosen.Index).ToList());
+        if (!await _hub.Dialogs.ConfirmAsync(T("MapManager_RemoveTheFurniture"), Tf("MapManager_RemoveTheFromTheMap", chosen.Label))) return;
+        await SendFurnitureAsync(Tf("MapManager_Removed", chosen.Label), CurrentFurniture().Where(f => f.Index != chosen.Index).ToList());
     }
 
     /// <summary>The furniture in index order, the order the cloud lists it in, whatever the list on screen shows.</summary>
@@ -134,5 +134,5 @@ public sealed partial class MapManagerViewModel
         [.. CurrentFurniture().Select(f => f.Index == chosen.Index ? f with { Corners = corners } : f)];
 
     private Task SendFurnitureAsync(string label, IReadOnlyList<FurniturePiece> pieces) =>
-        EditAsync(label, c => c.AdjustFurnitureAsync(pieces, ct: _hub.Ct), refused: T("Le robot a refusé les meubles.", "The robot refused the furniture."));
+        EditAsync(label, c => c.AdjustFurnitureAsync(pieces, ct: _hub.Ct), refused: T("MapManager_TheRobotRefusedTheFurniture"));
 }

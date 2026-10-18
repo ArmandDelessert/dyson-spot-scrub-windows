@@ -287,65 +287,29 @@ public static class CleanDurationEstimate
 /// <summary>Short names for the days in the current language, and a compact text for a set of them.</summary>
 public static class ScheduleDayLabels
 {
-    public static IReadOnlyList<(ScheduleDays Day, string Letter, string Short, string Long)> All => Translation.Current switch
-    {
-        AppLanguage.French => French,
-        AppLanguage.English => English,
-        _ => OfCulture(Translation.Culture),
-    };
-
-    private static readonly (ScheduleDays, string, string, string)[] French =
-    [
-        (ScheduleDays.Monday, "L", "lun.", "lundi"),
-        (ScheduleDays.Tuesday, "M", "mar.", "mardi"),
-        (ScheduleDays.Wednesday, "M", "mer.", "mercredi"),
-        (ScheduleDays.Thursday, "J", "jeu.", "jeudi"),
-        (ScheduleDays.Friday, "V", "ven.", "vendredi"),
-        (ScheduleDays.Saturday, "S", "sam.", "samedi"),
-        (ScheduleDays.Sunday, "D", "dim.", "dimanche"),
-    ];
-
-    private static readonly (ScheduleDays, string, string, string)[] English =
-    [
-        (ScheduleDays.Monday, "M", "Mon", "Monday"),
-        (ScheduleDays.Tuesday, "T", "Tue", "Tuesday"),
-        (ScheduleDays.Wednesday, "W", "Wed", "Wednesday"),
-        (ScheduleDays.Thursday, "T", "Thu", "Thursday"),
-        (ScheduleDays.Friday, "F", "Fri", "Friday"),
-        (ScheduleDays.Saturday, "S", "Sat", "Saturday"),
-        (ScheduleDays.Sunday, "S", "Sun", "Sunday"),
-    ];
+    private static readonly ScheduleDays[] Days =
+        [ScheduleDays.Monday, ScheduleDays.Tuesday, ScheduleDays.Wednesday, ScheduleDays.Thursday, ScheduleDays.Friday, ScheduleDays.Saturday, ScheduleDays.Sunday];
 
     /// <summary>
-    /// The days as the culture names them, Monday first: its short and long names, and one letter, the first of the short name
-    /// ("L M M J V S D" in Spanish) or, in Chinese, its last since the short names all start with the same character.
+    /// The days, Monday first, with their letter, their short name and their name in the current language: the
+    /// resources <c>Day_Monday_Letter</c>, <c>Day_Monday_Short</c> and <c>Day_Monday_Long</c>, and so on.
     /// </summary>
-    private static (ScheduleDays, string, string, string)[] OfCulture(CultureInfo culture)
-    {
-        var format = culture.DateTimeFormat;
-        ScheduleDays[] days = [ScheduleDays.Monday, ScheduleDays.Tuesday, ScheduleDays.Wednesday, ScheduleDays.Thursday, ScheduleDays.Friday, ScheduleDays.Saturday, ScheduleDays.Sunday];
-        return [.. days.Select((day, i) =>
-        {
-            var weekday = (i + 1) % 7; // DayOfWeek counts from Sunday.
-            var shortName = format.AbbreviatedDayNames[weekday].TrimEnd('.');
-            var letter = culture.TwoLetterISOLanguageName == "zh" ? shortName[^1..] : shortName[..1].ToUpper(culture);
-            return (day, letter, shortName, format.DayNames[weekday]);
-        })];
-    }
+    public static IReadOnlyList<(ScheduleDays Day, string Letter, string Short, string Long)> All =>
+        [.. Days.Select(day => (day, T($"Day_{day}_Letter"), T($"Day_{day}_Short"), T($"Day_{day}_Long")))];
 
     public static string Describe(ScheduleDays days) => days switch
     {
-        ScheduleDays.None => T("aucun jour", "no day"),
-        ScheduleDays.All => T("tous les jours", "every day"),
-        ScheduleDays.Weekdays => T("du lundi au vendredi", "Monday to Friday"),
-        ScheduleDays.Weekend => T("le week-end", "at weekends"),
-        ScheduleDays.Monday => T("le lundi", "on Monday"),
-        ScheduleDays.Tuesday => T("le mardi", "on Tuesday"),
-        ScheduleDays.Wednesday => T("le mercredi", "on Wednesday"),
-        ScheduleDays.Thursday => T("le jeudi", "on Thursday"),
-        ScheduleDays.Friday => T("le vendredi", "on Friday"),
-        ScheduleDays.Saturday => T("le samedi", "on Saturday"),
-        ScheduleDays.Sunday => T("le dimanche", "on Sunday"),
+        ScheduleDays.None => T("Schedules_NoDay"),
+        ScheduleDays.All => T("Schedules_EveryDay"),
+        ScheduleDays.Weekdays => T("Schedules_MondayToFriday"),
+        ScheduleDays.Weekend => T("Schedules_AtWeekends"),
+        ScheduleDays.Monday => T("Schedules_OnMonday"),
+        ScheduleDays.Tuesday => T("Schedules_OnTuesday"),
+        ScheduleDays.Wednesday => T("Schedules_OnWednesday"),
+        ScheduleDays.Thursday => T("Schedules_OnThursday"),
+        ScheduleDays.Friday => T("Schedules_OnFriday"),
+        ScheduleDays.Saturday => T("Schedules_OnSaturday"),
+        ScheduleDays.Sunday => T("Schedules_OnSunday"),
         _ => string.Join(ListSeparator, All.Where(d => days.HasFlag(d.Day)).Select(d => d.Short)),
     };
 

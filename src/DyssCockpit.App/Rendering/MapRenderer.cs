@@ -47,7 +47,7 @@ internal static class MapRenderer
         ds.Clear(palette.Background.ToColor());
         if (worldToScreen is not { } m)
         {
-            DrawCentredText(ds, T("Aucune carte", "No map"), size, palette.LabelText.ToColor());
+            DrawCentredText(ds, T("MapRenderer_NoMap"), size, palette.LabelText.ToColor());
             return;
         }
 

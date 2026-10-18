@@ -89,10 +89,10 @@ public static class CleanStatusLabels
 {
     public static string Resolve(string? status) => status switch
     {
-        "CLEAN_COMPLETE" => T("Terminée", "Done"),
-        "CANT_CLEAN" => T("Injoignable", "Unreachable"),
-        "CLEAN_NOT_REQUESTED" => T("Non demandée", "Not requested"),
-        "CLEAN_PENDING" => T("Non commencée", "Not started"),
+        "CLEAN_COMPLETE" => T("MapModels_Done"),
+        "CANT_CLEAN" => T("MapModels_Unreachable"),
+        "CLEAN_NOT_REQUESTED" => T("MapModels_NotRequested"),
+        "CLEAN_PENDING" => T("MapModels_NotStarted"),
         null => "",
         var s => s,
     };

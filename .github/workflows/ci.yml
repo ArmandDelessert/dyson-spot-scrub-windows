@@ -72,8 +72,8 @@ jobs:
             TestResults/**/*.trx
             TestResults/**/*.cobertura.xml
 
-  translations:
-    # The translations are tables from the English wording of the code to the other languages: fail on one that
+  strings:
+    # The .resw files are generated from tools/strings: fail when someone edits one side only, or a translation
     # cannot be used. What a language lacks is only a warning, the English text being shown meanwhile.
     runs-on: ubuntu-latest
     steps:
@@ -83,5 +83,8 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Check the translations
-        run: python tools/translations/extract.py --check
+      - name: Regenerate the resource files
+        run: python tools/strings/generate_resw.py
+
+      - name: Check they are unchanged
+        run: git diff --exit-code -- src/DyssCockpit.App/Strings

@@ -38,17 +38,16 @@
                         <ColumnDefinition Width="{StaticResource BatteryWidth}"/>
                         <ColumnDefinition Width="{StaticResource FaultsWidth}"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text='{local:Tr Fr="Date", En="Date"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                    <TextBlock Grid.Column="1" Text='{local:Tr Fr="Durée", En="Duration"}' Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right"/>
-                    <TextBlock Grid.Column="2" Text='{local:Tr Fr="Fin", En="End"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                    <TextBlock Grid.Column="3" Text='{local:Tr Fr="Carte", En="Map"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                    <TextBlock Grid.Column="4" Text='{local:Tr Fr="Pièces", En="Rooms"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                    <TextBlock Grid.Column="5" Text='{local:Tr Fr="Surface", En="Area"}' Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right"/>
-                    <TextBlock Grid.Column="6" Text='{local:Tr Fr="Batterie", En="Battery"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                    <TextBlock Grid.Column="7" Text='{local:Tr Fr="Fautes", En="Faults"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock x:Uid="History_Date" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock x:Uid="History_Duration" Grid.Column="1" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right"/>
+                    <TextBlock x:Uid="History_End" Grid.Column="2" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock x:Uid="History_Map" Grid.Column="3" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock x:Uid="History_Rooms" Grid.Column="4" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock x:Uid="History_Area" Grid.Column="5" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Right"/>
+                    <TextBlock x:Uid="History_Battery" Grid.Column="6" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock x:Uid="History_Faults" Grid.Column="7" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                 </Grid>
-                <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.History}" SelectedItem="{x:Bind ViewModel.SelectedClean, Mode=TwoWay}"
-                          AutomationProperties.Name='{local:Tr Fr="Nettoyages passés", En="Past cleans"}'>
+                <ListView x:Uid="History_PastCleans" Grid.Row="1" ItemsSource="{x:Bind ViewModel.History}" SelectedItem="{x:Bind ViewModel.SelectedClean, Mode=TwoWay}">
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -97,16 +96,15 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource Muted}">
-                            <Run Text='{local:Tr Fr="Trajet du nettoyage sélectionné sur la carte ", En="Path of the selected clean on the map "}'/><Run Text="{x:Bind ViewModel.MapName, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="."/>
+                            <Run x:Uid="History_PathOfTheSelectedClean"/><Run Text=" "/><Run Text="{x:Bind ViewModel.MapName, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="."/>
                         </TextBlock>
                         <TextBlock Style="{StaticResource Muted}">
-                            <Run Text='{local:Tr Fr="Résultat : ", En="Result: "}'/><Run Text="{x:Bind ViewModel.ResultText, Mode=OneWay}" FontWeight="SemiBold"/>
+                            <Run x:Uid="History_Result"/><Run Text=" "/><Run Text="{x:Bind ViewModel.ResultText, Mode=OneWay}" FontWeight="SemiBold"/>
                         </TextBlock>
                     </StackPanel>
-                    <Button Grid.Column="1" Content='{local:Tr Fr="Réinitialiser le zoom", En="Reset zoom"}' Click="ResetZoom_Click" VerticalAlignment="Center"/>
+                    <Button x:Uid="History_ResetZoom" Grid.Column="1" Click="ResetZoom_Click" VerticalAlignment="Center"/>
                 </Grid>
-                <controls:MapView x:Name="MapCanvas" Grid.Row="1" Interaction="{x:Bind ViewModel.Canvas}"
-                                  AutomationProperties.Name='{local:Tr Fr="Trajet du nettoyage sélectionné", En="Path of the selected clean"}'/>
+                <controls:MapView x:Uid="History_PathOfTheSelectedClean2" x:Name="MapCanvas" Grid.Row="1" Interaction="{x:Bind ViewModel.Canvas}"/>
             </Grid>
         </Border>
     </Grid>

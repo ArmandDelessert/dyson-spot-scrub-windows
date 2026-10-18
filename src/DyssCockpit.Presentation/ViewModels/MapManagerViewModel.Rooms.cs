@@ -80,7 +80,7 @@ public sealed partial class MapManagerViewModel
         if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
 
         // A free name travels as type "custom", which is what the app sends too.
-        await EditAsync(Tf($"pièce renommée en « {answer.Name.Trim()} »", $"room renamed to “{answer.Name.Trim()}”"),
+        await EditAsync(Tf("MapManager_RoomRenamedTo", answer.Name.Trim()),
             c => c.RenameRoomAsync(mapId, room.NumericId, answer.Name.Trim(), answer.Type ?? "custom", _hub.Ct));
     }
 
@@ -100,7 +100,7 @@ public sealed partial class MapManagerViewModel
                 _mergeSet.Add(first);
                 first.IsChosen = true;
             }
-            Hint = T("Cliquez les pièces à fusionner, sur la carte ou dans la liste. « Fusionner » à nouveau pour valider, Échap pour annuler.", "Click the rooms to merge, on the map or in the list. “Merge” again to confirm, Esc to cancel.");
+            Hint = T("MapManager_ClickTheRoomsToMerge");
             UpdateMergeLabel();
             RebuildScene();
             return;
@@ -108,29 +108,29 @@ public sealed partial class MapManagerViewModel
 
         if (SelectedMap is not { } map || !TryMapId(map, out var mapId)) return;
         var rooms = _mergeSet.Where(r => r.NumericId >= 0).ToList();
-        if (rooms.Count < 2) { Status = T("Choisissez au moins deux pièces à fusionner.", "Choose at least two rooms to merge."); return; }
-        if (!await _hub.Dialogs.ConfirmAsync(T("Fusionner les pièces", "Merge the rooms"),
-                Tf($"Fusionner {string.Join(", ", rooms.Select(p => p.DisplayName))} en une seule pièce ?", $"Merge {string.Join(", ", rooms.Select(p => p.DisplayName))} into a single room?"))) return;
+        if (rooms.Count < 2) { Status = T("MapManager_ChooseAtLeastTwoRooms"); return; }
+        if (!await _hub.Dialogs.ConfirmAsync(T("MapManager_MergeTheRooms2"),
+                Tf("MapManager_MergeIntoASingleRoom", string.Join(", ", rooms.Select(p => p.DisplayName))))) return;
 
         LeaveModes();
-        await EditAsync(Tf($"{rooms.Count} pièces fusionnées", $"{rooms.Count} rooms merged"), c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
-            refused: T("Le robot a refusé la fusion : les pièces doivent se toucher.", "The robot refused the merge: the rooms must touch."));
+        await EditAsync(Tf("MapManager_RoomsMerged", rooms.Count), c => c.MergeRoomsAsync(mapId, rooms.Select(p => p.NumericId), MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
+            refused: T("MapManager_TheRobotRefusedTheMerge"));
     }
 
     private void UpdateMergeLabel()
     {
-        MergeButtonLabel = !Merging ? T("Fusionner des pièces…", "Merge rooms…")
-            : _mergeSet.Count < 2 ? T("Fusionner (choisissez 2 pièces ou plus)", "Merge (choose 2 rooms or more)")
-            : Tf($"Fusionner les {_mergeSet.Count} pièces", $"Merge the {_mergeSet.Count} rooms");
+        MergeButtonLabel = !Merging ? T("MapManager_MergeRooms")
+            : _mergeSet.Count < 2 ? T("MapManager_MergeChoose2RoomsOr")
+            : Tf("MapManager_MergeTheRooms", _mergeSet.Count);
         MergeCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(HasRoom))]
     private void StartSplit()
     {
-        if (SelectedRoom is null) { Status = T("Choisissez d'abord la pièce à diviser.", "First choose the room to split."); return; }
+        if (SelectedRoom is null) { Status = T("MapManager_FirstChooseTheRoomTo"); return; }
         Splitting = true;
-        Hint = T("Cliquez les deux extrémités du trait de coupe ; il se cale sur la grille de 5 cm du robot, visible en zoomant. Échap pour annuler.", "Click both ends of the cutting line; it snaps to the robot's 5 cm grid, visible when zoomed in. Esc to cancel.");
+        Hint = T("MapManager_ClickBothEndsOfThe");
         Status = "";
         RefreshCommandStates();
     }
@@ -144,7 +144,7 @@ public sealed partial class MapManagerViewModel
         if (!TryMapId(map, out var mapId) || room.NumericId < 0) return;
 
         // A cut that misses the room, or that the robot will not make, comes back refused.
-        await EditAsync(Tf($"pièce {room.DisplayName} divisée", $"room {room.DisplayName} split"), c => c.SplitRoomAsync(mapId, room.NumericId, from, to, MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
-            refused: T("Le robot a refusé la division : la pièce est sans doute trop petite à cet endroit, ou le trait ne la traverse pas.", "The robot refused the split: the room is probably too small there, or the line does not cross it."));
+        await EditAsync(Tf("MapManager_RoomSplit", room.DisplayName), c => c.SplitRoomAsync(mapId, room.NumericId, from, to, MapLanguage.FromCulture(_hub.Culture), _hub.Ct),
+            refused: T("MapManager_TheRobotRefusedTheSplit"));
     }
 }

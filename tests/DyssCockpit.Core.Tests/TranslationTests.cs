@@ -29,9 +29,23 @@ public sealed class TranslationTests : IDisposable
     [Fact]
     public void EachTextComesInTheCurrentLanguage()
     {
-        Assert.Equal("Tableau de bord", Translation.T("Tableau de bord", "Dashboard"));
+        Assert.Equal("Quitter", Translation.T("App_Quit"));
         Translation.Current = AppLanguage.English;
-        Assert.Equal("Dashboard", Translation.T("Tableau de bord", "Dashboard"));
+        Assert.Equal("Quit", Translation.T("App_Quit"));
+    }
+
+    [Fact]
+    public void ATextWithValuesIsFilledInTheCurrentCulture()
+    {
+        Assert.Equal("Export impossible : boom", Translation.Tf("App_ExportFailed", "boom"));
+        Translation.Current = AppLanguage.English;
+        Assert.Equal("Export failed: boom", Translation.Tf("App_ExportFailed", "boom"));
+    }
+
+    [Fact]
+    public void ATextNoResourceHasIsShownAsItsKeySoThatTheGapShows()
+    {
+        Assert.Equal("No_such_text", Translation.T("No_such_text"));
     }
 
     [Fact]

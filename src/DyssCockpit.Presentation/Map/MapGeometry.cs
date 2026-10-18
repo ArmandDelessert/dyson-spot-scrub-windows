@@ -164,9 +164,9 @@ public static class MapGeometry
             .ToList();
         return sizes.Count switch
         {
-            0 => Translation.T("Zone", "Zone"),
-            1 => Translation.Tf($"Zone {sizes[0]}", $"Zone {sizes[0]}"),
-            _ => Translation.Tf($"{sizes.Count} zones : {string.Join(", ", sizes)}", $"{sizes.Count} zones: {string.Join(", ", sizes)}"),
+            0 => Translation.T("MapGeometry_Zone2"),
+            1 => Translation.Tf("MapGeometry_Zone", sizes[0]),
+            _ => Translation.Tf("MapGeometry_Zones", sizes.Count, string.Join(", ", sizes)),
         };
     }
 

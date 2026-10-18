@@ -85,7 +85,7 @@ public sealed partial class RobotSession : IAsyncDisposable
         var client = _openLink(iot, TopicPrefix);
         client.MessageReceived += OnMessage;
         client.PrefixChanged += p => TopicPrefix = p;
-        client.ListenerFailed += ex => LogProblem(_logger, Tf($"message non traité : {ex.Message}", $"message not handled: {ex.Message}"), ex);
+        client.ListenerFailed += ex => LogProblem(_logger, Tf("RobotSession_MessageNotHandled", ex.Message), ex);
         client.Disconnected += reason => _ = OnDisconnectedAsync(client, reason);
 
         try
@@ -111,9 +111,9 @@ public sealed partial class RobotSession : IAsyncDisposable
     private void OnMessage(RobotMessage message)
     {
         try { MessageReceived?.Invoke(message); }
-        catch (Exception ex) { LogProblem(_logger, Tf($"message {message.Topic} : {ex.Message}", $"message {message.Topic}: {ex.Message}"), ex); }
+        catch (Exception ex) { LogProblem(_logger, Tf("RobotSession_Message", message.Topic, ex.Message), ex); }
         try { Tracker.Apply(message); }
-        catch (Exception ex) { LogProblem(_logger, Tf($"message {message.Topic} ignoré : {ex.Message}", $"message {message.Topic} ignored: {ex.Message}"), ex); }
+        catch (Exception ex) { LogProblem(_logger, Tf("RobotSession_MessageIgnored", message.Topic, ex.Message), ex); }
     }
 
     private async Task OnDisconnectedAsync(IRobotLink source, string reason)
@@ -126,8 +126,7 @@ public sealed partial class RobotSession : IAsyncDisposable
         {
             _attempt++;
             var delay = BackoffFor(_attempt);
-            LogDropped(_logger, Tf($"MQTT coupé ({reason}) ; reconnexion dans {delay.TotalSeconds:F0} s (tentative {_attempt})",
-                $"MQTT dropped ({reason}); reconnecting in {delay.TotalSeconds:F0} s (attempt {_attempt})"));
+            LogDropped(_logger, Tf("RobotSession_MQTTDroppedReconnectingInS", reason, delay.TotalSeconds, _attempt));
             try
             {
                 await Task.Delay(delay, _time, _lifetime.Token).ConfigureAwait(false);
@@ -148,15 +147,15 @@ public sealed partial class RobotSession : IAsyncDisposable
             }
             catch (DysonAuthException ex)
             {
-                LogReconnectRefused(_logger, Tf($"reconnexion refusée, le jeton n'est plus valable : {ex.Message}", $"reconnect refused, token no longer valid: {ex.Message}"));
-                SetStatus(RobotConnectionStatus.Disconnected, T("session expirée", "session expired"));
+                LogReconnectRefused(_logger, Tf("RobotSession_ReconnectRefusedTokenNoLonger", ex.Message));
+                SetStatus(RobotConnectionStatus.Disconnected, T("RobotSession_SessionExpired"));
                 AuthenticationLost?.Invoke(ex.Message);
                 return;
             }
             catch (Exception ex)
             {
                 reason = ex.Message;
-                LogReconnectFailed(_logger, Tf($"échec de la reconnexion : {ex.Message}", $"reconnect failed: {ex.Message}"));
+                LogReconnectFailed(_logger, Tf("RobotSession_ReconnectFailed", ex.Message));
             }
         }
     }

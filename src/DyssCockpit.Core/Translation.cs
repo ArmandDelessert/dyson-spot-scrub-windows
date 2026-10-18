@@ -1,6 +1,4 @@
-using System.Collections.Concurrent;
 using System.Globalization;
-using System.Text.Json;
 
 namespace DyssCockpit.Core;
 
@@ -75,62 +73,49 @@ public static class AppLanguages
     }
 }
 
+/// <summary>Where the texts of the application come from: the resources of the application, or in the tests the .resw files read as they are.</summary>
+public interface IStringSource
+{
+    /// <summary>The text of <paramref name="key"/> in the language the source is set to, or null when there is none.</summary>
+    string? Find(string key);
+}
+
 /// <summary>
-/// The language of everything shown to the user. A text is written once in the code with its French and its English
-/// wording side by side, <c>T("Tableau de bord", "Dashboard")</c>, so neither can be forgotten or drift from the other.
-/// The other languages are in <c>Translations\{tag}.json</c>, a table from the English wording to its translation:
-/// a text without one is shown in English. The language is chosen once at start-up (see <see cref="FromCulture"/>);
-/// texts already on screen are not redrawn when it changes.
+/// The language of everything shown to the user, and the texts of the code. A text of the code has a key,
+/// <c>T("Dashboard_Title")</c>, and its words in every language are in the resources of the application,
+/// <c>Strings\{tag}\Resources.resw</c>, which tools/strings generates from ui_strings.py (English and French)
+/// and translations\{tag}.json (the others). The texts of the XAML are the resources named by their <c>x:Uid</c>.
+/// The language is chosen once at start-up (see <see cref="FromCulture"/>); texts already on screen are not redrawn when it changes.
 /// </summary>
 public static class Translation
 {
-    private static readonly ConcurrentDictionary<AppLanguage, IReadOnlyDictionary<string, string>> s_tables = new();
-
     /// <summary>French for a French Windows, a language of the application for its own, English for any other.</summary>
     public static AppLanguage Current { get; set; } = FromCulture(CultureInfo.CurrentUICulture);
+
+    /// <summary>Where the texts are read; the application and the tests each set theirs before anything is shown.</summary>
+    public static IStringSource? Source { get; set; }
 
     public static bool IsFrench => Current == AppLanguage.French;
 
     /// <summary>The culture of the language, for the numbers and the dates written in it.</summary>
     public static CultureInfo Culture => CultureInfo.GetCultureInfo(AppLanguages.Of(Current).Tag);
 
-    /// <summary>The wording of a text in the current language.</summary>
-    public static string T(string french, string english) => Current switch
-    {
-        AppLanguage.French => french,
-        AppLanguage.English => english,
-        _ => Find(english) ?? english,
-    };
+    /// <summary>The text of <paramref name="key"/> in the current language; the key itself when there is no text, so that a gap shows.</summary>
+    public static string T(string key) => Source?.Find(key) is { Length: > 0 } text ? text : key;
 
-    /// <summary>
-    /// The wording of a text that has values in it, <c>Tf($"{n} pièces", $"{n} rooms")</c>. A translation is the English
-    /// text with its holes as <c>{0}</c>, <c>{1:N0}</c>… in the order they come in the English; it may move them.
-    /// </summary>
-    public static string Tf(FormattableString french, FormattableString english) => Current switch
-    {
-        AppLanguage.French => french.ToString(CultureInfo.CurrentCulture),
-        AppLanguage.English => english.ToString(CultureInfo.CurrentCulture),
-        _ => Find(english.Format) is { } format
-            ? string.Format(CultureInfo.CurrentCulture, format, english.GetArguments())
-            : english.ToString(CultureInfo.CurrentCulture),
-    };
+    /// <summary>The text of <paramref name="key"/> with its values: <c>{0}</c>, <c>{1:N0}</c>… are filled in the current culture.</summary>
+    public static string Tf(string key, params object?[] values) => string.Format(CultureInfo.CurrentCulture, T(key), values);
 
     /// <summary>The language of the machine when the application speaks it, English otherwise: the language most likely understood.</summary>
     public static AppLanguage FromCulture(CultureInfo culture) => AppLanguages.FromTag(culture.Name) ?? AppLanguage.English;
 
-    /// <summary>How the list of a few short items is joined: a comma and a space, the ideographic comma in Chinese and Japanese.</summary>
-    public static string ListSeparator => Current is AppLanguage.Japanese or AppLanguage.ChineseSimplified ? "、" : ", ";
-
-    private static string? Find(string english) =>
-        s_tables.GetOrAdd(Current, Load).TryGetValue(english, out var text) ? text : null;
-
-    private static Dictionary<string, string> Load(AppLanguage language)
+    /// <summary>How the items of a short list are joined: the comma of the language and a space, none after the ideographic comma of Chinese and Japanese.</summary>
+    public static string ListSeparator
     {
-        var name = $"DyssCockpit.Core.Translations.{AppLanguages.Of(language).Tag}.json";
-        using var stream = typeof(Translation).Assembly.GetManifestResourceStream(name);
-        return stream is null ? [] : JsonSerializer.Deserialize<Dictionary<string, string>>(stream) ?? [];
+        get
+        {
+            var comma = T("List_Separator");
+            return comma is "、" or "，" ? comma : comma + " ";
+        }
     }
-
-    /// <summary>The texts a language has translated, English wording to its translation; for the tests.</summary>
-    internal static IReadOnlyDictionary<string, string> TableOf(AppLanguage language) => s_tables.GetOrAdd(language, Load);
 }

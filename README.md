@@ -220,15 +220,20 @@ Ces options tournent à côté de l'application si elle est ouverte, sans passer
 - `.github/workflows/release.yml` publie une version à chaque tag, et la pré-version `dev` à chaque push sur `main`.
 - `.github/dependabot.yml` propose chaque semaine, sous forme de pull requests, les mises à jour des paquets NuGet et des actions GitHub.
 - `.github/workflows/ci.yml` vérifie aussi les traductions (`tools/translations/extract.py --check`).
-- Chaque texte de l'interface est écrit une seule fois avec ses deux langues côte à côte : `T("Tableau de bord", "Dashboard")` en C#, `{local:Tr Fr="Tableau de bord", En="Dashboard"}` en XAML, l'attribut étant alors entre apostrophes et une apostrophe du texte s'écrivant `&apos;`. Un texte qui contient des valeurs s'écrit avec `Tf($"{n} pièces", $"{n} rooms")`. La ligne de commande reste en français.
+- Les textes de l'interface sont des ressources (`src/DyssCockpit.App/Strings/{langue}/Resources.resw`), comme dans HusqA Cockpit : un texte du XAML est la ressource que nomme le `x:Uid` de son élément (`Settings_Notifications.Text`), un texte du code est `T("Cle")` ou, avec des valeurs, `Tf("Cle", valeur…)`. La ligne de commande reste en français.
+- `.github/workflows/ci.yml` vérifie aussi que les `.resw` correspondent à leurs sources (`tools/strings`).
 
 ### Traductions
 
-Les 12 autres langues sont dans `src/DyssCockpit.Core/Translations/{langue}.json` (`de-DE`, `es-ES`, `it-IT`, `nl-NL`, `pl-PL`, `pt-BR`, `ro-RO`, `tr-TR`, `uk-UA`, `ja-JP`, `ko-KR`, `zh-CN`) : une table du texte anglais, tel que le code l'écrit, vers sa traduction. Un texte absent d'une table s'affiche en anglais, de sorte qu'un nouveau texte n'a besoin que de son français et de son anglais pour fonctionner.
+Les textes français et anglais sont dans `tools/strings/ui_strings.py` : une clé, puis `(anglais, français)`. Une clé avec un point est celle d'un élément XAML (`Uid.Propriété`), les autres sont lues par le code. Les 12 autres langues sont dans `tools/strings/translations/{langue}.json` (`de-DE`, `es-ES`, `it-IT`, `nl-NL`, `pl-PL`, `pt-BR`, `ro-RO`, `tr-TR`, `uk-UA`, `ja-JP`, `ko-KR`, `zh-CN`), sous les mêmes clés, dans `ui`. On modifie ces fichiers, jamais les `.resw`, puis on les régénère :
 
-- Dans une traduction, un texte à valeurs prend ses trous dans l'ordre de l'anglais, `{0}`, `{1}`, `{2:N0}`…, et peut les déplacer ; les espaces et les retours à la ligne au début et à la fin du texte sont conservés, le code les complète.
-- `python tools/translations/extract.py` dit combien de textes l'application compte et combien il en manque à chaque langue ; avec `--check`, que la CI lance, il refuse en plus une clé qui n'est plus un texte de l'application et une traduction qui perd un `{0}`. `--source texts.json` écrit les textes avec leur français et l'écran où ils apparaissent, pour les confier à un traducteur.
-- Pour corriger une traduction, on modifie le fichier de la langue ; pour ajouter une langue, on ajoute une entrée à `AppLanguages` (`Translation.cs`), son fichier JSON, et son nom dans la liste de `SettingsView.xaml`.
+```bash
+python tools/strings/generate_resw.py
+```
+
+- Un texte qu'une langue n'a pas est absent de son `.resw` : Windows affiche l'anglais, de sorte qu'un nouveau texte n'a besoin que de son anglais et de son français pour fonctionner ; le générateur dit ce qui manque. Avec `--check`, que la CI lance, il refuse en plus une traduction qui perd un `{0}`, un `x:Uid` du XAML sans ressource et une ressource que le XAML n'utilise pas.
+- Un texte à valeurs prend ses trous à la place de `{0}`, `{1}`, `{2:N0}`… et la traduction peut les déplacer ; les espaces au début ou à la fin d'un texte du XAML sont conservés.
+- Pour ajouter une langue : son fichier JSON, une entrée dans `AppLanguages` (`Translation.cs`) et son nom dans la liste de `SettingsView.xaml`.
 
 ### Publier une version
 

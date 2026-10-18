@@ -23,6 +23,8 @@
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <EnableMsixTooling>true</EnableMsixTooling>
+    <!-- The language of the resources that carry none: the texts are in Strings\{language}. -->
+    <DefaultLanguage>en-US</DefaultLanguage>
     <!-- Program.cs has the entry point: it keeps the application to one instance. -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>

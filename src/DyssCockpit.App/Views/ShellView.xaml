@@ -11,28 +11,27 @@
                     IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False"
                     SelectionChanged="Nav_SelectionChanged">
         <NavigationView.MenuItems>
-            <NavigationViewItem x:Name="DashboardItem" Content='{local:Tr Fr="Tableau de bord", En="Dashboard"}' Tag="dashboard">
+            <NavigationViewItem x:Uid="Shell_Dashboard" x:Name="DashboardItem" Tag="dashboard">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE80F;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="HistoryItem" Content='{local:Tr Fr="Historique", En="History"}' Tag="history">
+            <NavigationViewItem x:Uid="Shell_History" x:Name="HistoryItem" Tag="history">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE81C;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="SchedulesItem" Content='{local:Tr Fr="Horaires", En="Schedules"}' Tag="schedules">
+            <NavigationViewItem x:Uid="Shell_Schedules" x:Name="SchedulesItem" Tag="schedules">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE787;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.MenuItems>
         <NavigationView.FooterMenuItems>
-            <NavigationViewItem x:Name="MapsItem" Content='{local:Tr Fr="Gérer les cartes", En="Manage maps"}' Tag="maps"
-                                ToolTipService.ToolTip='{local:Tr Fr="Renommer les cartes et les pièces, fusionner ou diviser des pièces, zones et meubles, lancer une cartographie", En="Rename maps and rooms, merge or split rooms, zones and furniture, start mapping"}'>
+            <NavigationViewItem x:Uid="Shell_ManageMaps" x:Name="MapsItem" Tag="maps">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE81E;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="RobotSettingsItem" Content='{local:Tr Fr="Réglages du robot", En="Robot settings"}' Tag="robot-settings">
+            <NavigationViewItem x:Uid="Shell_RobotSettings" x:Name="RobotSettingsItem" Tag="robot-settings">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE9E9;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="JournalItem" Content='{local:Tr Fr="Journal", En="Log"}' Tag="journal">
+            <NavigationViewItem x:Uid="Shell_Log" x:Name="JournalItem" Tag="journal">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE8FD;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem x:Name="SettingsItem" Content='{local:Tr Fr="Paramètres", En="Settings"}' Tag="settings">
+            <NavigationViewItem x:Uid="Shell_Settings" x:Name="SettingsItem" Tag="settings">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xE713;"/></NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.FooterMenuItems>
@@ -53,7 +52,7 @@
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind ViewModel.RobotName}" Style="{StaticResource SubtitleTextBlockStyle}"/>
                     <TextBlock Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap">
-                        <Run Text='{local:Tr Fr="Numéro de série", En="Serial number"}'/> <Run Text="{x:Bind ViewModel.Serial}"/> · <Run Text='{local:Tr Fr="Firmware", En="Firmware"}'/> <Run Text="{x:Bind ViewModel.Firmware}"/> · <Run Text='{local:Tr Fr="Compte", En="Account"}'/> <Run Text="{x:Bind ViewModel.AccountEmail}"/>
+                        <Run x:Uid="Shell_SerialNumber"/> <Run Text="{x:Bind ViewModel.Serial}"/> · <Run x:Uid="Shell_Firmware"/> <Run Text="{x:Bind ViewModel.Firmware}"/> · <Run x:Uid="Shell_Account"/> <Run Text="{x:Bind ViewModel.AccountEmail}"/>
                     </TextBlock>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
@@ -64,12 +63,11 @@
                     <TextBlock Text="{x:Bind ViewModel.Hub.Connection, Mode=OneWay}" VerticalAlignment="Center"/>
                     <TextBlock Text="{x:Bind local:Ui.Updated(ViewModel.Status.LastUpdate), Mode=OneWay}" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
                     <CommandBar DefaultLabelPosition="Right" Background="Transparent" IsOpen="False" VerticalAlignment="Center">
-                        <AppBarButton Label='{local:Tr Fr="Actualiser", En="Refresh"}' Command="{x:Bind ViewModel.RefreshCommand}">
+                        <AppBarButton x:Uid="Shell_Refresh" Command="{x:Bind ViewModel.RefreshCommand}">
                             <AppBarButton.Icon><FontIcon Glyph="&#xE72C;"/></AppBarButton.Icon>
                         </AppBarButton>
 
-                        <AppBarButton Label='{local:Tr Fr="Quitter", En="Quit"}' Click="Quit_Click"
-                                      ToolTipService.ToolTip='{local:Tr Fr="Quitter DySS Cockpit", En="Quit DySS Cockpit"}'>
+                        <AppBarButton x:Uid="Shell_Quit" Click="Quit_Click">
                             <AppBarButton.Icon><FontIcon Glyph="&#xE7E8;"/></AppBarButton.Icon>
                         </AppBarButton>
                     </CommandBar>

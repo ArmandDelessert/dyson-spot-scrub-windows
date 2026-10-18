@@ -1,27 +1,26 @@
-<ContentDialog x:Class="DyssCockpit.App.Views.ScheduleEditorDialog"
+<ContentDialog x:Uid="ScheduleEditorDialog_Save" x:Class="DyssCockpit.App.Views.ScheduleEditorDialog"
                xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                xmlns:local="using:DyssCockpit.App"
                xmlns:vm="using:DyssCockpit.Presentation.ViewModels"
-               Title="{x:Bind ViewModel.Title}"
-               PrimaryButtonText='{local:Tr Fr="Enregistrer", En="Save"}' CloseButtonText='{local:Tr Fr="Annuler", En="Cancel"}' DefaultButton="Primary"
+               Title="{x:Bind ViewModel.Title}" DefaultButton="Primary"
                IsPrimaryButtonEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}">
     <StackPanel Spacing="12" Width="560">
         <TextBlock Text="{x:Bind ViewModel.MapText}" Style="{StaticResource Muted}"/>
 
         <!-- Start time and days -->
         <StackPanel Spacing="6">
-            <TextBlock Text='{local:Tr Fr="Heure de début", En="Start time"}'/>
+            <TextBlock x:Uid="ScheduleEditorDialog_StartTime"/>
             <StackPanel Orientation="Horizontal" Spacing="6">
-                <ComboBox x:Name="HourBox" Width="90" SelectedIndex="{x:Bind ViewModel.Hour, Mode=TwoWay}" AutomationProperties.Name='{local:Tr Fr="Heure", En="Hour"}'/>
+                <ComboBox x:Uid="ScheduleEditorDialog_Hour" x:Name="HourBox" Width="90" SelectedIndex="{x:Bind ViewModel.Hour, Mode=TwoWay}"/>
                 <TextBlock Text=":" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                <ComboBox x:Name="MinuteBox" Width="90" SelectedIndex="{x:Bind ViewModel.Minute, Mode=TwoWay}" AutomationProperties.Name='{local:Tr Fr="Minutes", En="Minutes"}'/>
+                <ComboBox x:Uid="ScheduleEditorDialog_Minutes" x:Name="MinuteBox" Width="90" SelectedIndex="{x:Bind ViewModel.Minute, Mode=TwoWay}"/>
             </StackPanel>
         </StackPanel>
 
         <StackPanel Spacing="6">
-            <TextBlock Text='{local:Tr Fr="Jours", En="Days"}'/>
-            <ItemsControl ItemsSource="{x:Bind ViewModel.Days}" IsTabStop="False" AutomationProperties.Name='{local:Tr Fr="Jours de la semaine", En="Days of the week"}'>
+            <TextBlock x:Uid="ScheduleEditorDialog_Days"/>
+            <ItemsControl x:Uid="ScheduleEditorDialog_DaysOfTheWeek" ItemsSource="{x:Bind ViewModel.Days}" IsTabStop="False">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6"/></ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
@@ -32,8 +31,8 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <CheckBox IsChecked="{x:Bind ViewModel.Repeats, Mode=TwoWay}" Content='{local:Tr Fr="Répéter chaque semaine", En="Repeat every week"}'/>
-            <TextBlock Text='{local:Tr Fr="Sans répétition, le robot ne l&apos;exécute qu&apos;une fois, au prochain jour choisi, puis le désactive : il reste dans la liste, prêt à être réactivé.", En="Without repetition, the robot runs it once, on the next chosen day, then turns it off: it stays in the list, ready to be turned on again."}'
+            <CheckBox x:Uid="ScheduleEditorDialog_RepeatEveryWeek" IsChecked="{x:Bind ViewModel.Repeats, Mode=TwoWay}"/>
+            <TextBlock x:Uid="ScheduleEditorDialog_WithoutRepetitionTheRobotRuns"
                        Style="{StaticResource Caption}" TextWrapping="Wrap" Visibility="{x:Bind local:Ui.Unless(ViewModel.Repeats), Mode=OneWay}"/>
         </StackPanel>
 
@@ -42,12 +41,11 @@
                 <ColumnDefinition/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text='{local:Tr Fr="Pièces, dans l&apos;ordre de passage. Cochez-les, puis réglez chacune comme pour un nettoyage lancé à la main.", En="Rooms, in cleaning order. Tick them, then set each one as for a clean started by hand."}'
+            <TextBlock x:Uid="ScheduleEditorDialog_RoomsInCleaningOrderTick"
                        TextWrapping="Wrap" VerticalAlignment="Bottom"/>
-            <Button Grid.Column="1" Content='{local:Tr Fr="Tout décocher", En="Untick all"}' Command="{x:Bind ViewModel.ClearRoomsCommand}" VerticalAlignment="Bottom"/>
+            <Button x:Uid="ScheduleEditorDialog_UntickAll" Grid.Column="1" Command="{x:Bind ViewModel.ClearRoomsCommand}" VerticalAlignment="Bottom"/>
         </Grid>
-        <ItemsControl ItemsSource="{x:Bind ViewModel.Rooms}" ItemTemplate="{StaticResource RoomSettingsRow}" IsTabStop="False"
-                      AutomationProperties.Name='{local:Tr Fr="Pièces de la carte", En="Rooms of the map"}'/>
+        <ItemsControl x:Uid="ScheduleEditorDialog_RoomsOfTheMap" ItemsSource="{x:Bind ViewModel.Rooms}" ItemTemplate="{StaticResource RoomSettingsRow}" IsTabStop="False"/>
 
         <!-- Why saving is not possible yet, and what the schedule will take. -->
         <StackPanel Spacing="2">

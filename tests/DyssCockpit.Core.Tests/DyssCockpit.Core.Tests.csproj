@@ -20,6 +20,8 @@
     <!-- What both test projects share (tests\TestSupport): the robot that records what it is sent,
          the clocks, the protobuf writer, the wait for what comes a moment later. -->
     <Compile Include="..\TestSupport\*.cs" LinkBase="TestSupport" />
+    <!-- The application's texts, as the tests read them (see ReswStrings). -->
+    <None Include="..\..\src\DyssCockpit.App\Strings\**\*.resw" Link="Strings\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Using Include="DyssCockpit.TestSupport" />
   </ItemGroup>
 

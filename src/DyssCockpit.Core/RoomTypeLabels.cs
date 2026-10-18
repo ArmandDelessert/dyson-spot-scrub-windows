@@ -24,36 +24,36 @@ public static class RoomTypeLabels
 {
     private static readonly Dictionary<string, Func<string>> Known = new(StringComparer.Ordinal)
     {
-        ["balcony"] = () => T("Balcon", "Balcony"),
-        ["bathroom"] = () => T("Salle de bain", "Bathroom"),
-        ["bedroom"] = () => T("Chambre", "Bedroom"),
-        ["boxroom"] = () => T("Cagibi", "Box room"),
-        ["cloakroom"] = () => T("Toilettes", "Cloakroom"),
-        ["closet"] = () => T("Dressing", "Closet"),
-        ["conservatory"] = () => T("Véranda", "Conservatory"),
-        ["dining"] = () => T("Salle à manger", "Dining room"),
-        ["ensuite"] = () => T("Salle de bain attenante", "En suite"),
-        ["entrance"] = () => T("Hall d'entrée", "Entrance"),
-        ["familyRoom"] = () => T("Pièce familiale", "Family room"),
-        ["guestBathroom"] = () => T("Salle de bain invités", "Guest bathroom"),
-        ["guestBedroom"] = () => T("Chambre d'amis", "Guest bedroom"),
-        ["guestRoom"] = () => T("Chambre invités", "Guest room"),
-        ["hallway"] = () => T("Couloir", "Hallway"),
-        ["kidsBedroom"] = () => T("Chambre d'enfant", "Kids' bedroom"),
-        ["kitchen"] = () => T("Cuisine", "Kitchen"),
-        ["laundryRoom"] = () => T("Buanderie", "Laundry room"),
-        ["livingRoom"] = () => T("Salon", "Living room"),
-        ["nursery"] = () => T("Chambre de bébé", "Nursery"),
-        ["office"] = () => T("Bureau", "Office"),
-        ["pantry"] = () => T("Cellier", "Pantry"),
-        ["playRoom"] = () => T("Salle de jeux", "Playroom"),
-        ["primaryBathroom"] = () => T("Salle de bain parentale", "Primary bathroom"),
-        ["primaryBedroom"] = () => T("Chambre parentale", "Primary bedroom"),
-        ["recreationRoom"] = () => T("Salle de loisirs", "Recreation room"),
-        ["storageRoom"] = () => T("Débarras", "Storage room"),
-        ["study"] = () => T("Bibliothèque", "Study"),
-        ["toilet"] = () => T("W.-C.", "Toilet"),
-        ["utilityRoom"] = () => T("Cave", "Utility room"),
+        ["balcony"] = () => T("RoomType_balcony"),
+        ["bathroom"] = () => T("RoomType_bathroom"),
+        ["bedroom"] = () => T("RoomType_bedroom"),
+        ["boxroom"] = () => T("RoomType_boxroom"),
+        ["cloakroom"] = () => T("RoomType_cloakroom"),
+        ["closet"] = () => T("RoomType_closet"),
+        ["conservatory"] = () => T("RoomType_conservatory"),
+        ["dining"] = () => T("RoomType_dining"),
+        ["ensuite"] = () => T("RoomType_ensuite"),
+        ["entrance"] = () => T("RoomType_entrance"),
+        ["familyRoom"] = () => T("RoomType_familyRoom"),
+        ["guestBathroom"] = () => T("RoomType_guestBathroom"),
+        ["guestBedroom"] = () => T("RoomType_guestBedroom"),
+        ["guestRoom"] = () => T("RoomType_guestRoom"),
+        ["hallway"] = () => T("RoomType_hallway"),
+        ["kidsBedroom"] = () => T("RoomType_kidsBedroom"),
+        ["kitchen"] = () => T("RoomType_kitchen"),
+        ["laundryRoom"] = () => T("RoomType_laundryRoom"),
+        ["livingRoom"] = () => T("RoomType_livingRoom"),
+        ["nursery"] = () => T("RoomType_nursery"),
+        ["office"] = () => T("RoomType_office"),
+        ["pantry"] = () => T("RoomType_pantry"),
+        ["playRoom"] = () => T("RoomType_playRoom"),
+        ["primaryBathroom"] = () => T("RoomType_primaryBathroom"),
+        ["primaryBedroom"] = () => T("RoomType_primaryBedroom"),
+        ["recreationRoom"] = () => T("RoomType_recreationRoom"),
+        ["storageRoom"] = () => T("RoomType_storageRoom"),
+        ["study"] = () => T("RoomType_study"),
+        ["toilet"] = () => T("RoomType_toilet"),
+        ["utilityRoom"] = () => T("RoomType_utilityRoom"),
     };
 
     /// <summary>
@@ -75,7 +75,7 @@ public static class RoomTypeLabels
     /// </summary>
     public static string TypeHint(string? type, string? storedName)
     {
-        if (string.IsNullOrEmpty(type) || type == "custom") return T("Personnalisée", "Custom");
+        if (string.IsNullOrEmpty(type) || type == "custom") return T("RoomTypeLabels_Custom");
         if (DefaultNameFor(type) is not { } label) return type;
         return label == Resolve(type, storedName, "") ? "" : label;
     }
