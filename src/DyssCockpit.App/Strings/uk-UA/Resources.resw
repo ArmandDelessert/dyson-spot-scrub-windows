@@ -440,7 +440,7 @@
   <data name="RoomType_bathroom" xml:space="preserve"><value>Ванна кімната</value></data>
   <data name="RoomType_balcony" xml:space="preserve"><value>Балкон</value></data>
   <data name="ScheduleEditor_TheRobotDoesNotStart" xml:space="preserve"><value>робот не запускає розклад, доки виконується попередній.</value></data>
-  <data name="ScheduleEditor_OverlapsTheSchedule" xml:space="preserve"><value>Накладається на розклад на {0} ({1}):</value></data>
+  <data name="ScheduleEditor_OverlapsTheSchedule" xml:space="preserve"><value>Перетинається з розкладом на {0} ({1}):</value></data>
   <data name="ScheduleEditor_EstimatedDurationAboutFromPast" xml:space="preserve"><value>Орієнтовна тривалість: близько {0}, за даними попередніх прибирань.</value></data>
   <data name="ScheduleEditor_AScheduleThatDoesNot" xml:space="preserve"><value>Розклад без повторення має лише один день.</value></data>
   <data name="ScheduleEditor_ChooseAtLeastOneRoom" xml:space="preserve"><value>Виберіть принаймні одну кімнату.</value></data>
@@ -549,7 +549,7 @@
   <data name="Settings_ShowFurniture.Text" xml:space="preserve"><value>Показувати меблі</value></data>
   <data name="Settings_ShowFurniture2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Показувати меблі</value></data>
   <data name="Settings_ShowTravelWithoutCleaning.Text" xml:space="preserve"><value>Показувати переміщення без прибирання</value></data>
-  <data name="Settings_AddsToThePathThe.Text" xml:space="preserve"><value>Додає до маршруту ділянки, де робот рухається без прибирання, наприклад щоб змінити позицію.</value></data>
+  <data name="Settings_AddsToThePathThe.Text" xml:space="preserve"><value>Додає до маршруту ділянки, де робот рухається без прибирання, наприклад, щоб змінити позицію.</value></data>
   <data name="Settings_ShowTravelWithoutCleaning2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Показувати переміщення без прибирання</value></data>
   <data name="Settings_ShowTheCleanedArea.Text" xml:space="preserve"><value>Показувати прибрану площу</value></data>
   <data name="Settings_WidensThePathToThe.Text" xml:space="preserve"><value>Розширює маршрут до ширини робота там, де він прибирав.</value></data>
@@ -565,7 +565,7 @@
   <data name="Settings_ShowTheSizeOfDrawn.Text" xml:space="preserve"><value>Показувати розміри намальованих зон</value></data>
   <data name="Settings_TheCoordinatesOfEachCorner.Text" xml:space="preserve"><value>Координати кожного кута й довжини сторін прямокутника, намальованого на карті, у метрах.</value></data>
   <data name="Settings_ShowTheSizeOfDrawn2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Показувати розміри намальованих зон</value></data>
-  <data name="Settings_TheseSettingsOnlyAffectThis.Text" xml:space="preserve"><value>Ці налаштування стосуються лише цього відображення: роботу нічого не надсилається.</value></data>
+  <data name="Settings_TheseSettingsOnlyAffectThis.Text" xml:space="preserve"><value>Ці параметри стосуються лише цього відображення: роботу нічого не надсилається.</value></data>
   <data name="Settings_Logs.Text" xml:space="preserve"><value>Журнали</value></data>
   <data name="Settings_KeepTheApplicationLogs.Text" xml:space="preserve"><value>Зберігати журнали програми</value></data>
   <data name="Settings_OneFileADayIn.Text" xml:space="preserve"><value>Один файл на день, у папці Logs. Найстаріші видаляються.</value></data>

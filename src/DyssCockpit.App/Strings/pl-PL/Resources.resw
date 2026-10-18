@@ -127,7 +127,7 @@
   <data name="Journal_MessageRecordingOff" xml:space="preserve"><value>zapisywanie wiadomości wyłączone</value></data>
   <data name="Journal_MessageRecordingOn" xml:space="preserve"><value>zapisywanie wiadomości włączone</value></data>
   <data name="Journal_RecordingTo" xml:space="preserve"><value>Zapisywanie do {0}</value></data>
-  <data name="Journal_TheLogShowsTheNotable.Text" xml:space="preserve"><value>Dziennik pokazuje ważne zdarzenia zgłaszane przez robota (usterki, zakończenie sprzątania, zmiana mapy…) oraz wynik poleceń wysłanych z tego okna. Nie pokazuje każdej wiadomości wymienianej z robotem: aby zachować wszystkie, włącz opcję „Zapisuj wszystkie wiadomości” w Ustawienia › Dzienniki.</value></data>
+  <data name="Journal_TheLogShowsTheNotable.Text" xml:space="preserve"><value>Dziennik pokazuje ważne zdarzenia zgłaszane przez robota (usterki, zakończenie sprzątania, zmiana mapy…) oraz wynik poleceń wysłanych z tego okna. Nie pokazuje każdej wiadomości wymienianej z robotem: aby zachować wszystkie, włącz opcję „Zapisuj wszystkie wiadomości” w sekcji Ustawienia › Dzienniki.</value></data>
   <data name="Journal_Log.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Dziennik</value></data>
   <data name="Login_LoginFailed" xml:space="preserve"><value>Logowanie nie powiodło się: {0}</value></data>
   <data name="Login_TheDysonCloudAnsweredWith" xml:space="preserve"><value>Chmura Dyson zwróciła błąd (HTTP {0}). Spróbuj ponownie za chwilę.</value></data>
@@ -156,7 +156,7 @@
   <data name="Main_SessionExpired2" xml:space="preserve"><value>sesja wygasła: {0}</value></data>
   <data name="Main_YouWillHaveToEnter" xml:space="preserve"><value>Aby zalogować się ponownie, trzeba będzie podać adres e-mail, hasło i kod wysłany e-mailem.
 
-Wylogować z konta MyDyson?</value></data>
+Wylogować się z konta MyDyson?</value></data>
   <data name="Main_LogOut" xml:space="preserve"><value>Wyloguj się</value></data>
   <data name="Main_ReloadingTheData" xml:space="preserve"><value>{0}, ponowne wczytywanie danych</value></data>
   <data name="Main_CannotConnectToTheRobot" xml:space="preserve"><value>nie można połączyć się z robotem: {0}</value></data>
@@ -499,15 +499,15 @@ Tej operacji nie można cofnąć.</value></data>
   <data name="Schedules_SchedulesOfTheActiveMap.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Harmonogramy aktywnej mapy</value></data>
   <data name="Schedules_Edit.Content" xml:space="preserve"><value>Edytuj…</value></data>
   <data name="Schedules_Delete.Content" xml:space="preserve"><value>Usuń…</value></data>
-  <data name="Settings_KeptCleanFileSOlder" xml:space="preserve"><value>Zostaną natychmiast usunięte pliki zachowanych sprzątań (liczba: {0}) starsze niż {1} dn. Nie będzie można ich odzyskać.
+  <data name="Settings_KeptCleanFileSOlder" xml:space="preserve"><value>Zostanie natychmiast usuniętych plików zachowanych sprzątań: {0}, starszych niż {1} dn. Nie będzie można ich odzyskać.
 
 Kontynuować?</value></data>
   <data name="Settings_CleaningHistory2" xml:space="preserve"><value>Historia sprzątań</value></data>
-  <data name="Settings_MessageRecordFileSOlder" xml:space="preserve"><value>Zostaną natychmiast usunięte pliki zapisanych wiadomości (liczba: {0}) starsze niż {1} dn. Nie będzie można ich odzyskać.
+  <data name="Settings_MessageRecordFileSOlder" xml:space="preserve"><value>Zostanie natychmiast usuniętych plików zapisanych wiadomości: {0}, starszych niż {1} dn. Nie będzie można ich odzyskać.
 
 Kontynuować?</value></data>
   <data name="Settings_RecordedMessages" xml:space="preserve"><value>Zapisane wiadomości</value></data>
-  <data name="Settings_LogFileSOlderThan" xml:space="preserve"><value>Zostaną natychmiast usunięte pliki dziennika (liczba: {0}) starsze niż {1} dn. Nie będzie można ich odzyskać.
+  <data name="Settings_LogFileSOlderThan" xml:space="preserve"><value>Zostanie natychmiast usuniętych plików dziennika: {0}, starszych niż {1} dn. Nie będzie można ich odzyskać.
 
 Kontynuować?</value></data>
   <data name="Settings_ApplicationLogs" xml:space="preserve"><value>Dzienniki aplikacji</value></data>
@@ -636,7 +636,7 @@ Kontynuować?</value></data>
   <data name="Status_RechargingBeforeCarryingOn" xml:space="preserve"><value>Ładowanie przed kontynuacją</value></data>
   <data name="Status_Resuming" xml:space="preserve"><value>Wznawianie</value></data>
   <data name="Status_Pausing" xml:space="preserve"><value>Wstrzymywanie</value></data>
-  <data name="Status_Paused" xml:space="preserve"><value>Wstrzymane</value></data>
+  <data name="Status_Paused" xml:space="preserve"><value>Wstrzymany</value></data>
   <data name="Status_Cleaning" xml:space="preserve"><value>Sprzątanie</value></data>
   <data name="Status_LocatingItself" xml:space="preserve"><value>Ustalanie położenia</value></data>
   <data name="Status_Starting" xml:space="preserve"><value>Uruchamianie</value></data>

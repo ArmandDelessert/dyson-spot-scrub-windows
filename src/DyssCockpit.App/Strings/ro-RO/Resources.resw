@@ -42,7 +42,7 @@
   <data name="Cleaning_MapFile" xml:space="preserve"><value>Hartă</value></data>
   <data name="Cleaning_MapExportedTo" xml:space="preserve"><value>harta a fost exportată în {0}</value></data>
   <data name="Cleaning_ActiveMap" xml:space="preserve"><value>harta activă: {0}</value></data>
-  <data name="Cleaning_StartingRoomS" xml:space="preserve"><value>pornire pentru {0} camere</value></data>
+  <data name="Cleaning_StartingRoomS" xml:space="preserve"><value>pornire, camere: {0}</value></data>
   <data name="Cleaning_UnexpectedMapId" xml:space="preserve"><value>Identificator de hartă neașteptat: {0}</value></data>
   <data name="Cleaning_SelectAtLeastOneRoom" xml:space="preserve"><value>Selectați cel puțin o cameră.</value></data>
   <data name="Cleaning_Cleaning" xml:space="preserve"><value>curățare: {0}</value></data>
@@ -238,7 +238,7 @@ Porniți cartografierea?</value></data>
 
 Acțiunea nu poate fi anulată.</value></data>
   <data name="MapManager_DeleteTheMap2" xml:space="preserve"><value>Ștergere hartă</value></data>
-  <data name="MapManager_ThisIsTheActiveMap" xml:space="preserve"><value>Aceasta este harta activă: robotul va alege singur o alta.</value></data>
+  <data name="MapManager_ThisIsTheActiveMap" xml:space="preserve"><value>Aceasta este harta activă: robotul va alege singur o altă hartă.</value></data>
   <data name="MapManager_MapRenamedTo" xml:space="preserve"><value>hartă redenumită în «{0}»</value></data>
   <data name="MapManager_MapName" xml:space="preserve"><value>Numele hărții:</value></data>
   <data name="MapManager_RenameTheMap2" xml:space="preserve"><value>Redenumire hartă</value></data>
@@ -294,7 +294,7 @@ Acțiunea nu poate fi anulată.</value></data>
   <data name="MapManagerItems_270QuarterTurnAnticlockwise" xml:space="preserve"><value>270° (un sfert de rotație în sens antiorar)</value></data>
   <data name="MapManagerItems_180HalfTurn" xml:space="preserve"><value>180° (jumătate de rotație)</value></data>
   <data name="MapManagerItems_90QuarterTurnClockwise" xml:space="preserve"><value>90° (un sfert de rotație în sens orar)</value></data>
-  <data name="MapManagerItems_0AsPlaced" xml:space="preserve"><value>0° (ca la plasare)</value></data>
+  <data name="MapManagerItems_0AsPlaced" xml:space="preserve"><value>0° (poziția la plasare)</value></data>
   <data name="MapManagerItems_UnknownFurniture" xml:space="preserve"><value>Mobilier necunoscut ({0})</value></data>
   <data name="MapManagerItems_UnknownType" xml:space="preserve"><value>Tip necunoscut ({0})</value></data>
   <data name="MapModels_NotStarted" xml:space="preserve"><value>Neîncepută</value></data>
@@ -382,7 +382,7 @@ Acțiunea nu poate fi anulată.</value></data>
   <data name="RobotSettings_CleaningSolution.Text" xml:space="preserve"><value>Soluție de curățare</value></data>
   <data name="RobotSettings_ShowsWhetherThereIsEnough.Text" xml:space="preserve"><value>Arată dacă a mai rămas suficientă soluție în stație.</value></data>
   <data name="RobotSettings_ExtendTheMoppingPreparation.Text" xml:space="preserve"><value>Prelungirea pregătirii pentru spălare</value></data>
-  <data name="RobotSettings_EnsuresEvenCleaningCoverageBy.Text" xml:space="preserve"><value>Asigură o acoperire uniformă la curățare, petrecând mai mult timp cu pregătirea pe stație.</value></data>
+  <data name="RobotSettings_EnsuresEvenCleaningCoverageBy.Text" xml:space="preserve"><value>Asigură o acoperire uniformă la curățare, consacrând mai mult timp pregătirii pe stație.</value></data>
   <data name="RobotSettings_TheRobotDoesNotReport.Text" xml:space="preserve"><value>Robotul nu raportează încă această stare, așa că această setare reflectă ultima alegere făcută aici.</value></data>
   <data name="RobotSettings_ExtendTheMoppingPreparation2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Prelungirea pregătirii pentru spălare</value></data>
   <data name="RobotSettings_DockSettings.Text" xml:space="preserve"><value>Setări stație</value></data>

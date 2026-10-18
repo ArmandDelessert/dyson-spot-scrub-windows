@@ -99,7 +99,7 @@
   <data name="Dashboard_ResetZoom.Content" xml:space="preserve"><value>Redefinir zoom</value></data>
   <data name="Dashboard_ExportAsPNG.Content" xml:space="preserve"><value>Exportar como PNG</value></data>
   <data name="Dashboard_MapOfTheHome.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Mapa da casa</value></data>
-  <data name="Dashboard_ClickTapSelectsARoom.Text" xml:space="preserve"><value>Clique/toque: seleciona um cômodo; fora de um cômodo, limpa a seleção. Clique duplo/toque duplo fora de um cômodo: redefine o zoom. Roda do mouse ou pinça para ampliar, arraste para mover.</value></data>
+  <data name="Dashboard_ClickTapSelectsARoom.Text" xml:space="preserve"><value>Clique/toque: seleciona um cômodo; fora de um cômodo, desfaz a seleção. Clique duplo/toque duplo fora de um cômodo: redefine o zoom. Roda do mouse ou gesto de pinça para ampliar, arraste para mover.</value></data>
   <data name="History_Clean" xml:space="preserve"><value>limpeza: {0}</value></data>
   <data name="History_Deleted" xml:space="preserve"><value>excluído</value></data>
   <data name="History_Unknown" xml:space="preserve"><value>desconhecido</value></data>
@@ -259,7 +259,7 @@ Esta ação não pode ser desfeita.</value></data>
   <data name="MapManager_Maps2" xml:space="preserve"><value>Mapas: {0}</value></data>
   <data name="MapManager_ClickAPieceOfFurniture" xml:space="preserve"><value>Clique em um móvel para escolhê-lo e arraste-o para movê-lo. Roda do mouse para ampliar, arraste em outro lugar para mover o mapa.</value></data>
   <data name="MapManager_ClickAZoneToChoose" xml:space="preserve"><value>Clique em uma zona para escolhê-la; depois arraste-a para movê-la ou puxe um dos cantos para redimensioná-la. Roda do mouse para ampliar, arraste em outro lugar para mover o mapa.</value></data>
-  <data name="MapManager_ClickARoomToChoose" xml:space="preserve"><value>Clique em um cômodo para escolhê-lo, ou fora de qualquer cômodo para limpar a escolha. Roda do mouse para ampliar, arraste para mover.</value></data>
+  <data name="MapManager_ClickARoomToChoose" xml:space="preserve"><value>Clique em um cômodo para escolhê-lo, ou fora de qualquer cômodo para desfazer a escolha. Roda do mouse para ampliar, arraste para mover.</value></data>
   <data name="MapManager_CustomFreeName" xml:space="preserve"><value>Personalizado (nome livre)</value></data>
   <data name="MapManager_Maps.Text" xml:space="preserve"><value>Mapas</value></data>
   <data name="MapManager_MapsOfTheAccount.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Mapas da conta</value></data>
@@ -440,7 +440,7 @@ Esta ação não pode ser desfeita.</value></data>
   <data name="RoomType_bathroom" xml:space="preserve"><value>Banheiro</value></data>
   <data name="RoomType_balcony" xml:space="preserve"><value>Varanda</value></data>
   <data name="ScheduleEditor_TheRobotDoesNotStart" xml:space="preserve"><value>o robô não inicia um agendamento enquanto o anterior está em execução.</value></data>
-  <data name="ScheduleEditor_OverlapsTheSchedule" xml:space="preserve"><value>Sobrepõe o agendamento de {0} ({1}):</value></data>
+  <data name="ScheduleEditor_OverlapsTheSchedule" xml:space="preserve"><value>Sobrepõe-se ao agendamento de {0} ({1}):</value></data>
   <data name="ScheduleEditor_EstimatedDurationAboutFromPast" xml:space="preserve"><value>Duração estimada: cerca de {0}, com base em limpezas anteriores.</value></data>
   <data name="ScheduleEditor_AScheduleThatDoesNot" xml:space="preserve"><value>Um agendamento sem repetição tem um único dia.</value></data>
   <data name="ScheduleEditor_ChooseAtLeastOneRoom" xml:space="preserve"><value>Escolha pelo menos um cômodo.</value></data>
@@ -461,13 +461,13 @@ Esta ação não pode ser desfeita.</value></data>
   <data name="ScheduleEditorDialog_RoomsInCleaningOrderTick.Text" xml:space="preserve"><value>Cômodos, na ordem de limpeza. Marque-os e depois ajuste cada um como em uma limpeza iniciada manualmente.</value></data>
   <data name="ScheduleEditorDialog_UntickAll.Content" xml:space="preserve"><value>Desmarcar tudo</value></data>
   <data name="ScheduleEditorDialog_RoomsOfTheMap.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Cômodos do mapa</value></data>
-  <data name="Schedules_OnSunday" xml:space="preserve"><value>no domingo</value></data>
-  <data name="Schedules_OnSaturday" xml:space="preserve"><value>no sábado</value></data>
-  <data name="Schedules_OnFriday" xml:space="preserve"><value>na sexta-feira</value></data>
-  <data name="Schedules_OnThursday" xml:space="preserve"><value>na quinta-feira</value></data>
-  <data name="Schedules_OnWednesday" xml:space="preserve"><value>na quarta-feira</value></data>
-  <data name="Schedules_OnTuesday" xml:space="preserve"><value>na terça-feira</value></data>
-  <data name="Schedules_OnMonday" xml:space="preserve"><value>na segunda-feira</value></data>
+  <data name="Schedules_OnSunday" xml:space="preserve"><value>aos domingos</value></data>
+  <data name="Schedules_OnSaturday" xml:space="preserve"><value>aos sábados</value></data>
+  <data name="Schedules_OnFriday" xml:space="preserve"><value>às sextas-feiras</value></data>
+  <data name="Schedules_OnThursday" xml:space="preserve"><value>às quintas-feiras</value></data>
+  <data name="Schedules_OnWednesday" xml:space="preserve"><value>às quartas-feiras</value></data>
+  <data name="Schedules_OnTuesday" xml:space="preserve"><value>às terças-feiras</value></data>
+  <data name="Schedules_OnMonday" xml:space="preserve"><value>às segundas-feiras</value></data>
   <data name="Schedules_AtWeekends" xml:space="preserve"><value>nos fins de semana</value></data>
   <data name="Schedules_MondayToFriday" xml:space="preserve"><value>de segunda a sexta</value></data>
   <data name="Schedules_EveryDay" xml:space="preserve"><value>todos os dias</value></data>

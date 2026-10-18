@@ -127,7 +127,7 @@
   <data name="Journal_MessageRecordingOff" xml:space="preserve"><value>mesaj kaydı durduruldu</value></data>
   <data name="Journal_MessageRecordingOn" xml:space="preserve"><value>mesaj kaydı açıldı</value></data>
   <data name="Journal_RecordingTo" xml:space="preserve"><value>Kayıt konumu: {0}</value></data>
-  <data name="Journal_TheLogShowsTheNotable.Text" xml:space="preserve"><value>Günlük, robotun bildirdiği önemli olayları (arızalar, temizliğin sonu, harita değişikliği…) ve bu pencereden gönderilen komutların sonucunu gösterir. Robotla değiş tokuş edilen her mesajı göstermez: hepsini saklamak için Ayarlar › Günlükler bölümünde “Tüm mesajları kaydet” seçeneğini açın.</value></data>
+  <data name="Journal_TheLogShowsTheNotable.Text" xml:space="preserve"><value>Günlük, robotun bildirdiği önemli olayları (arızalar, temizliğin sonu, harita değişikliği…) ve bu pencereden gönderilen komutların sonucunu gösterir. Robotla gönderilip alınan her mesajı göstermez: hepsini saklamak için Ayarlar › Günlükler bölümünde “Tüm mesajları kaydet” seçeneğini açın.</value></data>
   <data name="Journal_Log.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Günlük</value></data>
   <data name="Login_LoginFailed" xml:space="preserve"><value>Oturum açılamadı: {0}</value></data>
   <data name="Login_TheDysonCloudAnsweredWith" xml:space="preserve"><value>Dyson bulutu bir hatayla yanıt verdi (HTTP {0}). Birazdan yeniden deneyin.</value></data>
@@ -161,7 +161,7 @@ MyDyson hesabından oturum kapatılsın mı?</value></data>
   <data name="Main_ReloadingTheData" xml:space="preserve"><value>{0}, veriler yeniden yükleniyor</value></data>
   <data name="Main_CannotConnectToTheRobot" xml:space="preserve"><value>robota bağlanılamıyor: {0}</value></data>
   <data name="Main_OfflineRetryingInS" xml:space="preserve"><value>Çevrimdışı, {0:F0} sn sonra yeniden denenecek</value></data>
-  <data name="Main_TheRobotHasFinishedCleaning" xml:space="preserve"><value>Robot temizliği {0} sürede bitirdi.</value></data>
+  <data name="Main_TheRobotHasFinishedCleaning" xml:space="preserve"><value>Robot temizliği {0} içinde bitirdi.</value></data>
   <data name="Main_TheRobotHasFinishedCleaning2" xml:space="preserve"><value>Robot temizliği bitirdi.</value></data>
   <data name="Main_TheRobotHasStartedCleaning" xml:space="preserve"><value>Robot temizliğe başladı.</value></data>
   <data name="Main_TheRobotIsCleaningA" xml:space="preserve"><value>Robot bir bölgeyi temizliyor.</value></data>
@@ -195,7 +195,7 @@ MyDyson hesabından oturum kapatılsın mı?</value></data>
   <data name="MapManager_Added" xml:space="preserve"><value>“{0}” eklendi</value></data>
   <data name="MapManager_ClickWhereToPlaceThe" xml:space="preserve"><value>“{0}” mobilyasını yerleştirmek istediğiniz yere tıklayın (mobilyanın merkezi). İptal için Esc tuşuna basın.</value></data>
   <data name="MapManager_NoFurnitureOnThisMap" xml:space="preserve"><value>Bu haritada mobilya yok.</value></data>
-  <data name="MapManager_ThisMapHoldsAPiece" xml:space="preserve"><value>Bu harita, bu uygulamanın tanımlayamadığı bir mobilya içeriyor ({0}): yapılacak her değişiklik onu silerdi, bu nedenle mobilyalar salt okunurdur.</value></data>
+  <data name="MapManager_ThisMapHoldsAPiece" xml:space="preserve"><value>Bu harita, bu uygulamanın tanımlayamadığı bir mobilya içeriyor ({0}): yapılacak her değişiklik onu silecektir, bu nedenle mobilyalar salt okunurdur.</value></data>
   <data name="MapManager_TheRobotRefusedTheSplit" xml:space="preserve"><value>Robot bölmeyi reddetti: oda orada büyük olasılıkla çok küçük ya da çizgi odayı kesmiyor.</value></data>
   <data name="MapManager_RoomSplit" xml:space="preserve"><value>oda {0} bölündü</value></data>
   <data name="MapManager_ClickBothEndsOfThe" xml:space="preserve"><value>Kesme çizgisinin iki ucuna tıklayın; çizgi, yakınlaştırınca görünen robotun 5 cm'lik ızgarasına oturur. İptal için Esc tuşuna basın.</value></data>
@@ -208,7 +208,7 @@ MyDyson hesabından oturum kapatılsın mı?</value></data>
   <data name="MapManager_MergeIntoASingleRoom" xml:space="preserve"><value>{0} tek bir oda olarak birleştirilsin mi?</value></data>
   <data name="MapManager_MergeTheRooms2" xml:space="preserve"><value>Odaları birleştir</value></data>
   <data name="MapManager_ChooseAtLeastTwoRooms" xml:space="preserve"><value>Birleştirmek için en az iki oda seçin.</value></data>
-  <data name="MapManager_ClickTheRoomsToMerge" xml:space="preserve"><value>Birleştirilecek odalara haritada veya listede tıklayın. Onaylamak için tekrar “Birleştir”, iptal etmek için Esc tuşuna basın.</value></data>
+  <data name="MapManager_ClickTheRoomsToMerge" xml:space="preserve"><value>Birleştirilecek odalara haritada veya listede tıklayın. Onaylamak için “Birleştir” düğmesine tekrar tıklayın, iptal etmek için Esc tuşuna basın.</value></data>
   <data name="MapManager_RoomRenamedTo" xml:space="preserve"><value>oda yeniden adlandırıldı: “{0}”</value></data>
   <data name="MapManager_TheRobotRefusedTheZones" xml:space="preserve"><value>Robot bölgeleri reddetti.</value></data>
   <data name="MapManager_ZoneDeleted" xml:space="preserve"><value>“{0}” bölgesi silindi</value></data>
@@ -220,7 +220,7 @@ MyDyson hesabından oturum kapatılsın mı?</value></data>
   <data name="MapManager_ClickTwoOppositeCornersOf" xml:space="preserve"><value>“{0}” bölgesinin iki karşı köşesine tıklayın; ızgaraya oturtma yok. İptal için Esc tuşuna basın.</value></data>
   <data name="MapManager_ClickTwoOppositeCornersOf2" xml:space="preserve"><value>“{0}” bölgesinin iki karşı köşesine tıklayın; köşeler, yakınlaştırınca görünen 5 cm'lik ızgaraya oturur. İptal için Esc tuşuna basın.</value></data>
   <data name="MapManager_NoZoneOnThisMap" xml:space="preserve"><value>Bu haritada bölge yok.</value></data>
-  <data name="MapManager_ThisMapHoldsAZone" xml:space="preserve"><value>Bu harita, bu uygulamanın tanımlayamadığı bir bölge içeriyor ({0}): yapılacak her değişiklik onu silerdi, bu nedenle bölgeler salt okunurdur.</value></data>
+  <data name="MapManager_ThisMapHoldsAZone" xml:space="preserve"><value>Bu harita, bu uygulamanın tanımlayamadığı bir bölge içeriyor ({0}): yapılacak her değişiklik onu silecektir, bu nedenle bölgeler salt okunurdur.</value></data>
   <data name="MapManager_UnexpectedMapId" xml:space="preserve"><value>Beklenmeyen harita kimliği: {0}</value></data>
   <data name="MapManager_Text" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="MapManager_RefusedByTheRobot" xml:space="preserve"><value>{0}: robot tarafından reddedildi</value></data>
@@ -250,8 +250,8 @@ Bu işlem geri alınamaz.</value></data>
   <data name="MapManager_Map" xml:space="preserve"><value>Harita {0}: {1}</value></data>
   <data name="MapManager_MapRotation" xml:space="preserve"><value>harita döndürme: {0}</value></data>
   <data name="MapManager_RotationFailed" xml:space="preserve"><value>Döndürme başarısız: {0}</value></data>
-  <data name="MapManager_MapTurnedTo" xml:space="preserve"><value>Harita {0}° döndürüldü.</value></data>
-  <data name="MapManager_MapTurnedTo2" xml:space="preserve"><value>“{0}” haritası {1}° döndürüldü</value></data>
+  <data name="MapManager_MapTurnedTo" xml:space="preserve"><value>Harita {0}° olarak döndürüldü.</value></data>
+  <data name="MapManager_MapTurnedTo2" xml:space="preserve"><value>“{0}” haritası {1}° olarak döndürüldü</value></data>
   <data name="MapManager_270QuarterTurnAnticlockwise" xml:space="preserve"><value>270° (saat yönünün tersine çeyrek tur)</value></data>
   <data name="MapManager_180HalfTurn" xml:space="preserve"><value>180° (yarım tur)</value></data>
   <data name="MapManager_90QuarterTurnClockwise" xml:space="preserve"><value>90° (saat yönünde çeyrek tur)</value></data>
@@ -276,7 +276,7 @@ Bu işlem geri alınamaz.</value></data>
   <data name="MapManager_RenameTheRoom.Content" xml:space="preserve"><value>Odayı yeniden adlandır…</value></data>
   <data name="MapManager_SplitTheRoom.Content" xml:space="preserve"><value>Odayı böl…</value></data>
   <data name="MapManager_Cancel.Content" xml:space="preserve"><value>İptal</value></data>
-  <data name="MapManager_ASplitAlwaysFollowsA.Text" xml:space="preserve"><value>Bölme işlemi her zaman robotun kendi ızgarasına oturttuğu düz bir çizgiyi izler ve iki yarım da adını kaybeder. Bir odadan kurtulmak için onu komşusuyla birleştirin.</value></data>
+  <data name="MapManager_ASplitAlwaysFollowsA.Text" xml:space="preserve"><value>Bölme işlemi her zaman robotun kendi ızgarasına oturttuğu düz bir çizgiyi izler ve iki yarı da adını kaybeder. Bir odayı ortadan kaldırmak için onu komşu odayla birleştirin.</value></data>
   <data name="MapManager_ZonesOfTheMap.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Haritanın bölgeleri</value></data>
   <data name="MapManager_ZoneType.Header" xml:space="preserve"><value>Bölge türü</value></data>
   <data name="MapManager_AddAZone.Content" xml:space="preserve"><value>Bölge ekle…</value></data>
@@ -579,7 +579,7 @@ Devam edilsin mi?</value></data>
   <data name="Settings_90Days.Content" xml:space="preserve"><value>90 gün</value></data>
   <data name="Settings_KeepForever.Content" xml:space="preserve"><value>Süresiz sakla</value></data>
   <data name="Settings_RecordAllMessages.Text" xml:space="preserve"><value>Tüm mesajları kaydet</value></data>
-  <data name="Settings_KeepsEveryMessageExchangedWith.Text" xml:space="preserve"><value>Robotla değiş tokuş edilen her mesajı, Messages klasöründe günde bir dosya olacak şekilde saklar; uygulamanın henüz tanımadığı mesajları fark etmek için.</value></data>
+  <data name="Settings_KeepsEveryMessageExchangedWith.Text" xml:space="preserve"><value>Robotla gönderilip alınan her mesajı, Messages klasöründe günde bir dosya olacak şekilde saklar; uygulamanın henüz tanımadığı mesajları fark etmek için.</value></data>
   <data name="Settings_OpenTheMessagesFolder.Content" xml:space="preserve"><value>Mesajlar klasörünü aç</value></data>
   <data name="Settings_RecordAllMessages2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Tüm mesajları kaydet</value></data>
   <data name="Settings_KeepTheRecordedMessages.Text" xml:space="preserve"><value>Kaydedilen mesajları sakla</value></data>
