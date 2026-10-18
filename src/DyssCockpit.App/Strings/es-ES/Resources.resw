@@ -539,8 +539,8 @@ Esta acción no se puede deshacer.</value></data>
   <data name="Settings_StartWithWindowsInThe.Text" xml:space="preserve"><value>Iniciar con Windows (en el área de notificación)</value></data>
   <data name="Settings_StartWithWindowsInThe2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Iniciar con Windows (en el área de notificación)</value></data>
   <data name="Settings_Language.Text" xml:space="preserve"><value>Idioma</value></data>
-  <data name="Settings_DisplayLanguage.Text" xml:space="preserve"><value>Idioma de visualización</value></data>
-  <data name="Settings_DisplayLanguage2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Idioma de visualización</value></data>
+  <data name="Settings_DisplayLanguage.Text" xml:space="preserve"><value>Idioma de la interfaz</value></data>
+  <data name="Settings_DisplayLanguage2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Idioma de la interfaz</value></data>
   <data name="Settings_AutomaticWindowsLanguage.Content" xml:space="preserve"><value>Automático (idioma de Windows)</value></data>
   <data name="Settings_RestartRequired.Title" xml:space="preserve"><value>Reinicio necesario</value></data>
   <data name="Settings_RestartRequired.Message" xml:space="preserve"><value>DySS Cockpit debe reiniciarse para aplicar el nuevo idioma.</value></data>
@@ -565,7 +565,7 @@ Esta acción no se puede deshacer.</value></data>
   <data name="Settings_ShowTheSizeOfDrawn.Text" xml:space="preserve"><value>Mostrar las dimensiones de las zonas dibujadas</value></data>
   <data name="Settings_TheCoordinatesOfEachCorner.Text" xml:space="preserve"><value>Las coordenadas de cada esquina y la longitud de los lados de un rectángulo dibujado en el mapa, en metros.</value></data>
   <data name="Settings_ShowTheSizeOfDrawn2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Mostrar las dimensiones de las zonas dibujadas</value></data>
-  <data name="Settings_TheseSettingsOnlyAffectThis.Text" xml:space="preserve"><value>Estos ajustes solo afectan a esta visualización: no se envía nada al robot.</value></data>
+  <data name="Settings_TheseSettingsOnlyAffectThis.Text" xml:space="preserve"><value>Esta configuración solo afecta a esta visualización: no se envía nada al robot.</value></data>
   <data name="Settings_Logs.Text" xml:space="preserve"><value>Registros</value></data>
   <data name="Settings_KeepTheApplicationLogs.Text" xml:space="preserve"><value>Conservación de los registros de la aplicación</value></data>
   <data name="Settings_OneFileADayIn.Text" xml:space="preserve"><value>Un archivo al día, en la carpeta Logs. Se eliminan los más antiguos.</value></data>

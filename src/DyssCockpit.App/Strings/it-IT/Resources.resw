@@ -84,7 +84,7 @@
   <data name="Dashboard_CleanTheSelection.Text" xml:space="preserve"><value>Pulisci la selezione</value></data>
   <data name="Dashboard_TickAtLeastOneRoom.Text" xml:space="preserve"><value>Seleziona almeno una stanza, senza zone disegnate; il robot deve inoltre essere disponibile.</value></data>
   <data name="Dashboard_CleanAZone.Text" xml:space="preserve"><value>Pulisci una zona</value></data>
-  <data name="Dashboard_DrawARectangleOnThe.Text" xml:space="preserve"><value>Disegna un rettangolo sulla mappa facendo clic su due angoli opposti, scegli come pulirlo, poi avvia: il robot pulisce solo quella zona. Trascinalo per spostarlo, tira i suoi angoli per ridimensionarlo; un clic su una parte vuota della mappa o il tasto Esc lo cancella (Esc annulla anche un disegno o uno spostamento in corso). Finché è disegnata una zona, non è possibile selezionare le stanze.</value></data>
+  <data name="Dashboard_DrawARectangleOnThe.Text" xml:space="preserve"><value>Disegna un rettangolo sulla mappa facendo clic su due angoli opposti, scegli come pulirlo, poi avvia: il robot pulisce solo quella zona. Trascinalo per spostarlo, trascinane gli angoli per ridimensionarlo; un clic su una parte vuota della mappa o il tasto Esc lo cancella (Esc annulla anche un disegno o uno spostamento in corso). Finché è disegnata una zona, non è possibile selezionare le stanze.</value></data>
   <data name="Dashboard_CleaningTypeOfTheZone.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Tipo di pulizia della zona</value></data>
   <data name="Dashboard_SuctionModeOfTheZone.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Modalità di aspirazione della zona</value></data>
   <data name="Dashboard_WaterLevelOfTheZone.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Livello dell'acqua della zona</value></data>
@@ -258,7 +258,7 @@ Questa azione non può essere annullata.</value></data>
   <data name="MapManager_0Original" xml:space="preserve"><value>0° (originale)</value></data>
   <data name="MapManager_Maps2" xml:space="preserve"><value>Mappe: {0}</value></data>
   <data name="MapManager_ClickAPieceOfFurniture" xml:space="preserve"><value>Fai clic su un mobile per sceglierlo, poi trascinalo per spostarlo. Rotellina per lo zoom, trascina altrove per spostare la mappa.</value></data>
-  <data name="MapManager_ClickAZoneToChoose" xml:space="preserve"><value>Fai clic su una zona per sceglierla, poi trascinala per spostarla o tira uno dei suoi angoli per ridimensionarla. Rotellina per lo zoom, trascina altrove per spostare la mappa.</value></data>
+  <data name="MapManager_ClickAZoneToChoose" xml:space="preserve"><value>Fai clic su una zona per sceglierla, poi trascinala per spostarla o trascinane un angolo per ridimensionarla. Rotellina per lo zoom, trascina altrove per spostare la mappa.</value></data>
   <data name="MapManager_ClickARoomToChoose" xml:space="preserve"><value>Fai clic su una stanza per sceglierla, all'esterno per annullare la scelta. Rotellina per lo zoom, trascina per spostare.</value></data>
   <data name="MapManager_CustomFreeName" xml:space="preserve"><value>Personalizzata (nome libero)</value></data>
   <data name="MapManager_Maps.Text" xml:space="preserve"><value>Mappe</value></data>
@@ -284,7 +284,7 @@ Questa azione non può essere annullata.</value></data>
   <data name="MapManager_DeleteTheZone.Content" xml:space="preserve"><value>Elimina la zona…</value></data>
   <data name="MapManager_SnapToThe5Cm.Content" xml:space="preserve"><value>Allinea alla griglia da 5 cm</value></data>
   <data name="MapManager_SnapToThe5Cm.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Zone e mobili si allineano alla griglia del robot quando vengono disegnati, posizionati o spostati; la griglia compare con lo zoom.</value></data>
-  <data name="MapManager_AZoneIsAnUpright.Text" xml:space="preserve"><value>Una zona è un rettangolo dritto, come nell'app mobile. Trascina la zona scelta per spostarla, oppure tira uno dei suoi angoli per ridimensionarla. Il robot riceve sempre l'elenco completo delle zone della mappa.</value></data>
+  <data name="MapManager_AZoneIsAnUpright.Text" xml:space="preserve"><value>Una zona è un rettangolo non ruotato, come nell'app mobile. Trascina la zona scelta per spostarla, oppure trascinane un angolo per ridimensionarla. Il robot riceve sempre l'elenco completo delle zone della mappa.</value></data>
   <data name="MapManager_FurnitureOfTheMap.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Mobili della mappa</value></data>
   <data name="MapManager_FurnitureToAdd.Header" xml:space="preserve"><value>Mobile da aggiungere</value></data>
   <data name="MapManager_AddThisPiece.Content" xml:space="preserve"><value>Aggiungi questo mobile…</value></data>
@@ -407,7 +407,7 @@ Questa azione non può essere annullata.</value></data>
   <data name="RoomNameDialog_DisplayedName.Header" xml:space="preserve"><value>Nome visualizzato</value></data>
   <data name="RoomNameDialog_TypeSName.Content" xml:space="preserve"><value>Nome del tipo</value></data>
   <data name="RoomNameDialog_TypeSName.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Ripristina il nome che Dyson assegna a questo tipo di stanza</value></data>
-  <data name="RoomNameDialog_TheTypeIsUsedBy.Text" xml:space="preserve"><value>Il tipo viene usato dai comandi vocali e precompila il nome; mantieni il nome suggerito per far chiamare la stanza come nell'app mobile, oppure scrivine uno tuo.</value></data>
+  <data name="RoomNameDialog_TheTypeIsUsedBy.Text" xml:space="preserve"><value>Il tipo viene usato dai comandi vocali e precompila il nome; mantieni il nome suggerito perché la stanza si chiami come nell'app mobile, oppure scrivine uno tuo.</value></data>
   <data name="RoomTypeLabels_Custom" xml:space="preserve"><value>Personalizzata</value></data>
   <data name="RoomType_utilityRoom" xml:space="preserve"><value>Locale di servizio</value></data>
   <data name="RoomType_toilet" xml:space="preserve"><value>WC</value></data>
@@ -514,7 +514,7 @@ Continuare?</value></data>
   <data name="Settings_TheRestartFailedStartThe" xml:space="preserve"><value>Riavvio non riuscito ({0}). Avvia di nuovo l'app per cambiare lingua.</value></data>
   <data name="Settings_ChangeLanguage" xml:space="preserve"><value>Cambia lingua</value></data>
   <data name="Settings_StartWithWindows" xml:space="preserve"><value>Avvia con Windows</value></data>
-  <data name="Settings_ThisIsHowDySSCockpit" xml:space="preserve"><value>Ecco come DySS Cockpit ti avviserà per il tuo robot.</value></data>
+  <data name="Settings_ThisIsHowDySSCockpit" xml:space="preserve"><value>Ecco come DySS Cockpit ti avviserà in merito al tuo robot.</value></data>
   <data name="Settings_TestNotification" xml:space="preserve"><value>Notifica di prova</value></data>
   <data name="Settings_SignedInAs" xml:space="preserve"><value>Accesso eseguito come {0}</value></data>
   <data name="Settings_TheseSettingsAreAboutThis.Text" xml:space="preserve"><value>Queste impostazioni riguardano questa app, su questo computer: non viene inviato nulla al robot.</value></data>
@@ -533,9 +533,9 @@ Continuare?</value></data>
   <data name="Settings_UnreachableArea2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Area non raggiungibile</value></data>
   <data name="Settings_SendATestNotification.Content" xml:space="preserve"><value>Invia una notifica di prova</value></data>
   <data name="Settings_Behavior.Text" xml:space="preserve"><value>Comportamento</value></data>
-  <data name="Settings_KeepRunningInTheNotification.Text" xml:space="preserve"><value>Continua a funzionare nell'area di notifica quando la finestra viene chiusa</value></data>
-  <data name="Settings_TheRobotIsStillFollowed.Text" xml:space="preserve"><value>Il robot continua a essere monitorato e le notifiche continuano ad arrivare. Chiudi l'app con il pulsante «Esci» o dal menu della sua icona.</value></data>
-  <data name="Settings_KeepRunningInTheNotification2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Continua a funzionare nell'area di notifica quando la finestra viene chiusa</value></data>
+  <data name="Settings_KeepRunningInTheNotification.Text" xml:space="preserve"><value>Resta attivo nell'area di notifica alla chiusura della finestra</value></data>
+  <data name="Settings_TheRobotIsStillFollowed.Text" xml:space="preserve"><value>Il robot continua a essere monitorato e le notifiche continuano ad arrivare. Esci dall'app con il pulsante «Esci» o dal menu della sua icona.</value></data>
+  <data name="Settings_KeepRunningInTheNotification2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Resta attivo nell'area di notifica alla chiusura della finestra</value></data>
   <data name="Settings_StartWithWindowsInThe.Text" xml:space="preserve"><value>Avvia con Windows (nell'area di notifica)</value></data>
   <data name="Settings_StartWithWindowsInThe2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Avvia con Windows (nell'area di notifica)</value></data>
   <data name="Settings_Language.Text" xml:space="preserve"><value>Lingua</value></data>
@@ -566,10 +566,10 @@ Continuare?</value></data>
   <data name="Settings_TheCoordinatesOfEachCorner.Text" xml:space="preserve"><value>Le coordinate di ogni angolo e la lunghezza dei lati di un rettangolo disegnato sulla mappa, in metri.</value></data>
   <data name="Settings_ShowTheSizeOfDrawn2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Mostra le dimensioni delle zone disegnate</value></data>
   <data name="Settings_TheseSettingsOnlyAffectThis.Text" xml:space="preserve"><value>Queste impostazioni riguardano solo questa visualizzazione: non viene inviato nulla al robot.</value></data>
-  <data name="Settings_Logs.Text" xml:space="preserve"><value>Registri</value></data>
+  <data name="Settings_Logs.Text" xml:space="preserve"><value>Log</value></data>
   <data name="Settings_KeepTheApplicationLogs.Text" xml:space="preserve"><value>Conservazione dei registri dell'app</value></data>
   <data name="Settings_OneFileADayIn.Text" xml:space="preserve"><value>Un file al giorno, nella cartella Logs. I più vecchi vengono eliminati.</value></data>
-  <data name="Settings_OpenTheLogsFolder.Content" xml:space="preserve"><value>Apri la cartella dei registri</value></data>
+  <data name="Settings_OpenTheLogsFolder.Content" xml:space="preserve"><value>Apri la cartella dei log</value></data>
   <data name="Settings_Retention.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Periodo di conservazione</value></data>
   <data name="Settings_1Day.Content" xml:space="preserve"><value>1 giorno</value></data>
   <data name="Settings_3Days.Content" xml:space="preserve"><value>3 giorni</value></data>
@@ -661,7 +661,7 @@ Continuare?</value></data>
   <data name="Status_Vacuuming" xml:space="preserve"><value>aspirazione</value></data>
   <data name="Status_WheelOffTheFloor" xml:space="preserve"><value>(ruota sollevata da terra)</value></data>
   <data name="Status_RoomUnreachable" xml:space="preserve"><value>(stanza non raggiungibile)</value></data>
-  <data name="Status_CannotLocateItself" xml:space="preserve"><value>(impossibile localizzarsi)</value></data>
+  <data name="Status_CannotLocateItself" xml:space="preserve"><value>(non riesce a localizzarsi)</value></data>
   <data name="Status_Fault" xml:space="preserve"><value>errore {0}</value></data>
   <data name="Status_Ready" xml:space="preserve"><value>pronto</value></data>
   <data name="Status_ToRefill" xml:space="preserve"><value>da riempire</value></data>

@@ -179,7 +179,7 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="Main_RobotFault" xml:space="preserve"><value>ロボットのエラー</value></data>
   <data name="Main_Connected" xml:space="preserve"><value>接続済み</value></data>
   <data name="Main_ConnectionRestored" xml:space="preserve"><value>接続が回復しました</value></data>
-  <data name="Main_Disconnected" xml:space="preserve"><value>切断</value></data>
+  <data name="Main_Disconnected" xml:space="preserve"><value>切断済み</value></data>
   <data name="Main_Reconnecting" xml:space="preserve"><value>再接続中…</value></data>
   <data name="Main_Connecting" xml:space="preserve"><value>接続中…</value></data>
   <data name="Main_Text" xml:space="preserve"><value>{0}：</value></data>
@@ -441,7 +441,7 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="RoomType_balcony" xml:space="preserve"><value>バルコニー</value></data>
   <data name="ScheduleEditor_TheRobotDoesNotStart" xml:space="preserve"><value>ロボットは、前のスケジュールの実行中は次のスケジュールを開始しません。</value></data>
   <data name="ScheduleEditor_OverlapsTheSchedule" xml:space="preserve"><value>{0}のスケジュール（{1}）と重なっています：</value></data>
-  <data name="ScheduleEditor_EstimatedDurationAboutFromPast" xml:space="preserve"><value>推定所要時間：約{0}（過去の掃除より）</value></data>
+  <data name="ScheduleEditor_EstimatedDurationAboutFromPast" xml:space="preserve"><value>推定所要時間：約{0}（過去の掃除実績に基づく）</value></data>
   <data name="ScheduleEditor_AScheduleThatDoesNot" xml:space="preserve"><value>繰り返しのないスケジュールには、曜日を1つだけ指定できます。</value></data>
   <data name="ScheduleEditor_ChooseAtLeastOneRoom" xml:space="preserve"><value>部屋を1つ以上選択してください。</value></data>
   <data name="ScheduleEditor_ChooseAtLeastOneDay" xml:space="preserve"><value>曜日を1つ以上選択してください。</value></data>
@@ -533,11 +533,11 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="Settings_UnreachableArea2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>到達できないエリア</value></data>
   <data name="Settings_SendATestNotification.Content" xml:space="preserve"><value>テスト通知を送信</value></data>
   <data name="Settings_Behavior.Text" xml:space="preserve"><value>動作</value></data>
-  <data name="Settings_KeepRunningInTheNotification.Text" xml:space="preserve"><value>ウィンドウを閉じても通知領域で実行し続ける</value></data>
+  <data name="Settings_KeepRunningInTheNotification.Text" xml:space="preserve"><value>ウィンドウを閉じても通知領域で実行を続ける</value></data>
   <data name="Settings_TheRobotIsStillFollowed.Text" xml:space="preserve"><value>ロボットの監視と通知は継続されます。アプリを終了するには、「終了」ボタンか、アイコンのメニューを使用します。</value></data>
-  <data name="Settings_KeepRunningInTheNotification2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ウィンドウを閉じても通知領域で実行し続ける</value></data>
-  <data name="Settings_StartWithWindowsInThe.Text" xml:space="preserve"><value>Windowsの起動時に開始（通知領域で）</value></data>
-  <data name="Settings_StartWithWindowsInThe2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Windowsの起動時に開始（通知領域で）</value></data>
+  <data name="Settings_KeepRunningInTheNotification2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ウィンドウを閉じても通知領域で実行を続ける</value></data>
+  <data name="Settings_StartWithWindowsInThe.Text" xml:space="preserve"><value>Windows起動時に開始（通知領域）</value></data>
+  <data name="Settings_StartWithWindowsInThe2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Windows起動時に開始（通知領域）</value></data>
   <data name="Settings_Language.Text" xml:space="preserve"><value>言語</value></data>
   <data name="Settings_DisplayLanguage.Text" xml:space="preserve"><value>表示言語</value></data>
   <data name="Settings_DisplayLanguage2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>表示言語</value></data>
@@ -557,7 +557,7 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="Settings_ShowThePNGExportButton.Text" xml:space="preserve"><value>PNGエクスポートのボタンを表示</value></data>
   <data name="Settings_ShowThePNGExportButton2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>PNGエクスポートのボタンを表示</value></data>
   <data name="Settings_SmoothTheRobotSMovements.Text" xml:space="preserve"><value>ロボットの動きをなめらかにする</value></data>
-  <data name="Settings_TheRobotGlidesFromOne.Text" xml:space="preserve"><value>ロボットが位置から位置へ飛ぶのではなく、少し遅れてなめらかに移動します。</value></data>
+  <data name="Settings_TheRobotGlidesFromOne.Text" xml:space="preserve"><value>ロボットが次の位置へ飛ぶのではなく、少し遅れてなめらかに移動します。</value></data>
   <data name="Settings_SmoothTheRobotSMovements2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ロボットの動きをなめらかにする</value></data>
   <data name="Settings_ShowTheCoordinatesAboveThe.Text" xml:space="preserve"><value>ポインターの上に座標を表示</value></data>
   <data name="Settings_ThePointerSPositionOn.Text" xml:space="preserve"><value>マップ上のポインターの位置を、ロボットの座標系（ロボットのメッセージで使われるもの）で、メートル単位で表示します。</value></data>
@@ -606,7 +606,7 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="Shell_History.Content" xml:space="preserve"><value>履歴</value></data>
   <data name="Shell_Schedules.Content" xml:space="preserve"><value>スケジュール</value></data>
   <data name="Shell_ManageMaps.Content" xml:space="preserve"><value>マップを管理</value></data>
-  <data name="Shell_ManageMaps.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>マップと部屋の名前変更、部屋の統合・分割、ゾーンと家具、マップ作成の開始</value></data>
+  <data name="Shell_ManageMaps.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>マップと部屋の名前変更、部屋の統合・分割、ゾーンと家具の編集、マップ作成の開始</value></data>
   <data name="Shell_RobotSettings.Content" xml:space="preserve"><value>ロボット設定</value></data>
   <data name="Shell_Log.Content" xml:space="preserve"><value>ログ</value></data>
   <data name="Shell_Settings.Content" xml:space="preserve"><value>設定</value></data>
@@ -629,8 +629,8 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="Status_DockWashingTheMopRoller" xml:space="preserve"><value>ステーション：モップローラーを洗浄しています</value></data>
   <data name="Status_MappingFinished" xml:space="preserve"><value>マップ作成完了</value></data>
   <data name="Status_Mapping" xml:space="preserve"><value>マップ作成中</value></data>
-  <data name="Status_CleanInterrupted" xml:space="preserve"><value>掃除を中断</value></data>
-  <data name="Status_CleanAbandoned" xml:space="preserve"><value>掃除を中止</value></data>
+  <data name="Status_CleanInterrupted" xml:space="preserve"><value>掃除中断</value></data>
+  <data name="Status_CleanAbandoned" xml:space="preserve"><value>掃除中止</value></data>
   <data name="Status_CleanFinished" xml:space="preserve"><value>掃除完了</value></data>
   <data name="Status_BatteryTooLow" xml:space="preserve"><value>バッテリー残量不足</value></data>
   <data name="Status_RechargingBeforeCarryingOn" xml:space="preserve"><value>続行前に充電中</value></data>
@@ -659,9 +659,9 @@ MyDysonアカウントからログアウトしますか？</value></data>
   <data name="Status_Mopping" xml:space="preserve"><value>水拭き中</value></data>
   <data name="Status_VacuumingAndMopping" xml:space="preserve"><value>吸引と水拭き中</value></data>
   <data name="Status_Vacuuming" xml:space="preserve"><value>吸引中</value></data>
-  <data name="Status_WheelOffTheFloor" xml:space="preserve"><value>(車輪が床から浮いています)</value></data>
-  <data name="Status_RoomUnreachable" xml:space="preserve"><value>(部屋に到達できません)</value></data>
-  <data name="Status_CannotLocateItself" xml:space="preserve"><value>(位置を特定できません)</value></data>
+  <data name="Status_WheelOffTheFloor" xml:space="preserve"><value>（車輪が床から浮いています）</value></data>
+  <data name="Status_RoomUnreachable" xml:space="preserve"><value>（部屋に到達できません）</value></data>
+  <data name="Status_CannotLocateItself" xml:space="preserve"><value>（位置を特定できません）</value></data>
   <data name="Status_Fault" xml:space="preserve"><value>エラー {0}</value></data>
   <data name="Status_Ready" xml:space="preserve"><value>使用可能</value></data>
   <data name="Status_ToRefill" xml:space="preserve"><value>要補充</value></data>

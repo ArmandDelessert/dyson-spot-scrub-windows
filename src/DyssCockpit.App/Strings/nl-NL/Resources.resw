@@ -130,7 +130,7 @@
   <data name="Journal_TheLogShowsTheNotable.Text" xml:space="preserve"><value>Het logboek toont de belangrijke gebeurtenissen die de robot meldt (storingen, einde van een reiniging, kaartwijziging…) en het resultaat van de opdrachten die vanuit dit venster zijn verzonden. Het toont niet elk bericht dat met de robot wordt uitgewisseld: schakel “Alle berichten registreren” in bij Instellingen › Logboeken om ze allemaal te bewaren.</value></data>
   <data name="Journal_Log.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Logboek</value></data>
   <data name="Login_LoginFailed" xml:space="preserve"><value>Aanmelden mislukt: {0}</value></data>
-  <data name="Login_TheDysonCloudAnsweredWith" xml:space="preserve"><value>De Dyson-cloud heeft met een fout geantwoord (HTTP {0}). Probeer het over een moment opnieuw.</value></data>
+  <data name="Login_TheDysonCloudAnsweredWith" xml:space="preserve"><value>De Dyson-cloud heeft een fout gemeld (HTTP {0}). Probeer het over een moment opnieuw.</value></data>
   <data name="Login_TheDysonCloudRefusedThe" xml:space="preserve"><value>De Dyson-cloud heeft het verzoek geweigerd. Controleer het e-mailadres en het land en de taal van het account.</value></data>
   <data name="Login_WrongPasswordOrCodeOr" xml:space="preserve"><value>Onjuist wachtwoord of onjuiste code, of de code is verlopen. Controleer ze of begin opnieuw om een nieuwe code te ontvangen.</value></data>
   <data name="Login_TooManyAttemptsWaitA" xml:space="preserve"><value>Te veel pogingen: wacht enkele minuten voordat je het opnieuw probeert.</value></data>
@@ -337,7 +337,7 @@ Dit kan niet ongedaan worden gemaakt.</value></data>
   <data name="MapObjects_MopOnly" xml:space="preserve"><value>Alleen dweilen</value></data>
   <data name="MapObjects_TheRobotTriesToClimb" xml:space="preserve"><value>de robot probeert kleine obstakels te nemen</value></data>
   <data name="MapObjects_ThresholdToClimb" xml:space="preserve"><value>Te nemen drempel</value></data>
-  <data name="MapObjects_TheRobotStaysOut" xml:space="preserve"><value>de robot komt er niet</value></data>
+  <data name="MapObjects_TheRobotStaysOut" xml:space="preserve"><value>de robot blijft er buiten</value></data>
   <data name="MapObjects_NoGoZone" xml:space="preserve"><value>Verboden zone</value></data>
   <data name="MapRenderer_NoMap" xml:space="preserve"><value>Geen kaart</value></data>
   <data name="RobotHub_Properties" xml:space="preserve"><value>eigenschappen: {0}</value></data>
@@ -374,7 +374,7 @@ Dit kan niet ongedaan worden gemaakt.</value></data>
   <data name="RobotSettings_EachSettingIsSentTo.Text" xml:space="preserve"><value>Elke instelling wordt meteen naar de robot verzonden, zoals in de officiële app.</value></data>
   <data name="RobotSettings_MoppingSettings.Text" xml:space="preserve"><value>Dweilinstellingen</value></data>
   <data name="RobotSettings_MopWithHotWater.Text" xml:space="preserve"><value>Dweilen met heet water</value></data>
-  <data name="RobotSettings_BestForDeepCleansNot.Text" xml:space="preserve"><value>Ideaal voor grondige reinigingen, niet aanbevolen voor houten of laminaten vloeren.</value></data>
+  <data name="RobotSettings_BestForDeepCleansNot.Text" xml:space="preserve"><value>Ideaal voor grondige reinigingen, niet aanbevolen voor houten vloeren of laminaat.</value></data>
   <data name="RobotSettings_MopWithHotWater2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Dweilen met heet water</value></data>
   <data name="RobotSettings_MopWithCleaningSolution.Text" xml:space="preserve"><value>Dweilen met reinigingsmiddel</value></data>
   <data name="RobotSettings_YourRobotWillMopThe.Text" xml:space="preserve"><value>Je robot dweilt de vloer met het reinigingsmiddel in het dockingstation.</value></data>
@@ -407,7 +407,7 @@ Dit kan niet ongedaan worden gemaakt.</value></data>
   <data name="RoomNameDialog_DisplayedName.Header" xml:space="preserve"><value>Weergegeven naam</value></data>
   <data name="RoomNameDialog_TypeSName.Content" xml:space="preserve"><value>Naam van het type</value></data>
   <data name="RoomNameDialog_TypeSName.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Herstelt de naam die Dyson aan dit type kamer geeft</value></data>
-  <data name="RoomNameDialog_TheTypeIsUsedBy.Text" xml:space="preserve"><value>Het type wordt gebruikt door spraakopdrachten en vult de naam vooraf in; behoud de voorgestelde naam zodat de kamer net zo heet als in de mobiele app, of typ een eigen naam.</value></data>
+  <data name="RoomNameDialog_TheTypeIsUsedBy.Text" xml:space="preserve"><value>Het type wordt gebruikt door spraakopdrachten en vult de naam vooraf in; houd de voorgestelde naam aan zodat de kamer dezelfde naam heeft als in de mobiele app, of typ een eigen naam.</value></data>
   <data name="RoomTypeLabels_Custom" xml:space="preserve"><value>Aangepast</value></data>
   <data name="RoomType_utilityRoom" xml:space="preserve"><value>Bijkeuken</value></data>
   <data name="RoomType_toilet" xml:space="preserve"><value>Toilet</value></data>
@@ -533,18 +533,18 @@ Doorgaan?</value></data>
   <data name="Settings_UnreachableArea2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Onbereikbaar gebied</value></data>
   <data name="Settings_SendATestNotification.Content" xml:space="preserve"><value>Testmelding verzenden</value></data>
   <data name="Settings_Behavior.Text" xml:space="preserve"><value>Gedrag</value></data>
-  <data name="Settings_KeepRunningInTheNotification.Text" xml:space="preserve"><value>Actief blijven in het systeemvak wanneer het venster wordt gesloten</value></data>
+  <data name="Settings_KeepRunningInTheNotification.Text" xml:space="preserve"><value>Blijven draaien in het systeemvak wanneer het venster wordt gesloten</value></data>
   <data name="Settings_TheRobotIsStillFollowed.Text" xml:space="preserve"><value>De robot wordt nog steeds gevolgd en meldingen blijven binnenkomen. Sluit de app af met de knop “Afsluiten” of via het menu van het pictogram.</value></data>
-  <data name="Settings_KeepRunningInTheNotification2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Actief blijven in het systeemvak wanneer het venster wordt gesloten</value></data>
+  <data name="Settings_KeepRunningInTheNotification2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Blijven draaien in het systeemvak wanneer het venster wordt gesloten</value></data>
   <data name="Settings_StartWithWindowsInThe.Text" xml:space="preserve"><value>Starten met Windows (in het systeemvak)</value></data>
   <data name="Settings_StartWithWindowsInThe2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Starten met Windows (in het systeemvak)</value></data>
   <data name="Settings_Language.Text" xml:space="preserve"><value>Taal</value></data>
   <data name="Settings_DisplayLanguage.Text" xml:space="preserve"><value>Weergavetaal</value></data>
   <data name="Settings_DisplayLanguage2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Weergavetaal</value></data>
-  <data name="Settings_AutomaticWindowsLanguage.Content" xml:space="preserve"><value>Automatisch (taal van Windows)</value></data>
+  <data name="Settings_AutomaticWindowsLanguage.Content" xml:space="preserve"><value>Automatisch (Windows-taal)</value></data>
   <data name="Settings_RestartRequired.Title" xml:space="preserve"><value>Opnieuw opstarten vereist</value></data>
   <data name="Settings_RestartRequired.Message" xml:space="preserve"><value>DySS Cockpit moet opnieuw worden gestart om de nieuwe taal toe te passen.</value></data>
-  <data name="Settings_RestartNow.Content" xml:space="preserve"><value>Nu opnieuw opstarten</value></data>
+  <data name="Settings_RestartNow.Content" xml:space="preserve"><value>Nu opnieuw starten</value></data>
   <data name="Settings_Map.Text" xml:space="preserve"><value>Kaart</value></data>
   <data name="Settings_ShowFurniture.Text" xml:space="preserve"><value>Meubels weergeven</value></data>
   <data name="Settings_ShowFurniture2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Meubels weergeven</value></data>
@@ -569,7 +569,7 @@ Doorgaan?</value></data>
   <data name="Settings_Logs.Text" xml:space="preserve"><value>Logboeken</value></data>
   <data name="Settings_KeepTheApplicationLogs.Text" xml:space="preserve"><value>Logboeken van de app bewaren</value></data>
   <data name="Settings_OneFileADayIn.Text" xml:space="preserve"><value>Eén bestand per dag, in de map Logs. De oudste worden verwijderd.</value></data>
-  <data name="Settings_OpenTheLogsFolder.Content" xml:space="preserve"><value>De map Logs openen</value></data>
+  <data name="Settings_OpenTheLogsFolder.Content" xml:space="preserve"><value>Logboekmap openen</value></data>
   <data name="Settings_Retention.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Bewaartermijn</value></data>
   <data name="Settings_1Day.Content" xml:space="preserve"><value>1 dag</value></data>
   <data name="Settings_3Days.Content" xml:space="preserve"><value>3 dagen</value></data>
@@ -600,7 +600,7 @@ Doorgaan?</value></data>
   <data name="Settings_MyDysonAccount.Text" xml:space="preserve"><value>MyDyson-account</value></data>
   <data name="Settings_LogOut.Content" xml:space="preserve"><value>Afmelden</value></data>
   <data name="Settings_About.Text" xml:space="preserve"><value>Info</value></data>
-  <data name="Settings_IndependentProjectNotAffiliatedWith.Text" xml:space="preserve"><value>Onafhankelijk project, niet verbonden aan Dyson en niet door Dyson goedgekeurd of ondersteund. Dyson, Spot+Scrub en MyDyson zijn handelsmerken van de Dyson-groep.</value></data>
+  <data name="Settings_IndependentProjectNotAffiliatedWith.Text" xml:space="preserve"><value>Onafhankelijk project, niet gelieerd aan Dyson en niet door Dyson goedgekeurd of ondersteund. Dyson, Spot+Scrub en MyDyson zijn handelsmerken van de Dyson-groep.</value></data>
   <data name="Settings_SourceCode.Content" xml:space="preserve"><value>Broncode</value></data>
   <data name="Shell_Dashboard.Content" xml:space="preserve"><value>Dashboard</value></data>
   <data name="Shell_History.Content" xml:space="preserve"><value>Geschiedenis</value></data>

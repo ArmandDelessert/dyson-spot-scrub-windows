@@ -533,9 +533,9 @@ Kontynuować?</value></data>
   <data name="Settings_UnreachableArea2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Obszar nieosiągalny</value></data>
   <data name="Settings_SendATestNotification.Content" xml:space="preserve"><value>Wyślij powiadomienie testowe</value></data>
   <data name="Settings_Behavior.Text" xml:space="preserve"><value>Zachowanie</value></data>
-  <data name="Settings_KeepRunningInTheNotification.Text" xml:space="preserve"><value>Działaj w obszarze powiadomień po zamknięciu okna</value></data>
+  <data name="Settings_KeepRunningInTheNotification.Text" xml:space="preserve"><value>Pozostaw aplikację uruchomioną w obszarze powiadomień po zamknięciu okna</value></data>
   <data name="Settings_TheRobotIsStillFollowed.Text" xml:space="preserve"><value>Robot jest nadal monitorowany, a powiadomienia wciąż przychodzą. Aby zakończyć aplikację, użyj przycisku „Zakończ” lub menu jej ikony.</value></data>
-  <data name="Settings_KeepRunningInTheNotification2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Działaj w obszarze powiadomień po zamknięciu okna</value></data>
+  <data name="Settings_KeepRunningInTheNotification2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Pozostaw aplikację uruchomioną w obszarze powiadomień po zamknięciu okna</value></data>
   <data name="Settings_StartWithWindowsInThe.Text" xml:space="preserve"><value>Uruchamiaj z systemem Windows (w obszarze powiadomień)</value></data>
   <data name="Settings_StartWithWindowsInThe2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Uruchamiaj z systemem Windows (w obszarze powiadomień)</value></data>
   <data name="Settings_Language.Text" xml:space="preserve"><value>Język</value></data>

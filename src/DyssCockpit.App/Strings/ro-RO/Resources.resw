@@ -531,20 +531,20 @@ Continuați?</value></data>
   <data name="Settings_UnreachableArea.Text" xml:space="preserve"><value>Zonă inaccesibilă</value></data>
   <data name="Settings_WhenTheRobotCouldNot.Text" xml:space="preserve"><value>Când robotul nu a putut ajunge într-o cameră selectată.</value></data>
   <data name="Settings_UnreachableArea2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Zonă inaccesibilă</value></data>
-  <data name="Settings_SendATestNotification.Content" xml:space="preserve"><value>Trimitere notificare de test</value></data>
+  <data name="Settings_SendATestNotification.Content" xml:space="preserve"><value>Trimiteți o notificare de test</value></data>
   <data name="Settings_Behavior.Text" xml:space="preserve"><value>Comportament</value></data>
-  <data name="Settings_KeepRunningInTheNotification.Text" xml:space="preserve"><value>Menținere activă în zona de notificare la închiderea ferestrei</value></data>
+  <data name="Settings_KeepRunningInTheNotification.Text" xml:space="preserve"><value>Continuă să ruleze în zona de notificare la închiderea ferestrei</value></data>
   <data name="Settings_TheRobotIsStillFollowed.Text" xml:space="preserve"><value>Robotul este urmărit în continuare, iar notificările continuă să sosească. Ieșiți din aplicație cu butonul «Ieșire» sau din meniul pictogramei sale.</value></data>
-  <data name="Settings_KeepRunningInTheNotification2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Menținere activă în zona de notificare la închiderea ferestrei</value></data>
-  <data name="Settings_StartWithWindowsInThe.Text" xml:space="preserve"><value>Pornire cu Windows (în zona de notificare)</value></data>
-  <data name="Settings_StartWithWindowsInThe2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Pornire cu Windows (în zona de notificare)</value></data>
+  <data name="Settings_KeepRunningInTheNotification2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Continuă să ruleze în zona de notificare la închiderea ferestrei</value></data>
+  <data name="Settings_StartWithWindowsInThe.Text" xml:space="preserve"><value>Pornire odată cu Windows (în zona de notificare)</value></data>
+  <data name="Settings_StartWithWindowsInThe2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Pornire odată cu Windows (în zona de notificare)</value></data>
   <data name="Settings_Language.Text" xml:space="preserve"><value>Limbă</value></data>
   <data name="Settings_DisplayLanguage.Text" xml:space="preserve"><value>Limba de afișare</value></data>
   <data name="Settings_DisplayLanguage2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Limba de afișare</value></data>
-  <data name="Settings_AutomaticWindowsLanguage.Content" xml:space="preserve"><value>Automat (limba din Windows)</value></data>
+  <data name="Settings_AutomaticWindowsLanguage.Content" xml:space="preserve"><value>Automată (limba din Windows)</value></data>
   <data name="Settings_RestartRequired.Title" xml:space="preserve"><value>Repornire necesară</value></data>
   <data name="Settings_RestartRequired.Message" xml:space="preserve"><value>DySS Cockpit trebuie să repornească pentru a aplica noua limbă.</value></data>
-  <data name="Settings_RestartNow.Content" xml:space="preserve"><value>Repornire acum</value></data>
+  <data name="Settings_RestartNow.Content" xml:space="preserve"><value>Reporniți acum</value></data>
   <data name="Settings_Map.Text" xml:space="preserve"><value>Hartă</value></data>
   <data name="Settings_ShowFurniture.Text" xml:space="preserve"><value>Afișare mobilier</value></data>
   <data name="Settings_ShowFurniture2.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Afișare mobilier</value></data>
@@ -569,7 +569,7 @@ Continuați?</value></data>
   <data name="Settings_Logs.Text" xml:space="preserve"><value>Jurnale</value></data>
   <data name="Settings_KeepTheApplicationLogs.Text" xml:space="preserve"><value>Păstrarea jurnalelor aplicației</value></data>
   <data name="Settings_OneFileADayIn.Text" xml:space="preserve"><value>Un fișier pe zi, în folderul Logs. Cele mai vechi sunt șterse.</value></data>
-  <data name="Settings_OpenTheLogsFolder.Content" xml:space="preserve"><value>Deschidere folder jurnale</value></data>
+  <data name="Settings_OpenTheLogsFolder.Content" xml:space="preserve"><value>Deschideți folderul de jurnale</value></data>
   <data name="Settings_Retention.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Durată de păstrare</value></data>
   <data name="Settings_1Day.Content" xml:space="preserve"><value>1 zi</value></data>
   <data name="Settings_3Days.Content" xml:space="preserve"><value>3 zile</value></data>
