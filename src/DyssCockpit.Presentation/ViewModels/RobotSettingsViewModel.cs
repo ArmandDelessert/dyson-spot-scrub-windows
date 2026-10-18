@@ -31,17 +31,17 @@ public sealed partial class RobotSettingsViewModel(RobotHub hub) : ObservableObj
 
     public IReadOnlyList<BackWashOption> BackWashOptions { get; } =
     [
-        new("ROOM", T("Après chaque pièce", "After each room"), null),
-        new("TIME15", T("Toutes les 15 min", "Every 15 min"), null),
-        new("TIME30", T("Toutes les 30 min", "Every 30 min"), null),
-        new("ONLY_WHEN_NEEDED", T("Uniquement si nécessaire", "Only when needed"), T("Le robot retournera à la station d'accueil uniquement lorsqu'il devra remplir ou vider ses réservoirs.", "The robot will only go back to its dock when it needs to fill or empty its tanks.")),
+        new("ROOM", T("RobotSettings_AfterEachRoom"), null),
+        new("TIME15", T("RobotSettings_Every15Min"), null),
+        new("TIME30", T("RobotSettings_Every30Min"), null),
+        new("ONLY_WHEN_NEEDED", T("RobotSettings_OnlyWhenNeeded"), T("RobotSettings_TheRobotWillOnlyGo")),
     ];
 
     public IReadOnlyList<DryOption> DryOptions { get; } =
     [
-        new(3, T("3 heures", "3 hours"), T("Idéal pour les stations placées dans des zones sèches et bien ventilées.", "Best for docks in dry, well-ventilated places.")),
-        new(4, T("4 heures", "4 hours"), T("Idéal pour les stations placées dans des zones légèrement humides.", "Best for docks in slightly damp places.")),
-        new(5, T("5 heures", "5 hours"), T("Idéal pour les stations placées dans des zones très humides ou peu ventilées.", "Best for docks in very damp or poorly ventilated places.")),
+        new(3, T("RobotSettings_3Hours"), T("RobotSettings_BestForDocksInDry")),
+        new(4, T("RobotSettings_4Hours"), T("RobotSettings_BestForDocksInSlightly")),
+        new(5, T("RobotSettings_5Hours"), T("RobotSettings_BestForDocksInVery")),
     ];
 
     public void Apply(RobotState s)
@@ -65,7 +65,7 @@ public sealed partial class RobotSettingsViewModel(RobotHub hub) : ObservableObj
                 _ => BackWash,
             };
             if (s.Consumables?.FirstOrDefault(c => c.Type == "cleaningSolution") is { } solution)
-                SolutionStatus = solution.NeedsRefill == true ? T("À recharger", "To refill") : T("Prêt à l'emploi", "Ready to use");
+                SolutionStatus = solution.NeedsRefill == true ? T("RobotSettings_ToRefill") : T("RobotSettings_ReadyToUse");
         }
         finally
         {
@@ -74,16 +74,16 @@ public sealed partial class RobotSettingsViewModel(RobotHub hub) : ObservableObj
     }
 
     // Only react to user changes, not to values coming from the robot.
-    partial void OnHotWaterMopChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("laver à l'eau chaude", "mop with hot water"), c => c.SetHotWaterMopAsync(value)); }
-    partial void OnDetergentChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("laver avec le produit", "mop with cleaning solution"), c => c.SetDetergentAsync(value)); }
-    partial void OnHotWaterSwitchChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("autonettoyage à l'eau chaude", "self-clean with hot water"), c => c.SetHotWaterSwitchAsync(value)); }
-    partial void OnAlarmChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("sons", "sounds"), c => c.SetAlarmAsync(value)); }
-    partial void OnWashMopBeforeCleanChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("prolonger les préparatifs (message classique seul)", "extend the preparation (classic message only)"), c => c.SetWashMopBeforeCleanAsync(value)); }
-    partial void OnDryDurationChanged(DryOption? value) { if (!_applyingState && value is not null) _ = hub.RunAsync(T($"séchage {value.Hours} h", $"drying {value.Hours} h"), c => c.SetAirDryFrequencyAsync(value.Hours)); }
+    partial void OnHotWaterMopChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_MopWithHotWater3"), c => c.SetHotWaterMopAsync(value)); }
+    partial void OnDetergentChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_MopWithCleaningSolution3"), c => c.SetDetergentAsync(value)); }
+    partial void OnHotWaterSwitchChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_SelfCleanWithHotWater"), c => c.SetHotWaterSwitchAsync(value)); }
+    partial void OnAlarmChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_Sounds"), c => c.SetAlarmAsync(value)); }
+    partial void OnWashMopBeforeCleanChanged(bool value) { if (!_applyingState) _ = hub.RunAsync(T("RobotSettings_ExtendThePreparationClassicMessage"), c => c.SetWashMopBeforeCleanAsync(value)); }
+    partial void OnDryDurationChanged(DryOption? value) { if (!_applyingState && value is not null) _ = hub.RunAsync(Tf("RobotSettings_DryingH", value.Hours), c => c.SetAirDryFrequencyAsync(value.Hours)); }
     partial void OnBackWashChanged(BackWashOption? value)
     {
         if (_applyingState || value is null) return;
-        _ = hub.RunAsync(T($"intervalle: {value.Label}", $"interval: {value.Label}"), c => value.Key switch
+        _ = hub.RunAsync(Tf("RobotSettings_Interval", value.Label), c => value.Key switch
         {
             "ROOM" => c.SetBackWashPerRoomAsync(),
             "TIME15" => c.SetBackWashByTimeAsync(15),

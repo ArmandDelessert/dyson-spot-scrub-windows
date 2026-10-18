@@ -1,3 +1,4 @@
+using DyssCockpit.Core;
 using System.Globalization;
 
 namespace DyssCockpit.Presentation.Services;
@@ -18,7 +19,7 @@ public sealed record LaunchOptions
     public bool Login { get; init; }
     /// <summary><c>--theme light|dark</c>, mainly for screenshots and exports; null for the system's.</summary>
     public string? Theme { get; init; }
-    /// <summary><c>--lang fr|en</c>: the language of this run whatever the settings say; null otherwise.</summary>
+    /// <summary><c>--lang fr</c>, <c>--lang de-DE</c>…: the language of this run whatever the settings say; null for none, or one the application does not speak.</summary>
     public string? Language { get; init; }
 
     /// <summary><c>--export-map out.png [--serial S] [--map-id ID]</c>: the map rendered to a PNG, without a window.</summary>
@@ -69,7 +70,7 @@ public sealed record LaunchOptions
             Minimized = Flag(MinimizedArgument),
             Login = Flag("--login"),
             Theme = Value("--theme") is "light" or "dark" ? Value("--theme") : null,
-            Language = Value("--lang") is "fr" or "en" ? Value("--lang") : null,
+            Language = AppLanguages.FromTag(Value("--lang")) is not null ? Value("--lang") : null,
             ExportMap = Value("--export-map"),
             Serial = Value("--serial"),
             MapId = Value("--map-id"),

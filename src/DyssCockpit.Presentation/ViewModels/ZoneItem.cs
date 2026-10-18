@@ -17,25 +17,25 @@ public partial class ZoneItem : ObservableObject
     // options; ours is uniform).
     public static readonly IReadOnlyList<CleanTypeOption> CleanTypeOptions =
     [
-        new(CleanType.Vacuum, T("Aspirer", "Vacuum")),
-        new(CleanType.Mop, T("Laver", "Mop")),
-        new(CleanType.VacuumAndMop, T("Aspirer et laver", "Vacuum and mop")),
-        new(CleanType.VacuumThenMop, T("Aspirer puis laver", "Vacuum then mop")),
+        new(CleanType.Vacuum, T("ZoneItem_Vacuum")),
+        new(CleanType.Mop, T("ZoneItem_Mop")),
+        new(CleanType.VacuumAndMop, T("ZoneItem_VacuumAndMop")),
+        new(CleanType.VacuumThenMop, T("ZoneItem_VacuumThenMop")),
     ];
 
     public static readonly IReadOnlyList<StrategyOption> StrategyOptions =
     [
         new(CleaningStrategy.Auto, "Auto"),
-        new(CleaningStrategy.Quick, T("Rapide", "Quick")),
-        new(CleaningStrategy.Quiet, T("Silencieux", "Quiet")),
+        new(CleaningStrategy.Quick, T("ZoneItem_Quick")),
+        new(CleaningStrategy.Quiet, T("ZoneItem_Quiet")),
         new(CleaningStrategy.Boost, "Boost"),
     ];
 
     public static readonly IReadOnlyList<WaterLevelOption> WaterLevelOptions =
     [
-        new(WaterLevel.Low, T("Faible", "Low")),
-        new(WaterLevel.Medium, T("Moyen", "Medium")),
-        new(WaterLevel.High, T("Élevé", "High")),
+        new(WaterLevel.Low, T("ZoneItem_Low")),
+        new(WaterLevel.Medium, T("ZoneItem_Medium")),
+        new(WaterLevel.High, T("ZoneItem_High")),
     ];
 
     public static readonly IReadOnlyList<MopPassesOption> MopPassesOptions =

@@ -32,7 +32,7 @@ public sealed partial class JournalViewModel : ObservableObject, IDisposable
         if (_settings.RecordMessages) RecordInfo = RecordingTo;
     }
 
-    private string RecordingTo => T($"Enregistrement dans {_log.Directory}", $"Recording to {_log.Directory}");
+    private string RecordingTo => Tf("Journal_RecordingTo", _log.Directory);
 
     private void OnSettingChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -45,7 +45,7 @@ public sealed partial class JournalViewModel : ObservableObject, IDisposable
             case nameof(AppSettings.RecordMessages):
                 if (!_settings.RecordMessages) _log.Close();
                 RecordInfo = _settings.RecordMessages ? RecordingTo : "";
-                _hub.AddLog(_settings.RecordMessages ? T("enregistrement des messages activé", "message recording on") : T("enregistrement des messages arrêté", "message recording off"));
+                _hub.AddLog(_settings.RecordMessages ? T("Journal_MessageRecordingOn") : T("Journal_MessageRecordingOff"));
                 break;
         }
     }
@@ -68,13 +68,13 @@ public sealed partial class JournalViewModel : ObservableObject, IDisposable
             // Disk full, folder locked: the record stops, the session goes on.
             _hub.Post(() =>
             {
-                _hub.AddLog(T($"enregistrement des messages interrompu : {ex.Message}", $"message recording interrupted: {ex.Message}"));
+                _hub.AddLog(Tf("Journal_MessageRecordingInterrupted", ex.Message));
                 _settings.RecordMessages = false;
             });
             return;
         }
         var (count, file) = (_log.Count, Path.GetFileName(_log.CurrentFile));
-        _hub.Post(() => RecordInfo = T($"{count} message(s) aujourd'hui → {file}", $"{count} message(s) today → {file}"));
+        _hub.Post(() => RecordInfo = Tf("Journal_MessageSToday", count, file));
     }
 
     public void Dispose()

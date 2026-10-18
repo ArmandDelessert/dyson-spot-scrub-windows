@@ -44,7 +44,7 @@ public sealed partial class ManagedZone(Restriction restriction, int sourceIndex
     public RestrictionKind? Kind { get; } = RestrictionKind.FromBehavior(restriction.Behavior);
     public IReadOnlyList<DyssCockpit.Core.Point> Corners => Restriction.Points ?? [];
     public bool CanBeSentBack => Kind is not null && Corners.Count == 4;
-    public string Label => Kind?.Label ?? T($"Type inconnu ({Restriction.Behavior})", $"Unknown type ({Restriction.Behavior})");
+    public string Label => Kind?.Label ?? Tf("MapManagerItems_UnknownType", Restriction.Behavior);
     public string SizeText => MapManagerViewModel.SizeOf(Corners);
     /// <summary>The zone's colour on the map, for the list.</summary>
     public ArgbColor Swatch { get; } = MapColors.Restriction(restriction.Behavior);
@@ -61,7 +61,7 @@ public sealed partial class ManagedFurniture(FurnitureItem item) : ObservableObj
     public IReadOnlyList<DyssCockpit.Core.Point> Corners => Item.Points ?? [];
     public int Index => int.TryParse(Item.Id, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) ? i : -1;
     public bool CanBeSentBack => Kind is not null && Corners.Count == 4 && Index >= 0;
-    public string Label => Kind?.Label ?? T($"Meuble inconnu ({Item.Type})", $"Unknown furniture ({Item.Type})");
+    public string Label => Kind?.Label ?? Tf("MapManagerItems_UnknownFurniture", Item.Type);
     public string SizeText => MapManagerViewModel.SizeOf(Corners);
     /// <summary>Clockwise quarter turns from the way a new piece is laid out, or null at another angle.</summary>
     public int? QuarterTurns => MapShapes.QuarterTurns(Corners);
@@ -73,10 +73,10 @@ public sealed record OrientationOption(int QuarterTurns, string Label)
 {
     public static readonly IReadOnlyList<OrientationOption> All =
     [
-        new(0, T("0° (comme posé)", "0° (as placed)")),
-        new(1, T("90° (quart de tour horaire)", "90° (quarter turn clockwise)")),
-        new(2, T("180° (demi-tour)", "180° (half turn)")),
-        new(3, T("270° (quart de tour antihoraire)", "270° (quarter turn anticlockwise)")),
+        new(0, T("MapManagerItems_0AsPlaced")),
+        new(1, T("MapManagerItems_90QuarterTurnClockwise")),
+        new(2, T("MapManagerItems_180HalfTurn")),
+        new(3, T("MapManagerItems_270QuarterTurnAnticlockwise")),
     ];
 
     public override string ToString() => Label;

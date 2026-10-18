@@ -36,7 +36,7 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
         _others = others;
         _minutesPerSquareMetre = minutesPerSquareMetre;
         Map = map;
-        Title = existing is null ? T("Nouvel horaire", "New schedule") : T("Modifier l'horaire", "Edit the schedule");
+        Title = existing is null ? T("ScheduleEditor_NewSchedule") : T("ScheduleEditor_EditTheSchedule");
         _hour = existing?.Hour ?? 10;
         _minute = existing?.Minute ?? 0;
         _repeats = existing?.Repeats ?? true;
@@ -66,7 +66,7 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
 
     public MapItem Map { get; }
     public string Title { get; }
-    public string MapText => T($"Pour la carte « {Map.Metadata.Name ?? Map.Id} » : un horaire appartient à une carte et ne s'exécute que lorsqu'elle est active.", $"For the “{Map.Metadata.Name ?? Map.Id}” map: a schedule belongs to a map and only runs while that map is active.");
+    public string MapText => Tf("ScheduleEditor_ForTheMapASchedule", Map.Metadata.Name ?? Map.Id);
 
     public IReadOnlyList<int> Hours { get; } = Enumerable.Range(0, 24).ToList();
     public IReadOnlyList<int> Minutes { get; } = Enumerable.Range(0, 60).ToList();
@@ -135,11 +135,11 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
         var rooms = Rooms.Where(r => r.Selected).ToList();
         Missing = (days == ScheduleDays.None, rooms.Count == 0) switch
         {
-            (true, true) => T("Choisissez au moins un jour et une pièce.", "Choose at least one day and one room."),
-            (true, false) => T("Choisissez au moins un jour.", "Choose at least one day."),
-            (false, true) => T("Choisissez au moins une pièce.", "Choose at least one room."),
+            (true, true) => T("ScheduleEditor_ChooseAtLeastOneDay2"),
+            (true, false) => T("ScheduleEditor_ChooseAtLeastOneDay"),
+            (false, true) => T("ScheduleEditor_ChooseAtLeastOneRoom"),
             // Once is one day: which of several the robot would take, and whether it would go on to the next, has not been tried.
-            _ when !Repeats && System.Numerics.BitOperations.PopCount((uint)days) > 1 => T("Un horaire sans répétition n'a qu'un jour.", "A schedule that does not repeat has a single day."),
+            _ when !Repeats && System.Numerics.BitOperations.PopCount((uint)days) > 1 => T("ScheduleEditor_AScheduleThatDoesNot"),
             _ => "",
         };
         CanSave = Missing == "";
@@ -151,7 +151,7 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
             return;
         }
         var minutes = CleanDurationEstimate.Minutes(rooms.Select(r => (r.Area, r.Settings)), _minutesPerSquareMetre);
-        EstimateText = T($"Durée estimée : environ {FormatMinutes(minutes)}, d'après les nettoyages passés.", $"Estimated duration: about {FormatMinutes(minutes)}, from past cleans.");
+        EstimateText = Tf("ScheduleEditor_EstimatedDurationAboutFromPast", FormatMinutes(minutes));
 
         OverlapWarning = "";
         if (days == ScheduleDays.None) return;
@@ -161,8 +161,8 @@ public sealed partial class ScheduleEditorViewModel : ObservableObject
             var otherMinutes = CleanDurationEstimate.Minutes(other.Rooms.Select(r => (AreaOf(r.ZoneId), r.Settings)), _minutesPerSquareMetre);
             if (CleanDurationEstimate.Overlaps(other, otherMinutes, self) || CleanDurationEstimate.Overlaps(self, minutes, other))
             {
-                OverlapWarning = T($"Chevauche l'horaire de {ScheduleDayLabels.Time(other.Hour, other.Minute)} ({ScheduleDayLabels.Describe(other.Days)}) : ", $"Overlaps the {ScheduleDayLabels.Time(other.Hour, other.Minute)} schedule ({ScheduleDayLabels.Describe(other.Days)}): ")
-                    + T("le robot ne commence pas un horaire tant que le précédent est en cours.", "the robot does not start a schedule while the previous one is running.");
+                OverlapWarning = (Tf("ScheduleEditor_OverlapsTheSchedule", ScheduleDayLabels.Time(other.Hour, other.Minute), ScheduleDayLabels.Describe(other.Days)) + " ")
+                    + T("ScheduleEditor_TheRobotDoesNotStart");
                 return;
             }
         }

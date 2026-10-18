@@ -67,7 +67,7 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
 
     public ObservableCollection<string> Log { get; } = new();
 
-    [ObservableProperty] private string _connection = T("Connexion…", "Connecting…");
+    [ObservableProperty] private string _connection = T("RobotHub_Connecting");
     [ObservableProperty] private bool _connected;
     [ObservableProperty] private string _message = "";
     [ObservableProperty] private bool _busy;
@@ -97,7 +97,7 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
     /// <summary>Sends a command, journals it, then asks for a fresh state a moment later so the dashboard reflects the result.</summary>
     public async Task RunAsync(string label, Func<IRobotCommands, Task> action)
     {
-        if (Robot is not { } robot) { Message = T("Robot non connecté.", "Robot not connected."); return; }
+        if (Robot is not { } robot) { Message = T("RobotHub_RobotNotConnected"); return; }
         Busy = true;
         Message = "";
         try
@@ -127,7 +127,7 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
         // ends the process, and a periodic refresh is never worth that, whatever went wrong.
         try { await Session.RefreshStateAsync(Ct); }
         catch (OperationCanceledException) when (IsShuttingDown) { }
-        catch (Exception ex) { AddLog(T($"état: {ex.Message}", $"state: {ex.Message}")); }
+        catch (Exception ex) { AddLog(Tf("RobotHub_State", ex.Message)); }
     }
 
     /// <summary>One prop.get at start-up, so jdm-only facts (drying countdown, trip back to wash) show at once instead of at their next push.</summary>
@@ -136,7 +136,7 @@ public sealed partial class RobotHub : ObservableObject, IDisposable
         if (Session is null || Session.Status != RobotConnectionStatus.Connected) return;
         try { await Session.RefreshPropertiesAsync(Ct); }
         catch (OperationCanceledException) when (IsShuttingDown) { }
-        catch (Exception ex) { AddLog(T($"propriétés: {ex.Message}", $"properties: {ex.Message}")); }
+        catch (Exception ex) { AddLog(Tf("RobotHub_Properties", ex.Message)); }
     }
 
     /// <summary>Stops every REST call and timer-driven refresh; the session itself is closed by the context's disposal.</summary>

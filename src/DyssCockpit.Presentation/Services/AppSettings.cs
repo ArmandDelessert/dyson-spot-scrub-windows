@@ -95,7 +95,7 @@ public sealed partial class AppSettings : ObservableObject
     /// <summary>
     /// The language of the application, as the name of a culture, which is what HusqA Cockpit writes too:
     /// <c>"fr-FR"</c>, <c>"en-US"</c>, or empty for Windows' own (French on a French Windows, English
-    /// otherwise). Read once at start-up, see <see cref="ChosenLanguage"/>; any other value reads as empty.
+    /// otherwise). Read once at start-up, see <see cref="ChosenLanguage"/>; a tag the application does not speak reads as empty.
     /// </summary>
     [ObservableProperty] private string _language = "";
 
@@ -149,13 +149,14 @@ public sealed partial class AppSettings : ObservableObject
 
     /// <summary>The language <see cref="Language"/> stands for on this machine.</summary>
     [JsonIgnore]
-    public AppLanguage ChosenLanguage => Language switch
-    {
-        "fr-FR" => AppLanguage.French,
-        "en-US" => AppLanguage.English,
-        _ => Translation.FromCulture(CultureInfo.CurrentUICulture),
-    };
+    public AppLanguage ChosenLanguage => AppLanguages.FromTag(Language) ?? Translation.FromCulture(CultureInfo.CurrentUICulture);
 
+    /// <summary>
+    /// What is stored for a language: its tag (<c>"fr-FR"</c> for any French, <c>"fr-CH"</c> included, <c>"de-DE"</c>
+    /// for any German…), and empty for anything the application does not speak, which means Windows' own.
+    /// </summary>
+    public static string NormalizeLanguage(string? language) =>
+        AppLanguages.FromTag(language) is { } known ? AppLanguages.Of(known).Tag : "";
     /// <summary>Raised after any of the above changes, once they have been written back to disk.</summary>
     public event Action? Changed;
 
@@ -192,7 +193,7 @@ public sealed partial class AppSettings : ObservableObject
     /// </summary>
     private void Validate()
     {
-        if (Language is not ("fr-FR" or "en-US")) Language = "";
+        Language = NormalizeLanguage(Language);
         if (!RetentionChoices.Contains(LogRetentionDays)) LogRetentionDays = 7;
         if (!RetentionChoices.Contains(MessageRetentionDays)) MessageRetentionDays = 30;
         if (!CleanArchiveChoices.Contains(CleanArchiveRetentionDays)) CleanArchiveRetentionDays = 365;

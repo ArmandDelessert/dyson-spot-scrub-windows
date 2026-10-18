@@ -37,8 +37,8 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
         {
             Title = title,
             Content = Text(message),
-            PrimaryButtonText = T("Oui", "Yes"),
-            CloseButtonText = T("Non", "No"),
+            PrimaryButtonText = T("WinUiDialog_Yes"),
+            CloseButtonText = T("WinUiDialog_No"),
             DefaultButton = ContentDialogButton.Primary,
         });
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
@@ -65,8 +65,8 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
         {
             Title = title,
             Content = input,
-            PrimaryButtonText = T("Valider", "OK"),
-            CloseButtonText = T("Annuler", "Cancel"),
+            PrimaryButtonText = T("WinUiDialog_OK"),
+            CloseButtonText = T("WinUiDialog_Cancel"),
             DefaultButton = ContentDialogButton.Primary,
             // An empty name is not something the robot would take, and Enter on a blank field
             // should not look like a working action.
@@ -100,7 +100,7 @@ internal sealed class WinUiDialogService(MainWindow window) : IDialogService
             SuggestedFileName = suggestedFileName,
             DefaultFileExtension = ".png",
         };
-        picker.FileTypeChoices.Add(T("Image PNG", "PNG image"), [".png"]);
+        picker.FileTypeChoices.Add(T("WinUiDialog_PNGImage"), [".png"]);
         if (await picker.PickSaveFileAsync() is not { } file) return null;
         await MapImage.ExportPngAsync(scene, 1200, 1400, file.Path, window.Theme == ElementTheme.Light ? MapPalette.Light : MapPalette.Dark);
         return file.Path;

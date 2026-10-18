@@ -16,17 +16,36 @@ public sealed class TranslationTests : IDisposable
     [InlineData("fr-CH", AppLanguage.French)]
     [InlineData("fr-FR", AppLanguage.French)]
     [InlineData("en-US", AppLanguage.English)]
-    [InlineData("de-CH", AppLanguage.English)]
-    [InlineData("it-IT", AppLanguage.English)]
-    public void WindowsInFrenchGivesFrenchAndAnyOtherLanguageEnglish(string culture, AppLanguage expected) =>
+    [InlineData("de-CH", AppLanguage.German)]
+    [InlineData("it-IT", AppLanguage.Italian)]
+    [InlineData("pt-PT", AppLanguage.Portuguese)]
+    [InlineData("zh-CN", AppLanguage.ChineseSimplified)]
+    [InlineData("zh-Hans-SG", AppLanguage.ChineseSimplified)]
+    [InlineData("zh-TW", AppLanguage.English)]    // the traditional Chinese is not offered
+    [InlineData("ru-RU", AppLanguage.English)]    // nor Russian: English is the language most likely understood
+    public void WindowsInALanguageOfTheApplicationGivesItAndAnyOtherLanguageEnglish(string culture, AppLanguage expected) =>
         Assert.Equal(expected, Translation.FromCulture(new CultureInfo(culture)));
 
     [Fact]
     public void EachTextComesInTheCurrentLanguage()
     {
-        Assert.Equal("Tableau de bord", Translation.T("Tableau de bord", "Dashboard"));
+        Assert.Equal("Quitter", Translation.T("App_Quit"));
         Translation.Current = AppLanguage.English;
-        Assert.Equal("Dashboard", Translation.T("Tableau de bord", "Dashboard"));
+        Assert.Equal("Quit", Translation.T("App_Quit"));
+    }
+
+    [Fact]
+    public void ATextWithValuesIsFilledInTheCurrentCulture()
+    {
+        Assert.Equal("Export impossible : boom", Translation.Tf("App_ExportFailed", "boom"));
+        Translation.Current = AppLanguage.English;
+        Assert.Equal("Export failed: boom", Translation.Tf("App_ExportFailed", "boom"));
+    }
+
+    [Fact]
+    public void ATextNoResourceHasIsShownAsItsKeySoThatTheGapShows()
+    {
+        Assert.Equal("No_such_text", Translation.T("No_such_text"));
     }
 
     [Fact]

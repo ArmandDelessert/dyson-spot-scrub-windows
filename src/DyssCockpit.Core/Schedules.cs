@@ -287,38 +287,30 @@ public static class CleanDurationEstimate
 /// <summary>Short names for the days in the current language, and a compact text for a set of them.</summary>
 public static class ScheduleDayLabels
 {
-    public static IReadOnlyList<(ScheduleDays Day, string Letter, string Short, string Long)> All => IsEnglish ? English : French;
+    private static readonly ScheduleDays[] Days =
+        [ScheduleDays.Monday, ScheduleDays.Tuesday, ScheduleDays.Wednesday, ScheduleDays.Thursday, ScheduleDays.Friday, ScheduleDays.Saturday, ScheduleDays.Sunday];
 
-    private static readonly (ScheduleDays, string, string, string)[] French =
-    [
-        (ScheduleDays.Monday, "L", "lun.", "lundi"),
-        (ScheduleDays.Tuesday, "M", "mar.", "mardi"),
-        (ScheduleDays.Wednesday, "M", "mer.", "mercredi"),
-        (ScheduleDays.Thursday, "J", "jeu.", "jeudi"),
-        (ScheduleDays.Friday, "V", "ven.", "vendredi"),
-        (ScheduleDays.Saturday, "S", "sam.", "samedi"),
-        (ScheduleDays.Sunday, "D", "dim.", "dimanche"),
-    ];
-
-    private static readonly (ScheduleDays, string, string, string)[] English =
-    [
-        (ScheduleDays.Monday, "M", "Mon", "Monday"),
-        (ScheduleDays.Tuesday, "T", "Tue", "Tuesday"),
-        (ScheduleDays.Wednesday, "W", "Wed", "Wednesday"),
-        (ScheduleDays.Thursday, "T", "Thu", "Thursday"),
-        (ScheduleDays.Friday, "F", "Fri", "Friday"),
-        (ScheduleDays.Saturday, "S", "Sat", "Saturday"),
-        (ScheduleDays.Sunday, "S", "Sun", "Sunday"),
-    ];
+    /// <summary>
+    /// The days, Monday first, with their letter, their short name and their name in the current language: the
+    /// resources <c>Day_Monday_Letter</c>, <c>Day_Monday_Short</c> and <c>Day_Monday_Long</c>, and so on.
+    /// </summary>
+    public static IReadOnlyList<(ScheduleDays Day, string Letter, string Short, string Long)> All =>
+        [.. Days.Select(day => (day, T($"Day_{day}_Letter"), T($"Day_{day}_Short"), T($"Day_{day}_Long")))];
 
     public static string Describe(ScheduleDays days) => days switch
     {
-        ScheduleDays.None => T("aucun jour", "no day"),
-        ScheduleDays.All => T("tous les jours", "every day"),
-        ScheduleDays.Weekdays => T("du lundi au vendredi", "Monday to Friday"),
-        ScheduleDays.Weekend => T("le week-end", "at weekends"),
-        _ when All.Count(d => days.HasFlag(d.Day)) == 1 => T("le ", "on ") + All.First(d => days.HasFlag(d.Day)).Long,
-        _ => string.Join(", ", All.Where(d => days.HasFlag(d.Day)).Select(d => d.Short)),
+        ScheduleDays.None => T("Schedules_NoDay"),
+        ScheduleDays.All => T("Schedules_EveryDay"),
+        ScheduleDays.Weekdays => T("Schedules_MondayToFriday"),
+        ScheduleDays.Weekend => T("Schedules_AtWeekends"),
+        ScheduleDays.Monday => T("Schedules_OnMonday"),
+        ScheduleDays.Tuesday => T("Schedules_OnTuesday"),
+        ScheduleDays.Wednesday => T("Schedules_OnWednesday"),
+        ScheduleDays.Thursday => T("Schedules_OnThursday"),
+        ScheduleDays.Friday => T("Schedules_OnFriday"),
+        ScheduleDays.Saturday => T("Schedules_OnSaturday"),
+        ScheduleDays.Sunday => T("Schedules_OnSunday"),
+        _ => string.Join(ListSeparator, All.Where(d => days.HasFlag(d.Day)).Select(d => d.Short)),
     };
 
     public static string Time(int hour, int minute) => string.Create(CultureInfo.InvariantCulture, $"{hour:00}:{minute:00}");

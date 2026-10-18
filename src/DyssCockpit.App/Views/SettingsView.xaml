@@ -6,264 +6,256 @@
          behavior, language, then the map's, then about. The robot's settings are another page. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Padding="16,0,16,16" MaxWidth="760" HorizontalAlignment="Left">
-            <TextBlock Text='{local:Tr Fr="Ces paramètres concernent cette application, sur cet ordinateur : rien n&apos;est envoyé au robot.", En="These settings are about this application, on this computer: nothing is sent to the robot."}'
+            <TextBlock x:Uid="Settings_TheseSettingsAreAboutThis"
                        Style="{StaticResource Muted}" Margin="0,0,0,12"/>
 
             <!-- Notifications -->
-            <TextBlock Text='{local:Tr Fr="Notifications", En="Notifications"}' Style="{StaticResource Section}"/>
+            <TextBlock x:Uid="Settings_Notifications" Style="{StaticResource Section}"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Notifications de début et de fin de nettoyage", En="Cleaning start and end notifications"}' Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
-                            <TextBlock Text='{local:Tr Fr="La fin comprend le cas où le robot abandonne son nettoyage.", En="The end includes the robot giving up its clean."}' Style="{StaticResource Caption}"/>
+                            <TextBlock x:Uid="Settings_CleaningStartAndEndNotifications" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
+                            <TextBlock x:Uid="Settings_TheEndIncludesTheRobot" Style="{StaticResource Caption}"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.TaskNotificationsIndex, Mode=TwoWay}" Width="260" VerticalAlignment="Center"
-                                  AutomationProperties.Name='{local:Tr Fr="Notifications de début et de fin de nettoyage", En="Cleaning start and end notifications"}'>
-                            <ComboBoxItem Content='{local:Tr Fr="Aucune", En="None"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="Fin de nettoyage seulement", En="Cleaning end only"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="Début et fin de nettoyage", En="Cleaning start and end"}'/>
+                        <ComboBox x:Uid="Settings_CleaningStartAndEndNotifications2" Grid.Column="1" SelectedIndex="{x:Bind ViewModel.TaskNotificationsIndex, Mode=TwoWay}" Width="260" VerticalAlignment="Center">
+                            <ComboBoxItem x:Uid="Settings_None"/>
+                            <ComboBoxItem x:Uid="Settings_CleaningEndOnly"/>
+                            <ComboBoxItem x:Uid="Settings_CleaningStartAndEnd"/>
                         </ComboBox>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Panne du robot", En="Robot fault"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Quand le robot signale une faute qui demande votre intervention, par exemple une localisation impossible.", En="When the robot reports a fault that needs you, for instance when it cannot locate itself."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <TextBlock x:Uid="Settings_RobotFault" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_WhenTheRobotReportsA" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.NotifyRobotFault, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Panne du robot", En="Robot fault"}'/>
+                        <ToggleSwitch x:Uid="Settings_RobotFault2" Grid.Column="1" IsOn="{x:Bind ViewModel.NotifyRobotFault, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Zone inaccessible", En="Unreachable area"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Quand le robot n&apos;a pas pu atteindre une pièce sélectionnée.", En="When the robot could not reach a selected room."}' Style="{StaticResource Caption}"/>
+                            <TextBlock x:Uid="Settings_UnreachableArea" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_WhenTheRobotCouldNot" Style="{StaticResource Caption}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.NotifyUnreachable, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Zone inaccessible", En="Unreachable area"}'/>
+                        <ToggleSwitch x:Uid="Settings_UnreachableArea2" Grid.Column="1" IsOn="{x:Bind ViewModel.NotifyUnreachable, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
-                    <Button Content='{local:Tr Fr="Envoyer une notification de test", En="Send a test notification"}' Command="{x:Bind ViewModel.SendTestNotificationCommand}" Margin="0,8,0,0"/>
+                    <Button x:Uid="Settings_SendATestNotification" Command="{x:Bind ViewModel.SendTestNotificationCommand}" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
 
             <!-- Behavior -->
-            <TextBlock Text='{local:Tr Fr="Comportement", En="Behavior"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <TextBlock x:Uid="Settings_Behavior" Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Rester actif dans la zone de notification quand la fenêtre est fermée", En="Keep running in the notification area when the window is closed"}' Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
-                            <TextBlock Text='{local:Tr Fr="Le robot reste suivi et les notifications continuent d&apos;arriver. On quitte l&apos;application par le bouton « Quitter » ou le menu de son icône.", En="The robot is still followed and notifications keep coming. Quit the application with the “Quit” button or from its icon&apos;s menu."}' Style="{StaticResource Caption}"/>
+                            <TextBlock x:Uid="Settings_KeepRunningInTheNotification" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
+                            <TextBlock x:Uid="Settings_TheRobotIsStillFollowed" Style="{StaticResource Caption}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.CloseToTray, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Rester actif dans la zone de notification quand la fenêtre est fermée", En="Keep running in the notification area when the window is closed"}'/>
+                        <ToggleSwitch x:Uid="Settings_KeepRunningInTheNotification2" Grid.Column="1" IsOn="{x:Bind ViewModel.CloseToTray, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Text='{local:Tr Fr="Démarrer avec Windows (dans la zone de notification)", En="Start with Windows (in the notification area)"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.StartWithWindows, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Démarrer avec Windows (dans la zone de notification)", En="Start with Windows (in the notification area)"}'/>
+                        <TextBlock x:Uid="Settings_StartWithWindowsInThe" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <ToggleSwitch x:Uid="Settings_StartWithWindowsInThe2" Grid.Column="1" IsOn="{x:Bind ViewModel.StartWithWindows, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                 </StackPanel>
             </Border>
 
             <!-- Language -->
-            <TextBlock Text='{local:Tr Fr="Langue", En="Language"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <TextBlock x:Uid="Settings_Language" Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel Spacing="8">
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Text='{local:Tr Fr="Langue d&apos;affichage", En="Display language"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <TextBlock x:Uid="Settings_DisplayLanguage" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
                         <!-- Each language under its own name, so it can be found whatever the current one. -->
-                        <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.LanguageIndex, Mode=TwoWay}" Width="320" VerticalAlignment="Center"
-                                  AutomationProperties.Name='{local:Tr Fr="Langue d&apos;affichage", En="Display language"}'>
-                            <ComboBoxItem Content='{local:Tr Fr="Automatique (langue de Windows)", En="Automatic (Windows language)"}'/>
+                        <ComboBox x:Uid="Settings_DisplayLanguage2" Grid.Column="1" SelectedIndex="{x:Bind ViewModel.LanguageIndex, Mode=TwoWay}" Width="320" VerticalAlignment="Center">
+                            <ComboBoxItem x:Uid="Settings_AutomaticWindowsLanguage"/>
                             <ComboBoxItem Content="Français"/>
                             <ComboBoxItem Content="English"/>
+                            <ComboBoxItem Content="Deutsch"/>
+                            <ComboBoxItem Content="Español"/>
+                            <ComboBoxItem Content="Italiano"/>
+                            <ComboBoxItem Content="Nederlands"/>
+                            <ComboBoxItem Content="Polski"/>
+                            <ComboBoxItem Content="Português (Brasil)"/>
+                            <ComboBoxItem Content="Română"/>
+                            <ComboBoxItem Content="Türkçe"/>
+                            <ComboBoxItem Content="Українська"/>
+                            <ComboBoxItem Content="日本語"/>
+                            <ComboBoxItem Content="한국어"/>
+                            <ComboBoxItem Content="简体中文"/>
                         </ComboBox>
                     </Grid>
-                    <InfoBar IsClosable="False" IsOpen="{x:Bind ViewModel.IsRestartRequired, Mode=OneWay}" Severity="Informational"
-                             Title='{local:Tr Fr="Redémarrage nécessaire", En="Restart required"}'
-                             Message='{local:Tr Fr="DySS Cockpit doit redémarrer pour appliquer la nouvelle langue.", En="DySS Cockpit must restart to apply the new language."}'>
+                    <InfoBar x:Uid="Settings_RestartRequired" IsClosable="False" IsOpen="{x:Bind ViewModel.IsRestartRequired, Mode=OneWay}" Severity="Informational">
                         <InfoBar.ActionButton>
-                            <Button Content='{local:Tr Fr="Redémarrer maintenant", En="Restart now"}' Command="{x:Bind ViewModel.RestartCommand}"/>
+                            <Button x:Uid="Settings_RestartNow" Command="{x:Bind ViewModel.RestartCommand}"/>
                         </InfoBar.ActionButton>
                     </InfoBar>
                 </StackPanel>
             </Border>
 
             <!-- Map -->
-            <TextBlock Text='{local:Tr Fr="Carte", En="Map"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <TextBlock x:Uid="Settings_Map" Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Text='{local:Tr Fr="Afficher les meubles", En="Show furniture"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowFurniture, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Afficher les meubles", En="Show furniture"}'/>
+                        <TextBlock x:Uid="Settings_ShowFurniture" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <ToggleSwitch x:Uid="Settings_ShowFurniture2" Grid.Column="1" IsOn="{x:Bind ViewModel.ShowFurniture, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Afficher les déplacements sans nettoyage", En="Show travel without cleaning"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Ajoute au trajet les parcours où le robot se déplace sans nettoyer, par exemple pour se repositionner.", En="Adds to the path the stretches where the robot moves without cleaning, for instance to reposition itself."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <TextBlock x:Uid="Settings_ShowTravelWithoutCleaning" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_AddsToThePathThe" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowTravelPath, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Afficher les déplacements sans nettoyage", En="Show travel without cleaning"}'/>
+                        <ToggleSwitch x:Uid="Settings_ShowTravelWithoutCleaning2" Grid.Column="1" IsOn="{x:Bind ViewModel.ShowTravelPath, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Afficher la surface nettoyée", En="Show the cleaned area"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Élargit le trajet à la largeur du robot, là où il a nettoyé.", En="Widens the path to the robot&apos;s width where it cleaned."}' Style="{StaticResource Caption}"/>
+                            <TextBlock x:Uid="Settings_ShowTheCleanedArea" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_WidensThePathToThe" Style="{StaticResource Caption}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowCleanedArea, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Afficher la surface nettoyée", En="Show the cleaned area"}'/>
+                        <ToggleSwitch x:Uid="Settings_ShowTheCleanedArea2" Grid.Column="1" IsOn="{x:Bind ViewModel.ShowCleanedArea, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Text='{local:Tr Fr="Afficher le bouton d&apos;export PNG", En="Show the PNG export button"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowExportButton, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Afficher le bouton d&apos;export PNG", En="Show the PNG export button"}'/>
-                    </Grid>
-                    <Grid Style="{StaticResource Setting}">
-                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Lisser les déplacements du robot", En="Smooth the robot&apos;s movements"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Le robot glisse d&apos;une position à la suivante au lieu de sauter, avec un léger retard.", En="The robot glides from one position to the next instead of jumping, with a slight delay."}' Style="{StaticResource Caption}"/>
-                        </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.SmoothRobotMotion, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Lisser les déplacements du robot", En="Smooth the robot&apos;s movements"}'/>
+                        <TextBlock x:Uid="Settings_ShowThePNGExportButton" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <ToggleSwitch x:Uid="Settings_ShowThePNGExportButton2" Grid.Column="1" IsOn="{x:Bind ViewModel.ShowExportButton, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Afficher les coordonnées au-dessus du pointeur", En="Show the coordinates above the pointer"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="La position du pointeur sur la carte, en mètres, dans le repère du robot (celui de ses messages).", En="The pointer&apos;s position on the map, in metres, in the robot&apos;s frame (the one of its messages)."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <TextBlock x:Uid="Settings_SmoothTheRobotSMovements" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_TheRobotGlidesFromOne" Style="{StaticResource Caption}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowPointerCoordinates, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Afficher les coordonnées au-dessus du pointeur", En="Show the coordinates above the pointer"}'/>
+                        <ToggleSwitch x:Uid="Settings_SmoothTheRobotSMovements2" Grid.Column="1" IsOn="{x:Bind ViewModel.SmoothRobotMotion, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Afficher les dimensions des zones tracées", En="Show the size of drawn zones"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Les coordonnées de chaque coin et la longueur des côtés d&apos;un rectangle tracé sur la carte, en mètres.", En="The coordinates of each corner and the length of the sides of a rectangle drawn on the map, in metres."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <TextBlock x:Uid="Settings_ShowTheCoordinatesAboveThe" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_ThePointerSPositionOn" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ShowShapeDimensions, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Afficher les dimensions des zones tracées", En="Show the size of drawn zones"}'/>
+                        <ToggleSwitch x:Uid="Settings_ShowTheCoordinatesAboveThe2" Grid.Column="1" IsOn="{x:Bind ViewModel.ShowPointerCoordinates, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
-                    <TextBlock Text='{local:Tr Fr="Ces réglages ne concernent que cet affichage : rien n&apos;est envoyé au robot.", En="These settings only affect this display: nothing is sent to the robot."}'
+                    <Grid Style="{StaticResource Setting}">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock x:Uid="Settings_ShowTheSizeOfDrawn" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_TheCoordinatesOfEachCorner" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ToggleSwitch x:Uid="Settings_ShowTheSizeOfDrawn2" Grid.Column="1" IsOn="{x:Bind ViewModel.ShowShapeDimensions, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
+                    </Grid>
+                    <TextBlock x:Uid="Settings_TheseSettingsOnlyAffectThis"
                                Style="{StaticResource Caption}" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
 
             <!-- Logs: the application's own, and the recording of the robot's messages -->
-            <TextBlock Text='{local:Tr Fr="Journaux", En="Logs"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <TextBlock x:Uid="Settings_Logs" Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Conservation des journaux de l&apos;application", En="Keep the application logs"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Un fichier par jour, dans le dossier Logs. Les plus anciens sont supprimés.", En="One file a day, in the Logs folder. The oldest are deleted."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
-                            <HyperlinkButton Content='{local:Tr Fr="Ouvrir le dossier des journaux", En="Open the logs folder"}' Command="{x:Bind ViewModel.OpenLogsFolderCommand}" Padding="0" Margin="0,2,0,0"/>
+                            <TextBlock x:Uid="Settings_KeepTheApplicationLogs" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_OneFileADayIn" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <HyperlinkButton x:Uid="Settings_OpenTheLogsFolder" Command="{x:Bind ViewModel.OpenLogsFolderCommand}" Padding="0" Margin="0,2,0,0"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.LogRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center"
-                                  AutomationProperties.Name='{local:Tr Fr="Durée de conservation", En="Retention"}'>
-                            <ComboBoxItem Content='{local:Tr Fr="1 jour", En="1 day"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="3 jours", En="3 days"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="7 jours", En="7 days"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="14 jours", En="14 days"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="30 jours", En="30 days"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="90 jours", En="90 days"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="Toujours conserver", En="Keep forever"}'/>
+                        <ComboBox x:Uid="Settings_Retention" Grid.Column="1" SelectedIndex="{x:Bind ViewModel.LogRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center">
+                            <ComboBoxItem x:Uid="Settings_1Day"/>
+                            <ComboBoxItem x:Uid="Settings_3Days"/>
+                            <ComboBoxItem x:Uid="Settings_7Days"/>
+                            <ComboBoxItem x:Uid="Settings_14Days"/>
+                            <ComboBoxItem x:Uid="Settings_30Days"/>
+                            <ComboBoxItem x:Uid="Settings_90Days"/>
+                            <ComboBoxItem x:Uid="Settings_KeepForever"/>
                         </ComboBox>                    </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Enregistrer tous les messages", En="Record all messages"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Garde chaque message échangé avec le robot, un fichier par jour dans le dossier Messages, pour repérer ceux que l&apos;application ne connaît pas encore.", En="Keeps every message exchanged with the robot, one file a day in the Messages folder, to spot the ones the application does not know yet."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
-                            <HyperlinkButton Content='{local:Tr Fr="Ouvrir le dossier des messages", En="Open the messages folder"}' Command="{x:Bind ViewModel.OpenMessagesFolderCommand}" Padding="0" Margin="0,2,0,0"/>
+                            <TextBlock x:Uid="Settings_RecordAllMessages" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_KeepsEveryMessageExchangedWith" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <HyperlinkButton x:Uid="Settings_OpenTheMessagesFolder" Command="{x:Bind ViewModel.OpenMessagesFolderCommand}" Padding="0" Margin="0,2,0,0"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.RecordMessages, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Enregistrer tous les messages", En="Record all messages"}'/>
+                        <ToggleSwitch x:Uid="Settings_RecordAllMessages2" Grid.Column="1" IsOn="{x:Bind ViewModel.RecordMessages, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Conservation des messages enregistrés", En="Keep the recorded messages"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Les enregistrements plus anciens sont supprimés, que l&apos;enregistrement soit activé ou non.", En="Older records are deleted, whether recording is on or not."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <TextBlock x:Uid="Settings_KeepTheRecordedMessages" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_OlderRecordsAreDeletedWhether" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.MessageRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center"
-                                  AutomationProperties.Name='{local:Tr Fr="Durée de conservation", En="Retention"}'>
-                            <ComboBoxItem Content='{local:Tr Fr="1 jour", En="1 day"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="3 jours", En="3 days"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="7 jours", En="7 days"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="14 jours", En="14 days"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="30 jours", En="30 days"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="90 jours", En="90 days"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="Toujours conserver", En="Keep forever"}'/>
+                        <ComboBox x:Uid="Settings_Retention" Grid.Column="1" SelectedIndex="{x:Bind ViewModel.MessageRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center">
+                            <ComboBoxItem x:Uid="Settings_1Day"/>
+                            <ComboBoxItem x:Uid="Settings_3Days"/>
+                            <ComboBoxItem x:Uid="Settings_7Days"/>
+                            <ComboBoxItem x:Uid="Settings_14Days"/>
+                            <ComboBoxItem x:Uid="Settings_30Days"/>
+                            <ComboBoxItem x:Uid="Settings_90Days"/>
+                            <ComboBoxItem x:Uid="Settings_KeepForever"/>
                         </ComboBox>                    </Grid>
                 </StackPanel>
             </Border>
             <!-- Cleaning history kept on this computer -->
-            <TextBlock Text='{local:Tr Fr="Historique des nettoyages", En="Cleaning history"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <TextBlock x:Uid="Settings_CleaningHistory" Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Conserver les nettoyages sur cet ordinateur", En="Keep the cleans on this computer"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Le cloud Dyson ne garde que les derniers nettoyages. Chaque nettoyage que l&apos;Historique affiche est copié ici, avec son tracé, ses taches et ses obstacles, et reste consultable quand le cloud l&apos;a oublié.", En="The Dyson cloud only keeps the latest cleans. Every clean the History shows is copied here, with its path, stains and obstacles, and stays available once the cloud has forgotten it."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
-                            <HyperlinkButton Content='{local:Tr Fr="Ouvrir le dossier des nettoyages", En="Open the cleans folder"}' Command="{x:Bind ViewModel.OpenCleansFolderCommand}" Padding="0" Margin="0,2,0,0"/>
+                            <TextBlock x:Uid="Settings_KeepTheCleansOnThis" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_TheDysonCloudOnlyKeeps" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <HyperlinkButton x:Uid="Settings_OpenTheCleansFolder" Command="{x:Bind ViewModel.OpenCleansFolderCommand}" Padding="0" Margin="0,2,0,0"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.ArchiveCleans, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Conserver les nettoyages sur cet ordinateur", En="Keep the cleans on this computer"}'/>
+                        <ToggleSwitch x:Uid="Settings_KeepTheCleansOnThis2" Grid.Column="1" IsOn="{x:Bind ViewModel.ArchiveCleans, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Durée de conservation", En="Retention"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Les nettoyages plus anciens sont supprimés de cet ordinateur, que la copie soit activée ou non.", En="Older cleans are deleted from this computer, whether copying is on or not."}' Style="{StaticResource Caption}" TextWrapping="Wrap"/>
+                            <TextBlock x:Uid="Settings_Retention2" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="Settings_OlderCleansAreDeletedFrom" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1" SelectedIndex="{x:Bind ViewModel.CleanArchiveRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center"
-                                  AutomationProperties.Name='{local:Tr Fr="Durée de conservation", En="Retention"}'>
-                            <ComboBoxItem Content='{local:Tr Fr="1 mois", En="1 month"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="3 mois", En="3 months"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="6 mois", En="6 months"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="1 an", En="1 year"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="2 ans", En="2 years"}'/>
-                            <ComboBoxItem Content='{local:Tr Fr="Toujours conserver", En="Keep forever"}'/>
+                        <ComboBox x:Uid="Settings_Retention" Grid.Column="1" SelectedIndex="{x:Bind ViewModel.CleanArchiveRetentionIndex, Mode=TwoWay}" Width="220" VerticalAlignment="Center">
+                            <ComboBoxItem x:Uid="Settings_1Month"/>
+                            <ComboBoxItem x:Uid="Settings_3Months"/>
+                            <ComboBoxItem x:Uid="Settings_6Months"/>
+                            <ComboBoxItem x:Uid="Settings_1Year"/>
+                            <ComboBoxItem x:Uid="Settings_2Years"/>
+                            <ComboBoxItem x:Uid="Settings_KeepForever"/>
                         </ComboBox>
                     </Grid>
                 </StackPanel>
             </Border>
 
             <!-- Account -->
-            <TextBlock Text='{local:Tr Fr="Compte", En="Account"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <TextBlock x:Uid="Settings_Account" Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <Grid Style="{StaticResource Setting}">
                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel>
-                        <TextBlock Text='{local:Tr Fr="Compte MyDyson", En="MyDyson account"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                        <TextBlock x:Uid="Settings_MyDysonAccount" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                         <TextBlock Text="{x:Bind ViewModel.AccountText}" Style="{StaticResource Caption}" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <Button Grid.Column="1" Content='{local:Tr Fr="Se déconnecter", En="Log out"}' Command="{x:Bind ViewModel.LogoutCommand}" VerticalAlignment="Center"/>
+                    <Button x:Uid="Settings_LogOut" Grid.Column="1" Command="{x:Bind ViewModel.LogoutCommand}" VerticalAlignment="Center"/>
                 </Grid>
             </Border>
 
             <!-- About -->
-            <TextBlock Text='{local:Tr Fr="À propos", En="About"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <TextBlock x:Uid="Settings_About" Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel Spacing="8">
                     <TextBlock Text="{x:Bind ViewModel.VersionText}" Style="{StaticResource BodyStrongTextBlockStyle}" IsTextSelectionEnabled="True"/>
-                    <TextBlock Text='{local:Tr Fr="Projet indépendant, non affilié à Dyson, ni approuvé ou soutenu par Dyson. Dyson, Spot+Scrub et MyDyson sont des marques du groupe Dyson.", En="Independent project, not affiliated with, approved or supported by Dyson. Dyson, Spot+Scrub and MyDyson are trademarks of the Dyson group."}'
+                    <TextBlock x:Uid="Settings_IndependentProjectNotAffiliatedWith"
                                Style="{StaticResource Caption}"/>
-                    <HyperlinkButton Content='{local:Tr Fr="Code source", En="Source code"}' NavigateUri="https://github.com/ArmandDelessert/dyson-spot-scrub-windows" Padding="0"/>
+                    <HyperlinkButton x:Uid="Settings_SourceCode" NavigateUri="https://github.com/ArmandDelessert/dyson-spot-scrub-windows" Padding="0"/>
                 </StackPanel>
             </Border>
         </StackPanel>

@@ -3,7 +3,8 @@ using static DyssCockpit.Core.Translation;
 namespace DyssCockpit.Core;
 
 /// <summary>
-/// Labels of the thirty room types, in French as the official app shows them, and in English. The app displays a
+/// Labels of the thirty room types, in French as the official app shows them, and in English (the other
+/// languages are in Translations, as for every text). The app displays a
 /// typed room under its type's label and hides the stored name; this app shows the stored name
 /// instead (see <see cref="Resolve"/>) and uses the labels for the type picker and as a hint.
 ///
@@ -21,38 +22,38 @@ namespace DyssCockpit.Core;
 /// </summary>
 public static class RoomTypeLabels
 {
-    private static readonly Dictionary<string, (string French, string English)> Known = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, Func<string>> Known = new(StringComparer.Ordinal)
     {
-        ["balcony"] = ("Balcon", "Balcony"),
-        ["bathroom"] = ("Salle de bain", "Bathroom"),
-        ["bedroom"] = ("Chambre", "Bedroom"),
-        ["boxroom"] = ("Cagibi", "Box room"),
-        ["cloakroom"] = ("Toilettes", "Cloakroom"),
-        ["closet"] = ("Dressing", "Closet"),
-        ["conservatory"] = ("Véranda", "Conservatory"),
-        ["dining"] = ("Salle à manger", "Dining room"),
-        ["ensuite"] = ("Salle de bain attenante", "En suite"),
-        ["entrance"] = ("Hall d'entrée", "Entrance"),
-        ["familyRoom"] = ("Pièce familiale", "Family room"),
-        ["guestBathroom"] = ("Salle de bain invités", "Guest bathroom"),
-        ["guestBedroom"] = ("Chambre d'amis", "Guest bedroom"),
-        ["guestRoom"] = ("Chambre invités", "Guest room"),
-        ["hallway"] = ("Couloir", "Hallway"),
-        ["kidsBedroom"] = ("Chambre d'enfant", "Kids' bedroom"),
-        ["kitchen"] = ("Cuisine", "Kitchen"),
-        ["laundryRoom"] = ("Buanderie", "Laundry room"),
-        ["livingRoom"] = ("Salon", "Living room"),
-        ["nursery"] = ("Chambre de bébé", "Nursery"),
-        ["office"] = ("Bureau", "Office"),
-        ["pantry"] = ("Cellier", "Pantry"),
-        ["playRoom"] = ("Salle de jeux", "Playroom"),
-        ["primaryBathroom"] = ("Salle de bain parentale", "Primary bathroom"),
-        ["primaryBedroom"] = ("Chambre parentale", "Primary bedroom"),
-        ["recreationRoom"] = ("Salle de loisirs", "Recreation room"),
-        ["storageRoom"] = ("Débarras", "Storage room"),
-        ["study"] = ("Bibliothèque", "Study"),
-        ["toilet"] = ("W.-C.", "Toilet"),
-        ["utilityRoom"] = ("Cave", "Utility room"),
+        ["balcony"] = () => T("RoomType_balcony"),
+        ["bathroom"] = () => T("RoomType_bathroom"),
+        ["bedroom"] = () => T("RoomType_bedroom"),
+        ["boxroom"] = () => T("RoomType_boxroom"),
+        ["cloakroom"] = () => T("RoomType_cloakroom"),
+        ["closet"] = () => T("RoomType_closet"),
+        ["conservatory"] = () => T("RoomType_conservatory"),
+        ["dining"] = () => T("RoomType_dining"),
+        ["ensuite"] = () => T("RoomType_ensuite"),
+        ["entrance"] = () => T("RoomType_entrance"),
+        ["familyRoom"] = () => T("RoomType_familyRoom"),
+        ["guestBathroom"] = () => T("RoomType_guestBathroom"),
+        ["guestBedroom"] = () => T("RoomType_guestBedroom"),
+        ["guestRoom"] = () => T("RoomType_guestRoom"),
+        ["hallway"] = () => T("RoomType_hallway"),
+        ["kidsBedroom"] = () => T("RoomType_kidsBedroom"),
+        ["kitchen"] = () => T("RoomType_kitchen"),
+        ["laundryRoom"] = () => T("RoomType_laundryRoom"),
+        ["livingRoom"] = () => T("RoomType_livingRoom"),
+        ["nursery"] = () => T("RoomType_nursery"),
+        ["office"] = () => T("RoomType_office"),
+        ["pantry"] = () => T("RoomType_pantry"),
+        ["playRoom"] = () => T("RoomType_playRoom"),
+        ["primaryBathroom"] = () => T("RoomType_primaryBathroom"),
+        ["primaryBedroom"] = () => T("RoomType_primaryBedroom"),
+        ["recreationRoom"] = () => T("RoomType_recreationRoom"),
+        ["storageRoom"] = () => T("RoomType_storageRoom"),
+        ["study"] = () => T("RoomType_study"),
+        ["toilet"] = () => T("RoomType_toilet"),
+        ["utilityRoom"] = () => T("RoomType_utilityRoom"),
     };
 
     /// <summary>
@@ -74,16 +75,16 @@ public static class RoomTypeLabels
     /// </summary>
     public static string TypeHint(string? type, string? storedName)
     {
-        if (string.IsNullOrEmpty(type) || type == "custom") return T("Personnalisée", "Custom");
+        if (string.IsNullOrEmpty(type) || type == "custom") return T("RoomTypeLabels_Custom");
         if (DefaultNameFor(type) is not { } label) return type;
         return label == Resolve(type, storedName, "") ? "" : label;
     }
 
     /// <summary>The default name the robot gives a room of this type, used to prefill a rename.</summary>
     public static string? DefaultNameFor(string? type) =>
-        type is not null && Known.TryGetValue(type, out var label) ? T(label.French, label.English) : null;
+        type is not null && Known.TryGetValue(type, out var label) ? label() : null;
 
     /// <summary>Every known type with its label, for a type picker. "custom" is not in here: it has no label of its own.</summary>
     public static IReadOnlyList<(string Type, string Label)> All =>
-        [.. Known.Select(kv => (kv.Key, T(kv.Value.French, kv.Value.English))).OrderBy(t => t.Item2, StringComparer.CurrentCulture)];
+        [.. Known.Select(kv => (kv.Key, kv.Value())).OrderBy(t => t.Item2, StringComparer.CurrentCulture)];
 }

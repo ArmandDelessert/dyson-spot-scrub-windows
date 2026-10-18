@@ -49,7 +49,7 @@ public class LaunchOptionsTests
 
     [Theory]
     [InlineData("--theme", "blue")]
-    [InlineData("--lang", "de")]
+    [InlineData("--lang", "xx")]
     [InlineData("--after", "soon")]
     public void AValueThatCannotBeReadLeavesTheDefault(string name, string value)
     {

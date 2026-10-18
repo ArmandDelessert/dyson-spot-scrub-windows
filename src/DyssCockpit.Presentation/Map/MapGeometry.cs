@@ -143,9 +143,8 @@ public static class MapGeometry
         return a!.SetEquals(b!);
     }
 
-    /// <summary>Numbers as the language writes them: a decimal comma in French.</summary>
-    private static CultureInfo NumberCulture =>
-        Translation.Current == AppLanguage.French ? CultureInfo.GetCultureInfo("fr-FR") : CultureInfo.InvariantCulture;
+    /// <summary>Numbers as the language writes them: a decimal comma in French, German or Spanish.</summary>
+    private static CultureInfo NumberCulture => Translation.Culture;
 
     /// <summary>The pointer's coordinates as written above it: "x 1,44  y −0,12 m" in French, two decimals, the decimal mark of the language.</summary>
     public static string CoordinatesText(Vec2 world) =>
@@ -165,9 +164,9 @@ public static class MapGeometry
             .ToList();
         return sizes.Count switch
         {
-            0 => Translation.T("Zone", "Zone"),
-            1 => Translation.T($"Zone {sizes[0]}", $"Zone {sizes[0]}"),
-            _ => Translation.T($"{sizes.Count} zones : {string.Join(", ", sizes)}", $"{sizes.Count} zones: {string.Join(", ", sizes)}"),
+            0 => Translation.T("MapGeometry_Zone2"),
+            1 => Translation.Tf("MapGeometry_Zone", sizes[0]),
+            _ => Translation.Tf("MapGeometry_Zones", sizes.Count, string.Join(", ", sizes)),
         };
     }
 

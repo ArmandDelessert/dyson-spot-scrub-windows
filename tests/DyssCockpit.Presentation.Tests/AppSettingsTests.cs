@@ -80,10 +80,15 @@ public sealed class AppSettingsTests : IDisposable
     [InlineData("fr-FR", "fr-FR")]
     [InlineData("en-US", "en-US")]
     [InlineData("", "")]
-    [InlineData("de-DE", "")]          // a language the application does not have: Windows' own
-    [InlineData("fr", "")]
-    [InlineData(null, "")]
-    public void TheLanguageIsStoredAsACultureNameAndAnythingElseIsWindowsOwn(string? stored, string expected)
+    [InlineData("fr-CH", "fr-FR")]     // any French is French
+    [InlineData("EN-gb", "en-US")]
+    [InlineData("de-DE", "de-DE")]     // the languages of the translations
+    [InlineData("de", "de-DE")]
+    [InlineData("pt-PT", "pt-BR")]     // one Portuguese for all
+    [InlineData("zh-Hans-CN", "zh-CN")]
+    [InlineData("zh-TW", "")]          // not the traditional Chinese
+    [InlineData("ru-RU", "")]          // a language the application does not have: Windows' own    [InlineData(null, "")]
+    public void TheLanguageIsStoredAsTheTagOfOneOfTheLanguagesAndAnythingElseIsWindowsOwn(string? stored, string expected)
     {
         File.WriteAllText(_path, stored is null ? "{}" : $$"""{"Language":"{{stored}}"}""");
 

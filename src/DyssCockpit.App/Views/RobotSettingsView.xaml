@@ -11,101 +11,94 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Padding="16,0,16,16" MaxWidth="760" HorizontalAlignment="Left">
-            <TextBlock Text='{local:Tr Fr="Chaque réglage est envoyé au robot immédiatement, comme le fait l&apos;application officielle.", En="Each setting is sent to the robot straight away, as the official app does."}' Style="{StaticResource Muted}" Margin="0,0,0,12"/>
+            <TextBlock x:Uid="RobotSettings_EachSettingIsSentTo" Style="{StaticResource Muted}" Margin="0,0,0,12"/>
 
-            <TextBlock Text='{local:Tr Fr="Réglages de lavage", En="Mopping settings"}' Style="{StaticResource Section}"/>
+            <TextBlock x:Uid="RobotSettings_MoppingSettings" Style="{StaticResource Section}"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Laver à l&apos;eau chaude", En="Mop with hot water"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Idéal pour les nettoyages en profondeur, déconseillé pour les parquets ou stratifiés.", En="Best for deep cleans, not advised for wooden or laminate floors."}' Style="{StaticResource Caption}"/>
+                            <TextBlock x:Uid="RobotSettings_MopWithHotWater" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="RobotSettings_BestForDeepCleansNot" Style="{StaticResource Caption}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.HotWaterMop, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Laver à l&apos;eau chaude", En="Mop with hot water"}'/>
+                        <ToggleSwitch x:Uid="RobotSettings_MopWithHotWater2" Grid.Column="1" IsOn="{x:Bind ViewModel.HotWaterMop, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Laver avec le produit de nettoyage", En="Mop with cleaning solution"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Votre robot lavera le sol avec le produit de nettoyage dans la station.", En="Your robot will mop the floor with the cleaning solution in the dock."}' Style="{StaticResource Caption}"/>
+                            <TextBlock x:Uid="RobotSettings_MopWithCleaningSolution" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="RobotSettings_YourRobotWillMopThe" Style="{StaticResource Caption}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.Detergent, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Laver avec le produit de nettoyage", En="Mop with cleaning solution"}'/>
+                        <ToggleSwitch x:Uid="RobotSettings_MopWithCleaningSolution2" Grid.Column="1" IsOn="{x:Bind ViewModel.Detergent, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Produit de nettoyage", En="Cleaning solution"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Indique s&apos;il reste suffisamment de produit dans la station.", En="Shows whether there is enough solution left in the dock."}' Style="{StaticResource Caption}"/>
+                            <TextBlock x:Uid="RobotSettings_CleaningSolution" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="RobotSettings_ShowsWhetherThereIsEnough" Style="{StaticResource Caption}"/>
                         </StackPanel>
                         <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.SolutionStatus, Mode=OneWay}" Style="{StaticResource Muted}" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Prolonger les préparatifs de lavage", En="Extend the mopping preparation"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Garantit une couverture de nettoyage homogène en consacrant plus de temps à la préparation sur la station d&apos;accueil.", En="Ensures even cleaning coverage by spending more time preparing on the dock."}' Style="{StaticResource Caption}"/>
-                            <TextBlock Text='{local:Tr Fr="Le robot ne communique pas encore cet état. Ce réglage reflète donc le dernier choix fait ici.", En="The robot does not report this state yet, so this setting shows the last choice made here."}' Style="{StaticResource Caption}"
+                            <TextBlock x:Uid="RobotSettings_ExtendTheMoppingPreparation" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="RobotSettings_EnsuresEvenCleaningCoverageBy" Style="{StaticResource Caption}"/>
+                            <TextBlock x:Uid="RobotSettings_TheRobotDoesNotReport" Style="{StaticResource Caption}"
                                        Margin="0,2,0,0" Visibility="{x:Bind local:Ui.Unless(ViewModel.WashMopBeforeCleanKnown), Mode=OneWay}"/>
                         </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.WashMopBeforeClean, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Prolonger les préparatifs de lavage", En="Extend the mopping preparation"}'/>
+                        <ToggleSwitch x:Uid="RobotSettings_ExtendTheMoppingPreparation2" Grid.Column="1" IsOn="{x:Bind ViewModel.WashMopBeforeClean, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                 </StackPanel>
             </Border>
 
-            <TextBlock Text='{local:Tr Fr="Réglages station", En="Dock settings"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <TextBlock x:Uid="RobotSettings_DockSettings" Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Intervalle d&apos;auto-nettoyage", En="Self-cleaning interval"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text='{local:Tr Fr="Définissez la fréquence à laquelle votre robot revient nettoyer son rouleau humide ou vider le collecteur pendant le nettoyage.", En="Set how often your robot goes back to wash its mop roller or empty its bin during a clean."}' Style="{StaticResource Caption}"/>
+                            <TextBlock x:Uid="RobotSettings_SelfCleaningInterval" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="RobotSettings_SetHowOftenYourRobot" Style="{StaticResource Caption}"/>
                             <TextBlock Text="{x:Bind ViewModel.BackWash.Description, Mode=OneWay, FallbackValue=''}" Style="{StaticResource Caption}" Margin="0,4,0,0"
                                        Visibility="{x:Bind local:Ui.IfAny(ViewModel.BackWash.Description), Mode=OneWay, FallbackValue=Collapsed}"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1" ItemsSource="{x:Bind ViewModel.BackWashOptions}" SelectedItem="{x:Bind ViewModel.BackWash, Mode=TwoWay}"
-                                  ItemTemplate="{StaticResource BackWashItem}" Width="240" VerticalAlignment="Center"
-                                  AutomationProperties.Name='{local:Tr Fr="Intervalle d&apos;auto-nettoyage", En="Self-cleaning interval"}'/>
+                        <ComboBox x:Uid="RobotSettings_SelfCleaningInterval2" Grid.Column="1" ItemsSource="{x:Bind ViewModel.BackWashOptions}" SelectedItem="{x:Bind ViewModel.BackWash, Mode=TwoWay}"
+                                  ItemTemplate="{StaticResource BackWashItem}" Width="240" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Text='{local:Tr Fr="S&apos;autonettoie à l&apos;eau chaude", En="Self-cleans with hot water"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.HotWaterSwitch, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="S&apos;autonettoie à l&apos;eau chaude", En="Self-cleans with hot water"}'/>
+                        <TextBlock x:Uid="RobotSettings_SelfCleansWithHotWater" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <ToggleSwitch x:Uid="RobotSettings_SelfCleansWithHotWater2" Grid.Column="1" IsOn="{x:Bind ViewModel.HotWaterSwitch, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text='{local:Tr Fr="Durée de séchage sur rouleau humide", En="Mop roller drying time"}' Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock x:Uid="RobotSettings_MopRollerDryingTime" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                             <TextBlock Text="{x:Bind ViewModel.DryDuration.Description, Mode=OneWay, FallbackValue=''}" Style="{StaticResource Caption}"/>
                         </StackPanel>
-                        <ComboBox Grid.Column="1" ItemsSource="{x:Bind ViewModel.DryOptions}" SelectedItem="{x:Bind ViewModel.DryDuration, Mode=TwoWay}"
-                                  ItemTemplate="{StaticResource DryItem}" Width="240" VerticalAlignment="Center"
-                                  AutomationProperties.Name='{local:Tr Fr="Durée de séchage", En="Drying time"}'/>
+                        <ComboBox x:Uid="RobotSettings_DryingTime" Grid.Column="1" ItemsSource="{x:Bind ViewModel.DryOptions}" SelectedItem="{x:Bind ViewModel.DryDuration, Mode=TwoWay}"
+                                  ItemTemplate="{StaticResource DryItem}" Width="240" VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
             </Border>
 
-            <TextBlock Text='{local:Tr Fr="Réglages vocaux du robot", En="Robot voice settings"}' Style="{StaticResource Section}" Margin="0,8,0,8"/>
+            <TextBlock x:Uid="RobotSettings_RobotVoiceSettings" Style="{StaticResource Section}" Margin="0,8,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Text='{local:Tr Fr="Activer les commandes vocales du robot", En="Turn on the robot&apos;s voice prompts"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
-                        <ToggleSwitch Grid.Column="1" IsOn="{x:Bind ViewModel.Alarm, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"
-                                      AutomationProperties.Name='{local:Tr Fr="Activer les commandes vocales du robot", En="Turn on the robot&apos;s voice prompts"}'/>
+                        <TextBlock x:Uid="RobotSettings_TurnOnTheRobotS" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <ToggleSwitch x:Uid="RobotSettings_TurnOnTheRobotS2" Grid.Column="1" IsOn="{x:Bind ViewModel.Alarm, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0"/>
                     </Grid>
                     <Grid Style="{StaticResource Setting}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBlock Text='{local:Tr Fr="Volume", En="Volume"}' Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                        <TextBlock x:Uid="RobotSettings_Volume" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                            <Slider Value="{x:Bind VolumeValue, Mode=TwoWay}" Minimum="0" Maximum="100" StepFrequency="10" SnapsTo="StepValues"
-                                    TickFrequency="10" Width="200" VerticalAlignment="Center" ThumbToolTipValueConverter="{StaticResource Percent}" AutomationProperties.Name='{local:Tr Fr="Volume", En="Volume"}'/>
-                            <Button Content='{local:Tr Fr="Appliquer", En="Apply"}' Command="{x:Bind ViewModel.ApplyVolumeCommand}" VerticalAlignment="Center"/>
+                            <Slider x:Uid="RobotSettings_Volume2" Value="{x:Bind VolumeValue, Mode=TwoWay}" Minimum="0" Maximum="100" StepFrequency="10" SnapsTo="StepValues"
+                                    TickFrequency="10" Width="200" VerticalAlignment="Center" ThumbToolTipValueConverter="{StaticResource Percent}"/>
+                            <Button x:Uid="RobotSettings_Apply" Command="{x:Bind ViewModel.ApplyVolumeCommand}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
                 </StackPanel>

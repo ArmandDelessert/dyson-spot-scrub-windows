@@ -1,3 +1,4 @@
+using System.Globalization;
 using DyssCockpit.App.Rendering;
 using DyssCockpit.App.Services;
 using DyssCockpit.App.Views;
@@ -39,13 +40,15 @@ public partial class App : Application
     public App()
     {
         // The language comes first: the XAML resources loaded just below already carry texts.
+        Translation.Source = new ResourceStrings();
         var stored = _settings = AppSettings.Load();
-        Translation.Current = _options.Language switch
+        Translation.Current = AppLanguages.FromTag(_options.Language) ?? stored.ChosenLanguage;
+        // A language that was chosen also decides how dates and numbers are written; "automatic" leaves them to Windows.
+        if (_options.Language is not null || stored.Language.Length > 0)
         {
-            "fr" => AppLanguage.French,
-            "en" => AppLanguage.English,
-            _ => stored.ChosenLanguage,
-        };
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.DefaultThreadCurrentUICulture = Translation.Culture;
+            CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = Translation.Culture;
+        }
         // What is too old is cleared whether or not anything is being written to it now.
         using (var records = new MessageLog(keepDays: stored.MessageRetentionDays)) records.Purge();
         new CleanArchive(AppFolders.Cleans(SessionStore.Directory)).Purge(stored.CleanArchiveRetentionDays);
@@ -64,7 +67,7 @@ public partial class App : Application
             Console.Error.WriteLine(e.Exception);
             LogUnhandled(_logger, e.Exception);
             e.Handled = true;
-            _ = ShowErrorAsync(T("Erreur inattendue", "Unexpected error"), e.Exception.Message);
+            _ = ShowErrorAsync(T("App_UnexpectedError"), e.Exception.Message);
         };
         // Off the UI thread nothing can be saved any more — the process is going down — but the
         // log at least says why, written out at once: no exit event follows a crash.
@@ -111,7 +114,7 @@ public partial class App : Application
             // is what an unreachable network used to do.
             Console.Error.WriteLine(ex);
             LogStartFailed(_logger, ex);
-            if (await ShowErrorAsync("DySS Cockpit", T($"L'application n'a pas pu démarrer : {ex.Message}", $"The application could not start: {ex.Message}"))) _window?.Close();
+            if (await ShowErrorAsync("DySS Cockpit", Tf("App_TheApplicationCouldNotStart", ex.Message))) _window?.Close();
             else Exit();
         }
     }
@@ -163,7 +166,7 @@ public partial class App : Application
             // A screenshot may run beside the application: it reads the preferences, never writes them.
             var settings = screenshot ? AppSettings.LoadReadOnly() : _settings;
             // ... and what it was told to speak is what it shows as chosen, so no restart is asked for.
-            if (screenshot && options.Language is { } language) settings.Language = language == "fr" ? "fr-FR" : "en-US";
+            if (screenshot && options.Language is { } language) settings.Language = AppSettings.NormalizeLanguage(language);
             _shell = new ShellView(_window, ctx, _notifications, shell, settings);
             _window.Show(_shell);
             _shell.Start();
@@ -202,7 +205,7 @@ public partial class App : Application
             try
             {
                 if (await ctx.LoadDevicesAsync() is not null) return ctx;
-                await ShowErrorAsync("DySS Cockpit", T("Aucun appareil sur ce compte.", "No device on this account."));
+                await ShowErrorAsync("DySS Cockpit", T("App_NoDeviceOnThisAccount"));
                 await ctx.DisposeAsync();
                 return null;
             }
@@ -275,8 +278,7 @@ public partial class App : Application
         if (settings.TrayHintShown) return;
         settings.TrayHintShown = true;
         _notifications?.Show("DySS Cockpit",
-            T("L'application reste ouverte dans la zone de notification pour suivre le robot. Pour la quitter, utilisez le menu de son icône.",
-              "The application stays open in the notification area to keep track of the robot. To quit it, use its icon's menu."),
+            T("App_TheApplicationStaysOpenIn"),
             onClick: ShowWindow);
     }
 
@@ -298,10 +300,10 @@ public partial class App : Application
 
     private IReadOnlyList<TrayMenuItem> TrayMenu() =>
     [
-        new(T("Ouvrir DySS Cockpit", "Open DySS Cockpit"), ShowWindow),
-        new(T("Actualiser", "Refresh"), () => _shell?.ViewModel.RefreshCommand.Execute(null), _shell is not null),
+        new(T("App_OpenDySSCockpit"), ShowWindow),
+        new(T("App_Refresh"), () => _shell?.ViewModel.RefreshCommand.Execute(null), _shell is not null),
         TrayMenuItem.Separator,
-        new(T("Quitter", "Quit"), Quit),
+        new(T("App_Quit"), Quit),
     ];
 
     /// <summary>The robot in the icon's tooltip, and a red badge on it while the robot reports a fault.</summary>

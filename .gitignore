@@ -21,3 +21,6 @@ Screenshots/
 
 # Fichiers APK propriétaires téléchargés pour l'analyse
 APK/
+
+# Python bytecode of the scripts in tools/
+__pycache__/
