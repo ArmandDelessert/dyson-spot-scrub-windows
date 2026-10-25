@@ -60,6 +60,16 @@ STRINGS = {
     "Cleaning_RoomSettingsSaved": ("room settings saved", "réglages des pièces enregistrés"),
     "Cleaning_Map": ("map {0}: {1}", "carte {0}: {1}"),
     "Cleaning_Maps": ("maps: {0}", "cartes: {0}"),
+    "Cleaning_CommonSettingsOne": ("Settings of the ticked room", "Réglages de la pièce cochée"),
+    "Cleaning_CommonSettingsMany": ("Settings of the {0} ticked rooms", "Réglages des {0} pièces cochées"),
+    "Cleaning_Mixed": ("Varied", "Variés"),
+    "Cleaning_RoomsDone": ("{0} of {1} rooms done", "{0} sur {1} pièces terminées"),
+    "Task_Complete": ("Done", "Terminée"),
+    "Task_InProgress": ("In progress", "En cours"),
+    "Task_Pending": ("To do", "À faire"),
+    "Task_Unreachable": ("Unreachable", "Inaccessible"),
+    "Dashboard_CleaningPlan.Text": ("Cleaning plan", "Programme du nettoyage"),
+    "Dashboard_CommonSettingsHint.Text": ("Applied at once to every ticked room. A room can still be set on its own with its arrow.", "Appliqués d'un coup à toutes les pièces cochées. Une pièce peut toujours être réglée seule avec sa flèche."),
     "Cleaning_ZonesOfTheClean": ("zones of the clean: {0}", "zones du nettoyage: {0}"),
 
     # ----- ConnectionWait -----

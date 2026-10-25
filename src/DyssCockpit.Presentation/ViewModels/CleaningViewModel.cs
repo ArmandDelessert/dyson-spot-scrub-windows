@@ -61,26 +61,8 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
     /// <summary>The rectangles of the current or last task, from the cloud's live map: a zone clean started from the phone, a schedule, or before this window opened.</summary>
     private IReadOnlyList<IReadOnlyList<DyssCockpit.Core.Point>>? _liveSpots;
 
-    /// <summary>How long after a start the cloud's live map is read again for the zones of the new task.</summary>
+    /// <summary>How long after a start the cloud's live map is first read for the new task: its rooms are not marked at once.</summary>
     public TimeSpan LiveZonesDelay { get; init; } = TimeSpan.FromSeconds(5);
-
-    /// <summary>
-    /// A task has just started: the cloud's live map is read again, a moment later, for its zones —
-    /// the robot's own messages never say which rectangles it was sent. Only the active map has one.
-    /// </summary>
-    public async Task RefreshLiveZonesAsync()
-    {
-        try
-        {
-            await Task.Delay(LiveZonesDelay, _hub.Time, _hub.Ct);
-            if (SelectedMap is not { } map || !_maps.IsCurrent(map.Id)) return;
-            var live = await _hub.Api.GetLiveCleaningMapAsync(_hub.Serial, _hub.Ct);
-            _liveSpots = SpotZone.Rectangles(live.SpotZones);
-            RebuildScene();
-        }
-        catch (OperationCanceledException) when (_hub.IsShuttingDown) { }
-        catch (Exception ex) { _hub.AddLog(Tf("Cleaning_ZonesOfTheClean", ex.Message)); }
-    }
 
     // ---- Robot state ----------------------------------------------------------
 
@@ -96,6 +78,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             if (atWork && _idleSeen) ForgetLastTask();
             _idleSeen = !atWork;
         }
+        FollowTask(s);
         RebuildScene();
     }
 
@@ -107,8 +90,9 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// A new task has begun: the last one's trail, obstacles, stains and zones are in the history now,
-    /// and are not shown in the moments before the new task's own arrive. Its zones are read again
-    /// from the cloud: a zone clean started from the phone or a schedule says nothing of them.
+    /// and are not shown in the moments before the new task's own arrive. Its zones and rooms are
+    /// read from the cloud by <see cref="LiveLoopAsync"/>: a clean started from the phone or a
+    /// schedule says nothing of them.
     /// </summary>
     private void ForgetLastTask()
     {
@@ -117,7 +101,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         _liveObstacles = null;
         _liveDirt = null;
         _liveSpots = null;
-        _ = RefreshLiveZonesAsync();
+        _liveRooms = null;
     }
 
     /// <summary>What the robot and its dock are doing, for their icons on the map.</summary>
@@ -195,7 +179,8 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         var ordered = (map.Metadata.Zones ?? []).OrderBy(z => z.Name, StringComparer.Create(new CultureInfo("fr-FR"), ignoreCase: true));
         foreach (var z in ordered)
         {
-            var item = new ZoneItem(z);
+            // Ticking a room does not unfold its four lists: they are set for all the ticked rooms at once.
+            var item = new ZoneItem(z) { ExpandOnSelect = false };
             // Restored before subscribing, so restoring is not mistaken for a click: the handler
             // below would renumber the room instead of putting it back where it was.
             if (wasSelected.TryGetValue(item.Id, out var order))
@@ -208,15 +193,19 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             // made while the geometry below is still downloading, which must not be lost.
             item.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName == nameof(ZoneItem.Selected)) { OnZoneSelectionChanged(item); UpdateCanStart(); }
+                if (e.PropertyName == nameof(ZoneItem.Selected)) { OnZoneSelectionChanged(item); UpdateCanStart(); RefreshCommon(); }
                 else if (e.PropertyName is nameof(ZoneItem.SelectedCleanType) or nameof(ZoneItem.SelectedStrategy)
                          or nameof(ZoneItem.SelectedWaterLevel) or nameof(ZoneItem.SelectedMopPasses))
+                {
                     ScheduleZoneSettingsPersist();
+                    RefreshCommon();
+                }
                 RebuildScene();
             };
             Zones.Add(item);
         }
         UpdateCanStart();   // the restored selection counts too
+        RefreshCommon();
         await LoadMapGeometryAsync(map.Id);
         RebuildScene();
     }
@@ -285,6 +274,7 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
                 _liveObstacles = live.Obstacles;
                 _liveDirt = live.Dirt;
                 _liveSpots = SpotZone.Rectangles(live.SpotZones);
+                _liveRooms = live.Zones;
             }
             RebuildScene();
         }
@@ -299,6 +289,9 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
         Canvas.ShowShapeDimensions = _settings.ShowShapeDimensions;
         var mapId = SelectedMap?.Id;
         var isCurrent = SelectedMap?.Metadata.IsCurrentMap == true;
+        RebuildTask();
+        // While a task is under way the map shows its rooms, whatever the cloud still has ticked from the last choice.
+        var taskRooms = ShowTask && TaskRooms.Count > 0 ? TaskRooms.Select(r => r.Id).ToHashSet() : null;
         Scene = new MapScene
         {
             Grid = isCurrent ? _maps.GridFor(mapId) : null,
@@ -311,8 +304,8 @@ public sealed partial class CleaningViewModel : ObservableObject, IDisposable
             Path = isCurrent && !_activity.TaskOver ? (_liveTrail is { Count: > 0 } ? _liveTrail : _lastPath) : null,
             Obstacles = isCurrent && !_activity.TaskOver ? _liveObstacles : null,
             DirtSpots = isCurrent && !_activity.TaskOver ? _liveDirt : null,
-            SelectedZoneIds = Zones.Where(z => z.Selected).Select(z => z.Id).ToHashSet(),
-            ZoneOrder = Zones.Where(z => z.Selected).ToDictionary(z => z.Id, z => z.Order),
+            SelectedZoneIds = taskRooms ?? Zones.Where(z => z.Selected).Select(z => z.Id).ToHashSet(),
+            ZoneOrder = taskRooms is not null ? null : Zones.Where(z => z.Selected).ToDictionary(z => z.Id, z => z.Order),
             ShowFurniture = _settings.ShowFurniture,
             ShowTravelPath = _settings.ShowTravelPath,
             ShowCleanedArea = _settings.ShowCleanedArea,

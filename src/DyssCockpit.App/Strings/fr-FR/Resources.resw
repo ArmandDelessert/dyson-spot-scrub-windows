@@ -56,6 +56,16 @@
   <data name="Cleaning_RoomSettingsSaved" xml:space="preserve"><value>réglages des pièces enregistrés</value></data>
   <data name="Cleaning_Map" xml:space="preserve"><value>carte {0}: {1}</value></data>
   <data name="Cleaning_Maps" xml:space="preserve"><value>cartes: {0}</value></data>
+  <data name="Cleaning_CommonSettingsOne" xml:space="preserve"><value>Réglages de la pièce cochée</value></data>
+  <data name="Cleaning_CommonSettingsMany" xml:space="preserve"><value>Réglages des {0} pièces cochées</value></data>
+  <data name="Cleaning_Mixed" xml:space="preserve"><value>Variés</value></data>
+  <data name="Cleaning_RoomsDone" xml:space="preserve"><value>{0} sur {1} pièces terminées</value></data>
+  <data name="Task_Complete" xml:space="preserve"><value>Terminée</value></data>
+  <data name="Task_InProgress" xml:space="preserve"><value>En cours</value></data>
+  <data name="Task_Pending" xml:space="preserve"><value>À faire</value></data>
+  <data name="Task_Unreachable" xml:space="preserve"><value>Inaccessible</value></data>
+  <data name="Dashboard_CleaningPlan.Text" xml:space="preserve"><value>Programme du nettoyage</value></data>
+  <data name="Dashboard_CommonSettingsHint.Text" xml:space="preserve"><value>Appliqués d'un coup à toutes les pièces cochées. Une pièce peut toujours être réglée seule avec sa flèche.</value></data>
   <data name="Cleaning_ZonesOfTheClean" xml:space="preserve"><value>zones du nettoyage: {0}</value></data>
   <data name="ConnectionWait_TryingAgainInS" xml:space="preserve"><value>Nouvel essai dans {0} s…</value></data>
   <data name="ConnectionWait_CannotReachTheDysonCloud.Text" xml:space="preserve"><value>Impossible de joindre le cloud Dyson</value></data>

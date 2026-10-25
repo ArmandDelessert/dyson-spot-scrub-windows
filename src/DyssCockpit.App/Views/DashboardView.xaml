@@ -50,6 +50,38 @@
                     </StackPanel>
                 </Border>
 
+                <!-- The plan of the clean under way: which rooms, and how far. -->
+                <Border Style="{StaticResource Card}" Visibility="{x:Bind ViewModel.Cleaning.ShowTask, Mode=OneWay}">
+                    <StackPanel Spacing="4">
+                        <TextBlock x:Uid="Dashboard_CleaningPlan" Style="{StaticResource Section}" Margin="0"/>
+                        <TextBlock Text="{x:Bind ViewModel.Cleaning.TaskSummary, Mode=OneWay}" Style="{StaticResource Muted}" Margin="0,0,0,6"/>
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Cleaning.TaskRooms}" IsTabStop="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TaskRoomItem">
+                                    <Grid Margin="0,3" ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="20"/>
+                                            <ColumnDefinition/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <!-- One icon a state, shown by turns: a brush cannot be chosen from the state here. -->
+                                        <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                                                  Visibility="{x:Bind IsComplete}"/>
+                                        <FontIcon Glyph="&#xE768;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                  Visibility="{x:Bind IsCurrent}"/>
+                                        <FontIcon Glyph="&#xEA3A;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  Visibility="{x:Bind IsPending}"/>
+                                        <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                                  Visibility="{x:Bind IsUnreachable}"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind StatusText}" VerticalAlignment="Center" Style="{StaticResource Muted}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
                 <!-- Clean -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel Spacing="8">
@@ -83,6 +115,26 @@
 
                         <ItemsControl ItemsSource="{x:Bind ViewModel.Cleaning.Zones}" ItemTemplate="{StaticResource RoomSettingsRow}"
                                       IsEnabled="{x:Bind ViewModel.Cleaning.RoomsEnabled, Mode=OneWay}" IsTabStop="False"/>
+                        <!-- Set once for every ticked room. Where they differ, a list says so and picking one makes them alike. -->
+                        <StackPanel Spacing="6" Visibility="{x:Bind ViewModel.Cleaning.HasTickedRooms, Mode=OneWay}">
+                            <TextBlock Text="{x:Bind ViewModel.Cleaning.CommonTitle, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,8,0,0"/>
+                            <ComboBox x:Uid="Templates_CleaningType" ItemsSource="{x:Bind vm:ZoneItem.CleanTypeOptions}" SelectedItem="{x:Bind ViewModel.Cleaning.CommonCleanType, Mode=TwoWay}"
+                                      ItemTemplate="{StaticResource CleanTypeItem}" PlaceholderText="{x:Bind vm:CleaningViewModel.MixedText}" HorizontalAlignment="Stretch"/>
+                            <ComboBox x:Uid="Templates_SuctionMode" ItemsSource="{x:Bind vm:ZoneItem.StrategyOptions}" SelectedItem="{x:Bind ViewModel.Cleaning.CommonStrategy, Mode=TwoWay}"
+                                      ItemTemplate="{StaticResource StrategyItem}" PlaceholderText="{x:Bind vm:CleaningViewModel.MixedText}" HorizontalAlignment="Stretch"
+                                      Visibility="{x:Bind ViewModel.Cleaning.CommonHasVacuum, Mode=OneWay}"/>
+                            <Grid ColumnSpacing="8" Visibility="{x:Bind ViewModel.Cleaning.CommonHasMop, Mode=OneWay}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Uid="Templates_WaterLevel" ItemsSource="{x:Bind vm:ZoneItem.WaterLevelOptions}" SelectedItem="{x:Bind ViewModel.Cleaning.CommonWaterLevel, Mode=TwoWay}"
+                                          ItemTemplate="{StaticResource WaterLevelItem}" PlaceholderText="{x:Bind vm:CleaningViewModel.MixedText}" HorizontalAlignment="Stretch"/>
+                                <ComboBox x:Uid="Templates_MoppingPasses" Grid.Column="1" ItemsSource="{x:Bind vm:ZoneItem.MopPassesOptions}" SelectedItem="{x:Bind ViewModel.Cleaning.CommonMopPasses, Mode=TwoWay}"
+                                          ItemTemplate="{StaticResource MopPassesItem}" PlaceholderText="{x:Bind vm:CleaningViewModel.MixedText}" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                            <TextBlock x:Uid="Dashboard_CommonSettingsHint" Style="{StaticResource Caption}"/>
+                        </StackPanel>
                         <Button x:Uid="Dashboard_CleansTheTickedRoomsIn" Command="{x:Bind ViewModel.Cleaning.StartCleanCommand}" IsEnabled="{x:Bind ViewModel.Cleaning.CanStart, Mode=OneWay}"
                                 Style="{StaticResource AccentButtonStyle}" Margin="0,4,0,0">
                             <StackPanel Orientation="Horizontal" Spacing="8">

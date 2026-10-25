@@ -56,6 +56,16 @@
   <data name="Cleaning_RoomSettingsSaved" xml:space="preserve"><value>room settings saved</value></data>
   <data name="Cleaning_Map" xml:space="preserve"><value>map {0}: {1}</value></data>
   <data name="Cleaning_Maps" xml:space="preserve"><value>maps: {0}</value></data>
+  <data name="Cleaning_CommonSettingsOne" xml:space="preserve"><value>Settings of the ticked room</value></data>
+  <data name="Cleaning_CommonSettingsMany" xml:space="preserve"><value>Settings of the {0} ticked rooms</value></data>
+  <data name="Cleaning_Mixed" xml:space="preserve"><value>Varied</value></data>
+  <data name="Cleaning_RoomsDone" xml:space="preserve"><value>{0} of {1} rooms done</value></data>
+  <data name="Task_Complete" xml:space="preserve"><value>Done</value></data>
+  <data name="Task_InProgress" xml:space="preserve"><value>In progress</value></data>
+  <data name="Task_Pending" xml:space="preserve"><value>To do</value></data>
+  <data name="Task_Unreachable" xml:space="preserve"><value>Unreachable</value></data>
+  <data name="Dashboard_CleaningPlan.Text" xml:space="preserve"><value>Cleaning plan</value></data>
+  <data name="Dashboard_CommonSettingsHint.Text" xml:space="preserve"><value>Applied at once to every ticked room. A room can still be set on its own with its arrow.</value></data>
   <data name="Cleaning_ZonesOfTheClean" xml:space="preserve"><value>zones of the clean: {0}</value></data>
   <data name="ConnectionWait_TryingAgainInS" xml:space="preserve"><value>Trying again in {0} s…</value></data>
   <data name="ConnectionWait_CannotReachTheDysonCloud.Text" xml:space="preserve"><value>Cannot reach the Dyson cloud</value></data>

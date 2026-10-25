@@ -645,8 +645,200 @@ public class CleaningViewModelTests
         Assert.Null(vm.Scene.SpotZones);
 
         handler.Binary["live-maps/cleaning"] = System.Text.Encoding.UTF8.GetBytes(LiveWithZone);
-        await vm.RefreshLiveZonesAsync();
+        await vm.RefreshLiveAsync();
 
         Assert.Single(vm.Scene.SpotZones!);
+    }
+
+    // ---- Settings set once for the ticked rooms -------------------------------------------------
+
+    private static CleanTypeOption Type(CleanType t) => ZoneItem.CleanTypeOptions.Single(o => o.Value == t);
+
+    private static async Task<CleaningViewModel> LoadedRoomsAsync()
+    {
+        var vm = New(out _);
+        await vm.LoadMapsAsync();
+        return vm;
+    }
+
+    [Fact]
+    public async Task ThePanelFollowsTheTickedRooms()
+    {
+        var vm = await LoadedRoomsAsync();
+        Assert.False(vm.HasTickedRooms);
+
+        vm.ToggleZone("10");
+        Assert.True(vm.HasTickedRooms);
+        Assert.Equal("Réglages de la pièce cochée", vm.CommonTitle);
+
+        vm.ToggleZone("12");
+        Assert.Equal(2, vm.TickedRooms);
+        Assert.Equal("Réglages des 2 pièces cochées", vm.CommonTitle);
+        // The map's own settings, the same for both: the panel shows them rather than "varied".
+        Assert.Equal(Type(CleanType.Vacuum), vm.CommonCleanType);
+        Assert.True(vm.CommonHasVacuum);
+        Assert.False(vm.CommonHasMop);
+
+        vm.ClearSelection();
+        Assert.False(vm.HasTickedRooms);
+    }
+
+    [Fact]
+    public async Task OneChoiceSetsEveryTickedRoomAndOnlyThose()
+    {
+        var vm = await LoadedRoomsAsync();
+        vm.ToggleZone("10");
+        vm.ToggleZone("12");
+
+        vm.CommonCleanType = Type(CleanType.VacuumAndMop);
+        vm.CommonWaterLevel = ZoneItem.WaterLevelOptions.Single(o => o.Value == WaterLevel.High);
+        vm.CommonMopPasses = ZoneItem.MopPassesOptions.Single(o => o.Value == 2);
+        vm.CommonStrategy = ZoneItem.StrategyOptions.Single(o => o.Value == CleaningStrategy.Boost);
+
+        foreach (var id in (string[])["10", "12"])
+            Assert.Equal(new RoomSettings(CleanType.VacuumAndMop, CleaningStrategy.Boost, WaterLevel.High, 2), Room(vm, id).Settings);
+        Assert.Equal(new RoomSettings(CleanType.Vacuum, CleaningStrategy.Auto, WaterLevel.Low, 1), Room(vm, "13").Settings);   // not ticked: left alone
+        Assert.True(vm.CommonHasVacuum && vm.CommonHasMop);
+    }
+
+    [Fact]
+    public async Task ASettingIsNotWrittenToARoomItDoesNotMeanAnythingTo()
+    {
+        var vm = await LoadedRoomsAsync();
+        vm.ToggleZone("10");
+        vm.ToggleZone("12");
+        Room(vm, "12").SelectedCleanType = Type(CleanType.Mop);   // one room mops only
+
+        vm.CommonStrategy = ZoneItem.StrategyOptions.Single(o => o.Value == CleaningStrategy.Quiet);
+
+        Assert.Equal(CleaningStrategy.Quiet, Room(vm, "10").Settings.Strategy);
+        Assert.Equal(CleaningStrategy.Auto, Room(vm, "12").Settings.Strategy);   // a room that does not vacuum keeps what the cloud holds
+    }
+
+    [Fact]
+    public async Task RoomsThatDifferShowVariedAndPickingMakesThemAlike()
+    {
+        var vm = await LoadedRoomsAsync();
+        vm.ToggleZone("10");
+        vm.ToggleZone("12");
+
+        Room(vm, "12").SelectedCleanType = Type(CleanType.Mop);
+
+        Assert.Null(vm.CommonCleanType);
+        Assert.True(vm.CommonHasVacuum && vm.CommonHasMop);   // both kinds of setting are on offer, each for its rooms
+
+        vm.CommonCleanType = Type(CleanType.VacuumThenMop);
+
+        Assert.Equal(CleanType.VacuumThenMop, Room(vm, "10").Settings.CleanType);
+        Assert.Equal(CleanType.VacuumThenMop, Room(vm, "12").Settings.CleanType);
+        Assert.Equal(Type(CleanType.VacuumThenMop), vm.CommonCleanType);
+    }
+
+    [Fact]
+    public async Task ARoomTickedAfterTheChoiceKeepsItsOwnSettingsUntilItIsMadeToFollow()
+    {
+        var vm = await LoadedRoomsAsync();
+        vm.ToggleZone("10");
+        vm.CommonCleanType = Type(CleanType.Mop);
+
+        vm.ToggleZone("12");
+
+        Assert.Equal(CleanType.Vacuum, Room(vm, "12").Settings.CleanType);   // what the map holds for it, not overwritten
+        Assert.Null(vm.CommonCleanType);                                      // and the panel says they differ
+    }
+
+    [Fact]
+    public async Task TickingARoomDoesNotUnfoldItsListsButTheScheduleEditorStillDoes()
+    {
+        var vm = await LoadedRoomsAsync();
+
+        vm.ToggleZone("10");
+        Assert.False(Room(vm, "10").IsExpanded);
+
+        var inEditor = new ZoneItem(new ZoneMetadata("10", "Cuisine", "kitchen", new DyssCockpit.Core.Point(0, 0), false, 0, 12.5,
+            new ZoneSettings("auto", "vacuum", "low", 1, 1, true))) { Selected = true };
+        Assert.True(inEditor.IsExpanded);
+    }
+
+    // ---- The plan of the clean under way ----------------------------------------------------------
+
+    private const string LiveWithRooms = """
+        {"cleanPath":[],"obstacles":[],"dirt":[],"spotZones":[],
+         "zones":[{"id":"10","name":"Cuisine","type":"kitchen","cleanStatus":"CLEAN_IN_PROGRESS"},
+                  {"id":"12","name":"Chambre","type":"bedroom","cleanStatus":"CLEAN_PENDING"},
+                  {"id":"13","name":"Couloir","type":"hallway","cleanStatus":"CLEAN_COMPLETE"},
+                  {"id":"14","name":"Salon","type":"livingRoom","cleanStatus":"CLEAN_NOT_REQUESTED"}]}
+        """;
+
+    [Fact]
+    public async Task ThePlanListsTheRoomsOfTheTaskByHowFarTheyAre()
+    {
+        var vm = WithLive(LiveWithRooms, TimeSpan.FromMinutes(5), out _);
+        await vm.LoadMapsAsync();
+        vm.Apply(Running);
+
+        await vm.RefreshLiveAsync();
+
+        Assert.True(vm.ShowTask);
+        Assert.Equal([("Couloir", TaskRoomStatus.Complete), ("Cuisine", TaskRoomStatus.InProgress), ("Chambre", TaskRoomStatus.Pending)],
+            vm.TaskRooms.Select(r => (r.Name, r.Status)));
+        Assert.Equal("1 sur 3 pièces terminées", vm.TaskSummary);
+        Assert.Equal(["En cours", "À faire"], vm.TaskRooms.Skip(1).Select(r => r.StatusText));
+        // The map shows those rooms, whatever the cloud still has ticked from an earlier choice.
+        Assert.Equal(new HashSet<string> { "10", "12", "13" }, vm.Scene.SelectedZoneIds);
+        Assert.Null(vm.Scene.ZoneOrder);
+    }
+
+    [Fact]
+    public async Task ThePlanLeavesWithTheTask()
+    {
+        var vm = WithLive(LiveWithRooms, TimeSpan.FromMinutes(5), out _);
+        await vm.LoadMapsAsync();
+        vm.Apply(Running);
+        await vm.RefreshLiveAsync();
+
+        vm.Apply(Docked);
+
+        Assert.False(vm.ShowTask);
+        Assert.Empty(vm.TaskRooms);
+        Assert.Empty(vm.Scene.SelectedZoneIds!);
+    }
+
+    [Fact]
+    public async Task AZoneCleanIsToldByItsSizeInThePlan()
+    {
+        var vm = WithLive(LiveWithZone, TimeSpan.FromMinutes(5), out _);
+        await vm.LoadMapsAsync();
+        vm.Apply(Running);
+
+        await vm.RefreshLiveAsync();
+
+        Assert.True(vm.ShowTask);
+        Assert.Empty(vm.TaskRooms);
+        Assert.Equal("Zone 2,50 × 1,50 m", vm.TaskSummary);
+    }
+
+    [Fact]
+    public async Task TheLiveMapIsReadAsSoonAsARobotStartsCleaningAndAgainWhileItGoesOn()
+    {
+        var hub = TestHub.Create(out var handler,
+            ("persistent-map-metadata", "[" + TestHub.Map("1000000002", "Étage", isCurrent: true, Rooms) + "]"),
+            ("persistent-maps", TestHub.EmptyPersistentMap),
+            ("live-maps/mapping", """{"dimensions":{"width":2,"height":2,"resolution":0.5,"offsetX":0,"offsetY":0},"mapData":[10,10,12,12]}"""),
+            ("live-maps/cleaning", LiveWithRooms));
+        var vm = new CleaningViewModel(hub, new MapCatalog(hub), new AppSettings())
+        {
+            LiveZonesDelay = TimeSpan.Zero,
+            LiveRefreshInterval = TimeSpan.FromMilliseconds(20),
+        };
+        await vm.LoadMapsAsync();
+        int Reads() => handler.Requested.Count(p => p.Contains("live-maps/cleaning", StringComparison.Ordinal));
+        var before = Reads();
+
+        vm.Apply(Running);
+
+        await Eventually.TrueAsync(() => vm.ShowTask, "the plan never appeared");
+        await Eventually.TrueAsync(() => Reads() >= before + 3, "the live map was not read again");
+        vm.Apply(Docked);   // ends the loop at its next reading
     }
 }

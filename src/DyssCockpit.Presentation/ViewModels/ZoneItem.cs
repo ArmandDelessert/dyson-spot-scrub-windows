@@ -53,6 +53,9 @@ public partial class ZoneItem : ObservableObject
     [ObservableProperty] private bool _selected;
     [ObservableProperty] private int _order;
     [ObservableProperty] private bool _isExpanded;
+
+    /// <summary>Whether ticking a room unfolds its settings. The schedule editor does; the dashboard sets the ticked rooms together instead.</summary>
+    public bool ExpandOnSelect { get; init; } = true;
     [ObservableProperty] private CleanTypeOption _selectedCleanType;
     [ObservableProperty] private StrategyOption _selectedStrategy;
     [ObservableProperty] private WaterLevelOption _selectedWaterLevel;
@@ -125,7 +128,7 @@ public partial class ZoneItem : ObservableObject
         OnPropertyChanged(nameof(OrderText));
         // Expand a room's settings as soon as it is picked, collapse them again once removed;
         // the manual toggle still works independently, e.g. to peek at an unselected room.
-        IsExpanded = value;
+        if (!value || ExpandOnSelect) IsExpanded = value;
     }
 
     partial void OnOrderChanged(int value) => OnPropertyChanged(nameof(OrderText));
