@@ -81,7 +81,7 @@ def problems(language: str, table: dict) -> list[str]:
 
 def xaml_problems() -> list[str]:
     """Every x:Uid of the XAML has resources, and every resource with a dot belongs to an x:Uid: a text missing shows nothing, silently."""
-    used = {uid for path in APP_DIR.rglob("*.xaml") if "obj" not in path.parts for uid in XAML_UID.findall(path.read_text(encoding="utf-8"))}
+    used = {uid for path in APP_DIR.rglob("*.xaml") if path.is_file() and not {"obj", "bin"} & set(path.parts) for uid in XAML_UID.findall(path.read_text(encoding="utf-8"))}
     defined = {key.split(".", 1)[0] for key in STRINGS if "." in key}
     # Windows cannot hold a resource and a group of resources under one name: "Key" and "Key.Text" together fail the build (PRI278).
     clashes = [key for key in STRINGS if "." not in key and key in defined]
