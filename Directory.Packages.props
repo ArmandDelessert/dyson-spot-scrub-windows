@@ -25,7 +25,7 @@
          and not announced for 2.x: the application has been checked with it on 2.x. -->
     <PackageVersion Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
     <PackageVersion Include="MQTTnet" Version="5.2.0.1603" />
-    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.13" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
   </ItemGroup>
 
   <!-- Tests -->
