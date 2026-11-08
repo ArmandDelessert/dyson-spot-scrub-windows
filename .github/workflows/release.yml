@@ -81,6 +81,43 @@ jobs:
           Get-ChildItem dist/*.zip | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
             Set-Content dist/SHA256SUMS.txt -Encoding ascii
 
+      # The MSIX package, built for x64 and ARM64 and bundled (tools/msix/build-msix.ps1). Windows installs it only when it is signed,
+      # so it joins the release only with a certificate: the repository's secrets MSIX_CERTIFICATE (the .pfx, in base64) and
+      # MSIX_PASSWORD, and its variable MSIX_PUBLISHER (the certificate's subject, "CN=..."). Without them the build still runs, to
+      # check it, and a manual run keeps the unsigned bundle (for tools/msix/New-TestCertificate.ps1).
+      - name: Package (MSIX)
+        id: msix
+        shell: pwsh
+        env:
+          MSIX_CERTIFICATE: ${{ secrets.MSIX_CERTIFICATE }}
+          MSIX_PASSWORD: ${{ secrets.MSIX_PASSWORD }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+        run: |
+          $parameters = @{ Version = '${{ steps.version.outputs.version }}'; OutputFolder = 'msix' }
+          if ($env:MSIX_PUBLISHER) { $parameters.Publisher = $env:MSIX_PUBLISHER }
+          $signed = [bool] $env:MSIX_CERTIFICATE
+          if ($signed) {
+            $pfx = Join-Path $env:RUNNER_TEMP 'msix-certificate.pfx'
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:MSIX_CERTIFICATE))
+            $parameters.CertificatePath = $pfx
+            $parameters.CertificatePassword = $env:MSIX_PASSWORD
+          }
+          ./tools/msix/build-msix.ps1 @parameters
+          if ($signed) {
+            Copy-Item msix/*.msixbundle dist
+            Get-ChildItem dist/* -Exclude SHA256SUMS.txt | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
+              Set-Content dist/SHA256SUMS.txt -Encoding ascii
+          }
+          "signed=$($signed.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - name: Keep the unsigned MSIX bundle (manual run)
+        if: github.event_name == 'workflow_dispatch' && steps.msix.outputs.signed != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: msix-unsigned
+          path: msix/*.msixbundle
+          retention-days: 7
+
       - name: Keep the build (manual run)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The identity and the declarations of the MSIX package of DySS Cockpit (built with -p:MsixPackage=true, see tools/msix).
+  Publisher must be exactly the subject of the certificate that signs the package; Version is set by tools/msix/build-msix.ps1
+  from the release tag. Neither is the one to ship until a certificate exists: Publisher is a placeholder.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap5 desktop desktop6 com rescap">
+
+  <Identity Name="ArmandDelessert.DySSCockpit" Publisher="CN=Armand Delessert" Version="0.0.0.0" />
+
+  <Properties>
+    <DisplayName>DySS Cockpit</DisplayName>
+    <PublisherDisplayName>Armand Delessert</PublisherDisplayName>
+    <Logo>Images\StoreLogo.png</Logo>
+    <!-- The data stay where the unzipped application keeps them, %LocalAppData%\DySS Cockpit: the logs folder opens in Explorer,
+         and a user who goes from one to the other keeps the settings. Without this, Windows redirects what a package writes
+         there to a folder of its own. -->
+    <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
+    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <!-- Filled in by the build with the languages of the resources (Strings\*). -->
+    <Resource Language="x-generate" />
+  </Resources>
+
+  <Applications>
+    <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        DisplayName="DySS Cockpit"
+        Description="Control the Dyson Spot+Scrub AI robot vacuum and mop. Unofficial application."
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png" />
+      </uap:VisualElements>
+
+      <Extensions>
+        <!-- "Start with Windows" (see StartupRegistration): off until the user turns it on in the settings. -->
+        <desktop:Extension Category="windows.startupTask" Executable="DyssCockpit.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="DyssCockpitStartup" Enabled="false" DisplayName="DySS Cockpit" />
+        </desktop:Extension>
+
+        <!-- The command husqa-cockpit, for the command line and for winget. -->
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="DyssCockpit.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:AppExecutionAlias>
+            <desktop:ExecutionAlias Alias="dyss-cockpit.exe" />
+          </uap5:AppExecutionAlias>
+        </uap5:Extension>
+
+        <!-- A click on a notification while the application is not running starts it (AppNotificationManager.Register). -->
+        <desktop:Extension Category="windows.toastNotificationActivation">
+          <desktop:ToastNotificationActivation ToastActivatorCLSID="F5AA69F8-01C6-4112-A913-B73BAC9DE311" />
+        </desktop:Extension>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:ExeServer Executable="DyssCockpit.exe" Arguments="----AppNotificationActivated:" DisplayName="DySS Cockpit">
+              <com:Class Id="F5AA69F8-01C6-4112-A913-B73BAC9DE311" DisplayName="DySS Cockpit" />
+            </com:ExeServer>
+          </com:ComServer>
+        </com:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="unvirtualizedResources" />
+  </Capabilities>
+</Package>

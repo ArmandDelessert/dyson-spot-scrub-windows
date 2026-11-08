@@ -22,12 +22,16 @@ public static class Program
     /// <summary>"--wait-for-exit=PID", from a restart: the old instance must be gone, with its key and its icon, before this one starts.</summary>
     public const string WaitForExitArgument = "--wait-for-exit";
 
+    /// <summary>Started by the startup task of the MSIX package ("start with Windows"), which has no arguments to say so: the same as <see cref="MinimizedArgument"/>.</summary>
+    public static bool StartedByStartupTask { get; private set; }
+
     [STAThread]
     private static int Main(string[] args)
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
         WaitForPreviousInstance(args);
         var options = LaunchOptions.Parse(args);
+        StartedByStartupTask = AppInstance.GetCurrent().GetActivatedEventArgs().Kind == ExtendedActivationKind.StartupTask;
         // Before any text is loaded: the resources are picked in the language chosen in the settings, or given by --lang.
         ApplyLanguage(options.Language is { } flag ? AppSettings.NormalizeLanguage(flag) : AppSettings.LoadReadOnly().Language);
 

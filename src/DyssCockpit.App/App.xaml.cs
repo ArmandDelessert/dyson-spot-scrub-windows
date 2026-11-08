@@ -131,7 +131,7 @@ public partial class App : Application
         if (theme != ElementTheme.Default) _window.ForceTheme(theme);
         // Started with Windows, with a session to resume: straight to the notification area, the
         // window left closed. A login to fill in opens it all the same.
-        if (screenshot || !options.Minimized || !SessionStore.Exists) _window.Activate();
+        if (screenshot || !(options.Minimized || Program.StartedByStartupTask) || !SessionStore.Exists) _window.Activate();
         _notifications = new NotificationService(_window.DispatcherQueue, _loggers.CreateLogger<NotificationService>());
         var shell = new AppShell(_notifications, () => Restart().ToString(), ShowWindow, _loggers.CreateLogger<AppShell>());
         _window.Closed += (_, _) =>

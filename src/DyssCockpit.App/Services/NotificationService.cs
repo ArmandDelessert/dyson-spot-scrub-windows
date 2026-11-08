@@ -33,7 +33,9 @@ internal sealed partial class NotificationService : IDisposable
             // It takes both from here at the first notification sent from a folder and keeps
             // them (an .ico is accepted): changing them later shows up from another folder, or
             // once the folder's entries under HKCU\Software\Classes\AppUserModelId are removed.
-            manager.Register(AppName, new Uri(IconPath));
+            // In the MSIX package the name, the icon and the activation are the manifest's.
+            if (PackageIdentity.IsPackaged) manager.Register();
+            else manager.Register(AppName, new Uri(IconPath));
             _registered = true;
         }
         catch (Exception ex)

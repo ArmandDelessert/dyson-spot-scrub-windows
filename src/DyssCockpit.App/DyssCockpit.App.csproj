@@ -20,7 +20,6 @@
        with nothing to install. -->
   <PropertyGroup>
     <UseWinUI>true</UseWinUI>
-    <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <EnableMsixTooling>true</EnableMsixTooling>
     <!-- The language of the resources that carry none: the texts are in Strings\{language}. -->
@@ -28,6 +27,28 @@
     <!-- Program.cs has the entry point: it keeps the application to one instance. -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
+
+  <!--
+    Two ways to ship the same application. By default an unzipped folder, with no package identity. With -p:MsixPackage=true, an MSIX
+    package (see tools/msix/build-msix.ps1, which builds the two architectures and bundles them): the manifest gives it its
+    identity, its start with Windows, its notifications and its command, and its logos are in Images.
+  -->
+  <PropertyGroup Condition="'$(MsixPackage)' != 'true'">
+    <WindowsPackageType>None</WindowsPackageType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(MsixPackage)' == 'true'">
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <UapAppxPackageBuildMode>SideloadOnly</UapAppxPackageBuildMode>
+    <AppxBundle>Never</AppxBundle>
+    <!-- Signed afterwards, by build-msix.ps1: with a certificate of the owner's, which a build cannot have. -->
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MsixPackage)' == 'true'">
+    <AppxManifest Include="Package.appxmanifest" />
+    <Content Include="Images\**" />
+  </ItemGroup>
 
   <!--
     A self-contained Windows App SDK needs an architecture: the machine's own unless one is asked for
@@ -70,11 +91,12 @@
   </ItemGroup>
 
   <!--
-    Workaround: self-contained builds of Windows App SDK 2.x omit Microsoft.WindowsAppRuntime.Insights.Resource.dll
-    (it only ships inside the runtime MSIX), and AppNotificationManager.Register then fails with 0x8007007E.
-    Extract it from the MSIX matching the target architecture and deploy it next to the executable.
+    Workaround, for the unzipped application only: self-contained builds of Windows App SDK 2.x omit
+    Microsoft.WindowsAppRuntime.Insights.Resource.dll (it only ships inside the runtime MSIX), and
+    AppNotificationManager.Register then fails with 0x8007007E. Extract it from the MSIX matching the target architecture and
+    deploy it next to the executable. The MSIX package of the application needs none of it.
   -->
-  <Target Name="AddWindowsAppRuntimeInsightsResource" BeforeTargets="AssignTargetPaths">
+  <Target Name="AddWindowsAppRuntimeInsightsResource" BeforeTargets="AssignTargetPaths" Condition="'$(MsixPackage)' != 'true'">
     <PropertyGroup>
       <_InsightsArch>$(RuntimeIdentifier.Replace('win-', ''))</_InsightsArch>
       <_InsightsMsix>$(NuGetPackageRoot)microsoft.windowsappsdk.runtime\$(WindowsAppSdkVersion)\tools\MSIX\win10-$(_InsightsArch)\Microsoft.WindowsAppRuntime.2.msix</_InsightsMsix>
