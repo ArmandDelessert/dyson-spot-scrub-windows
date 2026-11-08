@@ -56,7 +56,7 @@
         <!-- The command husqa-cockpit, for the command line and for winget. -->
         <uap5:Extension Category="windows.appExecutionAlias" Executable="DyssCockpit.exe" EntryPoint="Windows.FullTrustApplication">
           <uap5:AppExecutionAlias>
-            <desktop:ExecutionAlias Alias="dyss-cockpit.exe" />
+            <uap5:ExecutionAlias Alias="dyss-cockpit.exe" />
           </uap5:AppExecutionAlias>
         </uap5:Extension>
 
