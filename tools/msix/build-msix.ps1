@@ -40,7 +40,7 @@ function Find-SdkTool([string] $tool) {
     $kits = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
     $found = Get-ChildItem $kits -Recurse -Filter $tool -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
-    if (-not $found) { throw "$tool not found under $kits: install the Windows SDK." }
+    if (-not $found) { throw "$tool not found under ${kits}: install the Windows SDK." }
     $found.FullName
 }
 
