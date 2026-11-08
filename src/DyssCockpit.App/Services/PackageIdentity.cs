@@ -7,7 +7,7 @@ namespace DyssCockpit.App.Services;
 /// A few things work differently in a package: "start with Windows" is a startup task of the manifest, not a Run key,
 /// and the notifications take their name and icon from the manifest.
 /// </summary>
-internal static partial class PackageIdentity
+internal static class PackageIdentity
 {
     /// <summary>What GetCurrentPackageFullName answers when the process has no package.</summary>
     private const int NoPackage = 15700;
@@ -20,7 +20,7 @@ internal static partial class PackageIdentity
         return GetCurrentPackageFullName(ref length, IntPtr.Zero) != NoPackage;
     }
 
-    [LibraryImport("kernel32.dll")]
+    [DllImport("kernel32.dll", ExactSpelling = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    private static partial int GetCurrentPackageFullName(ref int packageFullNameLength, IntPtr packageFullName);
+    private static extern int GetCurrentPackageFullName(ref int packageFullNameLength, IntPtr packageFullName);
 }
