@@ -4,17 +4,17 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <!-- Also read by DyssCockpit.App.csproj to find the runtime MSIX (Insights workaround). -->
-    <WindowsAppSdkVersion>2.5.1</WindowsAppSdkVersion>
+    <WindowsAppSdkVersion>2.6.5</WindowsAppSdkVersion>
   </PropertyGroup>
 
   <!-- Windows App SDK components, in the versions shipped with Windows App SDK 2.5.1. -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.WindowsAppSDK.Foundation" Version="2.3.12" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.Foundation" Version="2.6.5" />
     <!-- Named only for its version: WinUI and Foundation ask for 2.1.8 or later, which nuget.org
          does not have, and restore would stop on NU1603 while settling on 2.1.9 by itself. -->
-    <PackageVersion Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.9" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.6.5" />
     <PackageVersion Include="Microsoft.WindowsAppSDK.Runtime" Version="$(WindowsAppSdkVersion)" />
-    <PackageVersion Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.9" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK.WinUI" Version="2.6.5" />
   </ItemGroup>
 
   <ItemGroup>
