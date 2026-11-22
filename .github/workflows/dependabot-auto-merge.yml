@@ -1,0 +1,47 @@
+name: Dependabot auto-merge
+
+# Turns on auto-merge for the pull requests Dependabot opens when the update is a small one: GitHub then merges it by itself
+# once the required checks of the branch ruleset (build, strings) have passed, and leaves it open if they fail.
+# What stays for a human: a major version, anything of the Windows App SDK family, WebView2 and Win2D (the CI does not run the
+# application, and a component of the UI can pass it and still draw differently), and the actions, whose major versions
+# change workflows the CI does not run (the release one).
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    # The author is checked here, and nothing of the pull request is built or run with these rights.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Decide
+        id: decide
+        env:
+          UPDATES: ${{ steps.metadata.outputs.updated-dependencies-json }}
+        run: |
+          # Every dependency of the pull request (a group has several) is a patch or minor update, and none is of a family to look at.
+          if echo "$UPDATES" | jq -e '
+            all(.[];
+              (.updateType == "version-update:semver-patch" or .updateType == "version-update:semver-minor")
+              and (.dependencyName | test("^(Microsoft\\.WindowsAppSDK|Microsoft\\.Windows\\.SDK|Microsoft\\.Web\\.WebView2|Microsoft\\.Graphics\\.Win2D)") | not))' > /dev/null
+          then
+            echo "merge=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "merge=false" >> "$GITHUB_OUTPUT"
+            echo "Left for a human: $(echo "$UPDATES" | jq -r 'map(.dependencyName + " " + .updateType) | join(", ")')"
+          fi
+
+      - name: Auto-merge
+        if: steps.decide.outputs.merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"

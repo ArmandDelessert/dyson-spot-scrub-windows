@@ -220,6 +220,7 @@ Ces options tournent à côté de l'application si elle est ouverte, sans passer
 - `.github/workflows/ci.yml` compile et lance les tests à chaque push, sur toutes les branches.
 - `.github/workflows/release.yml` publie une version à chaque tag, et la pré-version `dev` à chaque push sur `main`.
 - `.github/dependabot.yml` propose chaque semaine, sous forme de pull requests, les mises à jour des paquets NuGet et des actions GitHub.
+  `.github/workflows/dependabot-auto-merge.yml` fusionne les petites (correctifs et versions mineures) dès que la CI est verte ; les versions majeures, la famille du Windows App SDK, WebView2, Win2D et ce qui échoue restent ouverts pour une relecture.
 - `.github/workflows/ci.yml` vérifie aussi les traductions (`tools/translations/extract.py --check`).
 - Les textes de l'interface sont des ressources (`src/DyssCockpit.App/Strings/{langue}/Resources.resw`), comme dans HusqA Cockpit : un texte du XAML est la ressource que nomme le `x:Uid` de son élément (`Settings_Notifications.Text`), un texte du code est `T("Cle")` ou, avec des valeurs, `Tf("Cle", valeur…)`. La ligne de commande reste en français.
 - `.github/workflows/ci.yml` vérifie aussi que les `.resw` correspondent à leurs sources (`tools/strings`).
