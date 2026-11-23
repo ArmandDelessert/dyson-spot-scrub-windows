@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
     <!-- Written for Windows App SDK 1.8 (it asks for WinUI 1.8.260204000 or later, with no upper bound)
          and not announced for 2.x: the application has been checked with it on 2.x. -->
